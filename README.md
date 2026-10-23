@@ -78,7 +78,7 @@ src/
 
 - [x] Setup (NestJS + Prisma + Docker)
 - [x] Cadastro de usuário
-- [ ] Login com JWT e guards
+- [x] Login com JWT e guards
 - [ ] Perfil de avaliador
 - [ ] Anúncios de veículos (CRUD + filtros)
 - [ ] Agendamento de avaliação
