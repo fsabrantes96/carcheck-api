@@ -13,9 +13,42 @@ datasource db {
 }
 
 model User {
-  id           String   @id @default(uuid())
-  name         String
-  email        String   @unique
-  passwordHash String
-  createdAt    DateTime @default(now())
+  id                String   @id @default(uuid())
+  name              String
+  email             String   @unique
+  passwordHash      String
+  roles             Role[]   @default([USER])
+  createdAt         DateTime @default(now())
+  inspectorProfile  InspectorProfile?
+}
+
+model InspectorProfile {
+  id              String        @id @default(uuid())
+  userId          String        @unique
+  user            User          @relation(fields: [userId], references: [id])
+  bio             String
+  specialties     Specialty[]
+  city            String
+  state           String
+  serviceRadiusKm Int
+  basePriceCents  Int
+  verified        Boolean       @default(false)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+}
+
+enum Role {
+  USER
+  INSPECTOR
+  ADMIN
+}
+
+enum Specialty {
+  ENGINE
+  TRANSMISSION
+  SUSPENSION
+  BRAKES
+  ELECTRICAL
+  BODYWORK
+  AIR_CONDITIONING
 }
