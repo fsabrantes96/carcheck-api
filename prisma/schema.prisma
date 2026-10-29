@@ -17,6 +17,7 @@ model User {
   name              String
   email             String   @unique
   passwordHash      String
+  listings          Listing[]
   roles             Role[]   @default([USER])
   createdAt         DateTime @default(now())
   inspectorProfile  InspectorProfile?
@@ -51,4 +52,56 @@ enum Specialty {
   ELECTRICAL
   BODYWORK
   AIR_CONDITIONING
+}
+
+enum ListingStatus {
+  ACTIVE
+  SOLD
+  PAUSED
+}
+
+enum FuelType {
+  GASOLINE
+  ETHANOL
+  FLEX
+  DIESEL
+  ELECTRIC
+  HYBRID
+}
+
+enum Transmission {
+  MANUAL
+  AUTOMATIC
+  CVT
+  AUTOMATED
+}
+
+model Listing {
+  id          String         @id @default(uuid())
+  sellerId    String
+  seller      User           @relation(fields: [sellerId], references: [id])
+  title       String
+  description String
+  priceCents  Int
+  city        String
+  state       String
+  status      ListingStatus  @default(ACTIVE)
+  vehicle     VehicleDetails?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([status, createdAt])
+  @@index([sellerId])
+}
+
+model VehicleDetails {
+  id           String       @id @default(uuid())
+  listingId    String       @unique
+  listing      Listing      @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  brand        String
+  model        String
+  year         Int
+  mileageKm    Int
+  fuel         FuelType
+  transmission Transmission
 }
