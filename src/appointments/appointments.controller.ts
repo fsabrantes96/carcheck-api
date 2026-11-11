@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Query, UseGuards } from '@nestjs/common';
 import {
     ApiBadRequestResponse,
     ApiBearerAuth,
@@ -23,7 +23,10 @@ import {
     APPOINTMENT_RESPONSE_MODELS,
     appointmentResponseSchema,
     BuyerAppointmentResponseDto,
+    InspectorAppointmentResponseDto,
+    SellerAppointmentResponseDto,
 } from './dto/appointment-response.dto.js';
+import { ConfirmAppointmentDto } from './dto/confirm-appointment.dto.js';
 import type { AppointmentResponseDto } from './dto/appointment-response.dto.js';
 import { ListAppointmentsQueryDto } from './dto/list-appointments-query.dto.js';
 import { PaginatedAppointmentsResponseDto } from './dto/paginated-appointments-response.dto.js';
@@ -77,5 +80,58 @@ export class AppointmentsController {
         @CurrentUser() user: JwtPayload,
     ): Promise<AppointmentResponseDto> {
         return this.appointments.findOne(id, user.sub);
+    }
+
+    @Post(':id/accept')
+    @HttpCode(200)
+    @ApiOkResponse({ type: InspectorAppointmentResponseDto, description: 'Aceito (REQUESTED → ACCEPTED); ocupa o horário do avaliador' })
+    @ApiForbiddenResponse({ type: ErrorResponseDto, description: 'Você não pode aceitar este agendamento (só o avaliador)' })
+    @ApiNotFoundResponse({ type: ErrorResponseDto, description: 'Agendamento não encontrado (ou você não participa dele)' })
+    @ApiConflictResponse({ type: ErrorResponseDto, description: 'Estado não permite, prazo expirado, perfil não verificado, estado mudou ou horário não está mais disponível' })
+    accept(
+        @Param('id', ParseUUIDPipe) id: string,
+        @CurrentUser() user: JwtPayload,
+    ): Promise<InspectorAppointmentResponseDto> {
+        return this.appointments.accept(id, user.sub);
+    }
+
+    @Post(':id/decline')
+    @HttpCode(200)
+    @ApiOkResponse({ type: InspectorAppointmentResponseDto, description: 'Recusado (REQUESTED → DECLINED)' })
+    @ApiForbiddenResponse({ type: ErrorResponseDto, description: 'Você não pode recusar este agendamento (só o avaliador)' })
+    @ApiNotFoundResponse({ type: ErrorResponseDto, description: 'Agendamento não encontrado (ou você não participa dele)' })
+    @ApiConflictResponse({ type: ErrorResponseDto, description: 'Estado não permite, prazo expirado ou estado mudou' })
+    decline(
+        @Param('id', ParseUUIDPipe) id: string,
+        @CurrentUser() user: JwtPayload,
+    ): Promise<InspectorAppointmentResponseDto> {
+        return this.appointments.decline(id, user.sub);
+    }
+
+    @Post(':id/confirm')
+    @HttpCode(200)
+    @ApiOkResponse({ type: SellerAppointmentResponseDto, description: 'Confirmado (ACCEPTED → AWAITING_PAYMENT); abre a janela de 30 min para pagar' })
+    @ApiBadRequestResponse({ type: ErrorResponseDto, description: 'meetingAddress ausente ou fora de 5 a 300 caracteres' })
+    @ApiForbiddenResponse({ type: ErrorResponseDto, description: 'Você não pode confirmar este agendamento (só o vendedor)' })
+    @ApiNotFoundResponse({ type: ErrorResponseDto, description: 'Agendamento não encontrado (ou você não participa dele)' })
+    @ApiConflictResponse({ type: ErrorResponseDto, description: 'Estado não permite, prazo expirado ou estado mudou' })
+    confirm(
+        @Param('id', ParseUUIDPipe) id: string,
+        @CurrentUser() user: JwtPayload,
+        @Body() dto: ConfirmAppointmentDto,
+    ): Promise<SellerAppointmentResponseDto> {
+        return this.appointments.confirm(id, user.sub, dto);
+    }
+
+    @Post(':id/cancel')
+    @HttpCode(200)
+    @ApiOkResponse({ schema: appointmentResponseSchema(), description: 'Cancelado (antes do pagamento); formato conforme o seu papel' })
+    @ApiNotFoundResponse({ type: ErrorResponseDto, description: 'Agendamento não encontrado (ou você não participa dele)' })
+    @ApiConflictResponse({ type: ErrorResponseDto, description: 'Estado não permite (ex.: já pago ou encerrado), prazo expirado ou estado mudou' })
+    cancel(
+        @Param('id', ParseUUIDPipe) id: string,
+        @CurrentUser() user: JwtPayload,
+    ): Promise<AppointmentResponseDto> {
+        return this.appointments.cancel(id, user.sub);
     }
 }

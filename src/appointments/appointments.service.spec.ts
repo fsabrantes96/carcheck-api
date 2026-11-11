@@ -5,7 +5,10 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { FakeClock } from '../../test/support/fake-clock.js';
-import { partialUniqueViolation } from '../../test/support/prisma-error-fixtures.js';
+import {
+  exclusionViolationFromModelQuery,
+  partialUniqueViolation,
+} from '../../test/support/prisma-error-fixtures.js';
 import type { BusinessRules } from '../config/business-rules.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import { AppointmentsService } from './appointments.service.js';
@@ -71,7 +74,7 @@ function loadedAppointment(overrides: Record<string, unknown> = {}) {
 type PrismaMock = {
   $transaction: ReturnType<typeof vi.fn>;
   $queryRaw: ReturnType<typeof vi.fn>;
-  inspectorProfile: { findFirst: ReturnType<typeof vi.fn> };
+  inspectorProfile: { findFirst: ReturnType<typeof vi.fn>; findUnique: ReturnType<typeof vi.fn> };
   appointment: {
     findFirst: ReturnType<typeof vi.fn>;
     create: ReturnType<typeof vi.fn>;
@@ -79,6 +82,7 @@ type PrismaMock = {
     findUnique: ReturnType<typeof vi.fn>;
     findMany: ReturnType<typeof vi.fn>;
     count: ReturnType<typeof vi.fn>;
+    updateMany: ReturnType<typeof vi.fn>;
   };
 };
 
@@ -88,6 +92,7 @@ function setupPrisma(): PrismaMock {
     $queryRaw: vi.fn().mockResolvedValue([{ sellerId: 'seller', status: 'ACTIVE' }]),
     inspectorProfile: {
       findFirst: vi.fn().mockResolvedValue({ userId: 'inspector', basePriceCents: 15000 }),
+      findUnique: vi.fn().mockResolvedValue({ verified: true }),
     },
     appointment: {
       findFirst: vi.fn().mockResolvedValue(null),
@@ -96,6 +101,7 @@ function setupPrisma(): PrismaMock {
       findUnique: vi.fn(),
       findMany: vi.fn().mockResolvedValue([]),
       count: vi.fn().mockResolvedValue(0),
+      updateMany: vi.fn().mockResolvedValue({ count: 1 }),
     },
   };
   // Forma com callback (transação interativa) e forma de array.
@@ -444,6 +450,276 @@ describe('AppointmentsService.list e findOne', () => {
       prisma.appointment.findUnique.mockResolvedValue(loadedAppointment());
 
       await expect(service.findOne('a1', userId)).resolves.toBeInstanceOf(type);
+    });
+  });
+});
+
+describe('AppointmentsService: ações (accept, decline, confirm, cancel)', () => {
+  let prisma: PrismaMock;
+  let clock: FakeClock;
+  let service: AppointmentsService;
+
+  const EXPIRES = new Date('2030-01-02T12:00:00.000Z');
+  const STARTS = new Date('2030-01-05T12:00:00.000Z');
+
+  /** O que o prepare() lê do agendamento. */
+  function snapshot(status: string, overrides: Record<string, unknown> = {}) {
+    return {
+      id: 'a1',
+      buyerId: 'buyer',
+      sellerId: 'seller',
+      inspectorUserId: 'inspector',
+      status,
+      startsAt: STARTS,
+      expiresAt: EXPIRES,
+      ...overrides,
+    };
+  }
+
+  function mainWrite() {
+    // A última chamada de updateMany é a gravação da transição.
+    const calls = prisma.appointment.updateMany.mock.calls;
+    return calls[calls.length - 1][0] as { where: unknown; data: unknown };
+  }
+
+  beforeEach(() => {
+    prisma = setupPrisma();
+    clock = new FakeClock(NOW);
+    service = new AppointmentsService(prisma as unknown as PrismaService, rules, clock);
+  });
+
+  const call = {
+    accept: (s: AppointmentsService, user: string) => s.accept('a1', user),
+    decline: (s: AppointmentsService, user: string) => s.decline('a1', user),
+    confirm: (s: AppointmentsService, user: string) => s.confirm('a1', user, { meetingAddress: 'Rua A, 10' }),
+    cancel: (s: AppointmentsService, user: string) => s.cancel('a1', user),
+  };
+
+  // [ação, quem pode, estado válido]
+  const valid = [
+    ['accept', 'inspector', 'REQUESTED'],
+    ['decline', 'inspector', 'REQUESTED'],
+    ['confirm', 'seller', 'ACCEPTED'],
+    ['cancel', 'buyer', 'AWAITING_PAYMENT'],
+  ] as const;
+
+  describe('checagens comuns, na ordem do desenho', () => {
+    it.each(valid)('%s: 404 quando o agendamento não existe', async (action, user) => {
+      prisma.appointment.findUnique.mockResolvedValue(null);
+
+      const promise = call[action](service, user);
+
+      await expect(promise).rejects.toBeInstanceOf(NotFoundException);
+      await expect(promise).rejects.toThrow('Agendamento não encontrado');
+    });
+
+    it.each(valid)('%s: 404 (mesma mensagem) para quem não participa', async (action, _user, status) => {
+      prisma.appointment.findUnique.mockResolvedValue(snapshot(status));
+
+      const promise = call[action](service, 'intruso');
+
+      await expect(promise).rejects.toBeInstanceOf(NotFoundException);
+      await expect(promise).rejects.toThrow('Agendamento não encontrado');
+      expect(prisma.appointment.updateMany).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ['accept', 'buyer', 'Você não pode aceitar este agendamento'],
+      ['accept', 'seller', 'Você não pode aceitar este agendamento'],
+      ['decline', 'seller', 'Você não pode recusar este agendamento'],
+      ['confirm', 'inspector', 'Você não pode confirmar este agendamento'],
+      ['confirm', 'buyer', 'Você não pode confirmar este agendamento'],
+    ] as const)('%s por %s: 403', async (action, user, message) => {
+      prisma.appointment.findUnique.mockResolvedValue(snapshot(action === 'confirm' ? 'ACCEPTED' : 'REQUESTED'));
+
+      const promise = call[action](service, user);
+
+      await expect(promise).rejects.toBeInstanceOf(ForbiddenException);
+      await expect(promise).rejects.toThrow(message);
+      expect(prisma.appointment.updateMany).not.toHaveBeenCalled();
+    });
+
+    it('papel sem permissão recebe 403 mesmo em estado errado (403 vem antes do 409)', async () => {
+      prisma.appointment.findUnique.mockResolvedValue(snapshot('CANCELLED'));
+
+      await expect(call.accept(service, 'buyer')).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it.each([
+      ['accept', 'inspector', 'ACCEPTED'],
+      ['decline', 'inspector', 'CANCELLED'],
+      ['confirm', 'seller', 'REQUESTED'],
+      ['cancel', 'buyer', 'PAID'],
+      ['cancel', 'seller', 'EXPIRED'],
+    ] as const)('%s por %s em %s: 409 estado errado', async (action, user, status) => {
+      prisma.appointment.findUnique.mockResolvedValue(snapshot(status, { expiresAt: null }));
+
+      const promise = call[action](service, user);
+
+      await expect(promise).rejects.toBeInstanceOf(ConflictException);
+      await expect(promise).rejects.toThrow('Ação não permitida no estado atual');
+      expect(prisma.appointment.updateMany).not.toHaveBeenCalled();
+    });
+
+    it.each(valid)(
+      '%s com prazo vencido: grava EXPIRED fora de transação e responde 409',
+      async (action, user, status) => {
+        prisma.appointment.findUnique.mockResolvedValue(snapshot(status));
+        clock.set('2030-01-02T12:00:00.000Z'); // exatamente no prazo: já venceu
+
+        const promise = call[action](service, user);
+
+        await expect(promise).rejects.toBeInstanceOf(ConflictException);
+        await expect(promise).rejects.toThrow('O prazo para esta ação expirou');
+        expect(prisma.appointment.updateMany).toHaveBeenCalledTimes(1);
+        expect(prisma.appointment.updateMany).toHaveBeenCalledWith({
+          where: { id: 'a1', status, expiresAt: { lte: new Date('2030-01-02T12:00:00.000Z') } },
+          data: { status: 'EXPIRED', endedBy: 'SYSTEM', endedAt: new Date('2030-01-02T12:00:00.000Z') },
+        });
+        expect(prisma.$transaction).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each(valid)(
+      '%s: 409 quando outra requisição mudou o estado (updateMany com count 0)',
+      async (action, user, status) => {
+        prisma.appointment.findUnique.mockResolvedValue(snapshot(status));
+        prisma.appointment.updateMany.mockResolvedValue({ count: 0 });
+
+        const promise = call[action](service, user);
+
+        await expect(promise).rejects.toBeInstanceOf(ConflictException);
+        await expect(promise).rejects.toThrow(
+          'O agendamento mudou de estado; recarregue e tente novamente',
+        );
+      },
+    );
+
+    it.each(valid)(
+      '%s grava filtrando o estado lido e o prazo ainda não vencido',
+      async (action, user, status) => {
+        prisma.appointment.findUnique.mockResolvedValue(snapshot(status));
+
+        await call[action](service, user);
+
+        expect(mainWrite().where).toEqual({
+          id: 'a1',
+          status,
+          expiresAt: { gt: new Date(NOW) },
+        });
+      },
+    );
+  });
+
+  describe('accept', () => {
+    beforeEach(() => {
+      prisma.appointment.findUnique.mockResolvedValue(snapshot('REQUESTED'));
+    });
+
+    it('vai a ACCEPTED com acceptedAt e novo prazo de 24h para o vendedor', async () => {
+      await service.accept('a1', 'inspector');
+
+      expect(mainWrite().data).toEqual({
+        status: 'ACCEPTED',
+        acceptedAt: new Date(NOW),
+        expiresAt: new Date('2030-01-02T12:00:00.000Z'),
+      });
+    });
+
+    it('o novo prazo não passa do início da avaliação', async () => {
+      prisma.appointment.findUnique.mockResolvedValue(
+        snapshot('REQUESTED', { startsAt: new Date('2030-01-01T20:00:00.000Z') }),
+      );
+
+      await service.accept('a1', 'inspector');
+
+      expect(mainWrite().data).toMatchObject({ expiresAt: new Date('2030-01-01T20:00:00.000Z') });
+    });
+
+    it('409 quando o perfil do avaliador não está mais verificado, sem gravar o aceite', async () => {
+      prisma.inspectorProfile.findUnique.mockResolvedValue({ verified: false });
+
+      const promise = service.accept('a1', 'inspector');
+
+      await expect(promise).rejects.toBeInstanceOf(ConflictException);
+      await expect(promise).rejects.toThrow('Seu perfil de avaliador precisa estar verificado para aceitar');
+      expect(prisma.appointment.updateMany).not.toHaveBeenCalled();
+    });
+
+    it('na mesma transação, expira antes os agendamentos vencidos do mesmo avaliador que ocupam horário', async () => {
+      await service.accept('a1', 'inspector');
+
+      expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+      expect(prisma.appointment.updateMany).toHaveBeenCalledTimes(2);
+      expect(prisma.appointment.updateMany.mock.calls[0][0]).toEqual({
+        where: {
+          inspectorUserId: 'inspector',
+          status: { in: ['ACCEPTED', 'AWAITING_PAYMENT', 'PAID'] },
+          expiresAt: { lte: new Date(NOW) },
+        },
+        data: { status: 'EXPIRED', endedBy: 'SYSTEM', endedAt: new Date(NOW) },
+      });
+    });
+
+    it('deixa a violação da exclusion constraint (23P01) subir para o filtro global', async () => {
+      const violation = exclusionViolationFromModelQuery();
+      prisma.appointment.updateMany
+        .mockResolvedValueOnce({ count: 0 }) // expiração dos vencidos
+        .mockRejectedValueOnce(violation); // gravação do aceite
+
+      await expect(service.accept('a1', 'inspector')).rejects.toBe(violation);
+    });
+
+    it('devolve a resposta do avaliador', async () => {
+      prisma.appointment.findUniqueOrThrow.mockResolvedValue(loadedAppointment({ status: 'ACCEPTED' }));
+
+      await expect(service.accept('a1', 'inspector')).resolves.toBeInstanceOf(InspectorAppointmentResponseDto);
+    });
+  });
+
+  describe('decline, confirm e cancel', () => {
+    it('decline vai a DECLINED com endedBy INSPECTOR e endedAt', async () => {
+      prisma.appointment.findUnique.mockResolvedValue(snapshot('REQUESTED'));
+
+      const result = await service.decline('a1', 'inspector');
+
+      expect(mainWrite().data).toEqual({ status: 'DECLINED', endedBy: 'INSPECTOR', endedAt: new Date(NOW) });
+      expect(result).toBeInstanceOf(InspectorAppointmentResponseDto);
+    });
+
+    it('confirm vai a AWAITING_PAYMENT com o endereço, confirmedAt e prazo de 30 min', async () => {
+      prisma.appointment.findUnique.mockResolvedValue(snapshot('ACCEPTED'));
+
+      const result = await service.confirm('a1', 'seller', { meetingAddress: 'Rua A, 10' });
+
+      expect(mainWrite().data).toEqual({
+        status: 'AWAITING_PAYMENT',
+        meetingAddress: 'Rua A, 10',
+        confirmedAt: new Date(NOW),
+        expiresAt: new Date('2030-01-01T12:30:00.000Z'),
+      });
+      expect(result).toBeInstanceOf(SellerAppointmentResponseDto);
+    });
+
+    it.each([
+      ['buyer', 'BUYER', BuyerAppointmentResponseDto],
+      ['seller', 'SELLER', SellerAppointmentResponseDto],
+      ['inspector', 'INSPECTOR', InspectorAppointmentResponseDto],
+    ] as const)('cancel por %s grava endedBy %s e devolve o DTO do papel', async (user, actor, type) => {
+      prisma.appointment.findUnique.mockResolvedValue(snapshot('REQUESTED'));
+
+      const result = await service.cancel('a1', user);
+
+      expect(mainWrite().data).toEqual({ status: 'CANCELLED', endedBy: actor, endedAt: new Date(NOW) });
+      expect(result).toBeInstanceOf(type);
+    });
+
+    it('decline, confirm e cancel não abrem transação (uma gravação só)', async () => {
+      prisma.appointment.findUnique.mockResolvedValue(snapshot('REQUESTED'));
+
+      await service.cancel('a1', 'buyer');
+
+      expect(prisma.$transaction).not.toHaveBeenCalled();
     });
   });
 });
