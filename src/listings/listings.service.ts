@@ -1,16 +1,24 @@
 import {
+    ConflictException,
     ForbiddenException,
     Injectable,
     NotFoundException,
 } from '@nestjs/common';
 import type { Prisma } from '../generated/prisma/client.js';
+import {
+    isPrismaError,
+    PRISMA_RECORD_NOT_FOUND,
+} from '../common/prisma/prisma-errors.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CreateListingDto } from './dto/create-listing.dto.js';
 import { ListListingsQueryDto } from './dto/list-listings-query.dto.js';
 import { ListingResponseDto } from './dto/listing-response.dto.js';
+import { MyListingResponseDto } from './dto/my-listing-response.dto.js';
 import { PaginatedListingsResponseDto } from './dto/paginated-listings-response.dto.js';
 import { UpdateListingDto } from './dto/update-listing.dto.js';
 import type { VehicleDto } from './dto/vehicle.dto.js';
+import { decideListingTransition } from './listings.state-machine.js';
+import type { ListingAction } from './listings.state-machine.js';
 
 const include = { seller: true, vehicle: true } as const;
 
@@ -29,7 +37,7 @@ function toVehicleData(vehicle: VehicleDto) {
 export class ListingsService {
     constructor(private readonly prisma: PrismaService) { }
 
-    async create(sellerId: string, dto: CreateListingDto): Promise<ListingResponseDto> {
+    async create(sellerId: string, dto: CreateListingDto): Promise<MyListingResponseDto> {
         const listing = await this.prisma.listing.create({
             data: {
                 title: dto.title,
@@ -42,7 +50,7 @@ export class ListingsService {
             },
             include,
         });
-        return ListingResponseDto.from(listing);
+        return MyListingResponseDto.from(listing);
     }
 
     async findAll(query: ListListingsQueryDto): Promise<PaginatedListingsResponseDto> {
@@ -95,42 +103,116 @@ export class ListingsService {
         return ListingResponseDto.from(listing);
     }
 
-    async findMine(sellerId: string): Promise<ListingResponseDto[]> {
+    async findMine(sellerId: string): Promise<MyListingResponseDto[]> {
         const listings = await this.prisma.listing.findMany({
-            where: { sellerId },
+            where: { sellerId, status: { not: 'ARCHIVED' } },
             include,
             orderBy: { createdAt: 'desc' },
         });
-        return listings.map((l) => ListingResponseDto.from(l));
+        return listings.map((l) => MyListingResponseDto.from(l));
     }
 
     async update(
         id: string,
         userId: string,
         dto: UpdateListingDto,
-    ): Promise<ListingResponseDto> {
+    ): Promise<MyListingResponseDto> {
         await this.assertOwner(id, userId);
 
-        // Campos ausentes chegam como undefined, e o Prisma os ignora (update parcial).
-        const listing = await this.prisma.listing.update({
-            where: { id },
-            data: {
-                title: dto.title,
-                description: dto.description,
-                priceCents: dto.priceCents,
-                city: dto.city,
-                state: dto.state,
-                status: dto.status,
-                vehicle: dto.vehicle && { update: toVehicleData(dto.vehicle) },
-            },
-            include,
-        });
-        return ListingResponseDto.from(listing);
+        try {
+            // Campos ausentes chegam como undefined, e o Prisma os ignora (update parcial).
+            // O filtro de status no where impede editar um anúncio arquivado,
+            // mesmo que ele seja arquivado entre o assertOwner e esta gravação.
+            const listing = await this.prisma.listing.update({
+                where: { id, status: { not: 'ARCHIVED' } },
+                data: {
+                    title: dto.title,
+                    description: dto.description,
+                    priceCents: dto.priceCents,
+                    city: dto.city,
+                    state: dto.state,
+                    vehicle: dto.vehicle && { update: toVehicleData(dto.vehicle) },
+                },
+                include,
+            });
+            return MyListingResponseDto.from(listing);
+        } catch (error) {
+            if (isPrismaError(error, PRISMA_RECORD_NOT_FOUND)) {
+                // Consulta de apoio: só decide se o motivo foi o anúncio arquivado.
+                // P2025 também pode vir do veículo aninhado; nesse caso o erro segue.
+                const current = await this.prisma.listing.findUnique({
+                    where: { id },
+                    select: { status: true },
+                });
+                if (current?.status === 'ARCHIVED') {
+                    throw new ConflictException('Anúncio arquivado não pode ser alterado');
+                }
+            }
+            throw error;
+        }
     }
 
+    pause(id: string, userId: string): Promise<MyListingResponseDto> {
+        return this.transitionAndLoad(id, userId, 'PAUSE');
+    }
+
+    activate(id: string, userId: string): Promise<MyListingResponseDto> {
+        return this.transitionAndLoad(id, userId, 'ACTIVATE');
+    }
+
+    markSold(id: string, userId: string): Promise<MyListingResponseDto> {
+        return this.transitionAndLoad(id, userId, 'MARK_SOLD');
+    }
+
+    /** Arquiva o anúncio (status ARCHIVED) em vez de apagá-lo. */
     async remove(id: string, userId: string): Promise<void> {
-        await this.assertOwner(id, userId);
-        await this.prisma.listing.delete({ where: { id } });
+        await this.transition(id, userId, 'ARCHIVE');
+    }
+
+    private async transitionAndLoad(
+        id: string,
+        userId: string,
+        action: ListingAction,
+    ): Promise<MyListingResponseDto> {
+        await this.transition(id, userId, action);
+        const listing = await this.prisma.listing.findUniqueOrThrow({
+            where: { id },
+            include,
+        });
+        return MyListingResponseDto.from(listing);
+    }
+
+    /**
+     * Aplica uma transição de status: 404 se não existe, 403 se não é do
+     * usuário, 409 se a ação não é permitida no status atual ou se outra
+     * requisição mudou o status entre a leitura e a gravação.
+     */
+    private async transition(
+        id: string,
+        userId: string,
+        action: ListingAction,
+    ): Promise<void> {
+        const listing = await this.prisma.listing.findUnique({
+            where: { id },
+            select: { sellerId: true, status: true },
+        });
+        if (!listing) throw new NotFoundException('Anúncio não encontrado');
+        if (listing.sellerId !== userId) {
+            throw new ForbiddenException('Este anúncio não pertence a você');
+        }
+        const decision = decideListingTransition(action, listing.status);
+        if (!decision.ok) {
+            throw new ConflictException('Ação não permitida no status atual do anúncio');
+        }
+
+        // Grava só se o status ainda for o que foi lido (proteção contra corrida).
+        const { count } = await this.prisma.listing.updateMany({
+            where: { id, sellerId: userId, status: listing.status },
+            data: { status: decision.to },
+        });
+        if (count === 0) {
+            throw new ConflictException('O anúncio mudou de status; recarregue e tente novamente');
+        }
     }
 
     private async assertOwner(id: string, userId: string): Promise<void> {

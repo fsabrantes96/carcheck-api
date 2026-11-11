@@ -1,8 +1,14 @@
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
+import { Prisma } from '../generated/prisma/client.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import type { CreateListingDto } from './dto/create-listing.dto.js';
 import { ListListingsQueryDto } from './dto/list-listings-query.dto.js';
 import { ListingResponseDto } from './dto/listing-response.dto.js';
+import { MyListingResponseDto } from './dto/my-listing-response.dto.js';
 import type { UpdateListingDto } from './dto/update-listing.dto.js';
 import type { VehicleDto } from './dto/vehicle.dto.js';
 import { ListingsService } from './listings.service.js';
@@ -25,10 +31,19 @@ const createDto = {
   vehicle,
 } satisfies CreateListingDto;
 
-// UpdateListingDto declara `status` sem `?` (embora tenha @IsOptional), então
-// um literal parcial não satisfaz o tipo; o cast representa o body de um PATCH.
-function updateDto(body: Partial<UpdateListingDto>): UpdateListingDto {
+// O cast representa o body de um PATCH e permite simular campos que o DTO não
+// declara (ex.: `status`, que saiu do UpdateListingDto).
+function updateDto(
+  body: Partial<UpdateListingDto> & Record<string, unknown>,
+): UpdateListingDto {
   return body as UpdateListingDto;
+}
+
+function prismaError(code: string) {
+  return new Prisma.PrismaClientKnownRequestError('erro do prisma', {
+    code,
+    clientVersion: 'test',
+  });
 }
 
 function listingEntity(overrides: Record<string, unknown> = {}) {
@@ -54,9 +69,11 @@ type PrismaMock = {
     create: ReturnType<typeof vi.fn>;
     findUnique: ReturnType<typeof vi.fn>;
     findFirst: ReturnType<typeof vi.fn>;
+    findUniqueOrThrow: ReturnType<typeof vi.fn>;
     findMany: ReturnType<typeof vi.fn>;
     count: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
+    updateMany: ReturnType<typeof vi.fn>;
     delete: ReturnType<typeof vi.fn>;
   };
   $transaction: ReturnType<typeof vi.fn>;
@@ -78,9 +95,11 @@ describe('ListingsService', () => {
         create: vi.fn(),
         findUnique: vi.fn(),
         findFirst: vi.fn(),
+        findUniqueOrThrow: vi.fn(),
         findMany: vi.fn(),
         count: vi.fn(),
         update: vi.fn(),
+        updateMany: vi.fn(),
         delete: vi.fn(),
       },
       $transaction: vi.fn(),
@@ -122,15 +141,14 @@ describe('ListingsService', () => {
       });
     });
 
-    it('devolve o ListingResponseDto sem dados sensíveis do vendedor', async () => {
+    it('devolve o MyListingResponseDto do dono, com status e sem sellerId nem dados sensíveis', async () => {
       prisma.listing.create.mockResolvedValue(listingEntity());
 
       const result = await service.create('u1', createDto);
 
-      expect(result).toBeInstanceOf(ListingResponseDto);
+      expect(result).toBeInstanceOf(MyListingResponseDto);
       expect(result).toEqual({
         id: 'l1',
-        sellerId: 'u1',
         sellerName: 'Maria',
         title: createDto.title,
         description: createDto.description,
@@ -187,12 +205,12 @@ describe('ListingsService', () => {
       expect(prisma.listing.update).not.toHaveBeenCalled();
     });
 
-    it('envia where pelo id e include com seller e vehicle', async () => {
+    it('envia where pelo id, sem anúncios arquivados, e include com seller e vehicle', async () => {
       await service.update('l1', 'u1', updateDto({ priceCents: 5000000 }));
 
       expect(prisma.listing.update).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { id: 'l1' },
+          where: { id: 'l1', status: { not: 'ARCHIVED' } },
           include: { seller: true, vehicle: true },
         }),
       );
@@ -207,10 +225,34 @@ describe('ListingsService', () => {
       expect(updateData()).toEqual({ priceCents: 5000000 });
     });
 
-    it('repassa o status quando ele vem no body', async () => {
+    it('não envia status ao Prisma mesmo que o body traga (o campo saiu do DTO)', async () => {
       await service.update('l1', 'u1', updateDto({ status: 'SOLD' }));
 
-      expect(updateData()).toEqual({ status: 'SOLD' });
+      expect(updateData()).toEqual({});
+    });
+
+    it('lança ConflictException quando o anúncio está arquivado', async () => {
+      prisma.listing.findUnique
+        .mockResolvedValueOnce({ sellerId: 'u1' })
+        .mockResolvedValueOnce({ status: 'ARCHIVED' });
+      prisma.listing.update.mockRejectedValue(prismaError('P2025'));
+
+      const promise = service.update('l1', 'u1', updateDto({ priceCents: 1 }));
+
+      await expect(promise).rejects.toBeInstanceOf(ConflictException);
+      await expect(promise).rejects.toThrow('Anúncio arquivado não pode ser alterado');
+    });
+
+    it('repassa o erro original quando o update falha com P2025 e o anúncio não está arquivado', async () => {
+      const original = prismaError('P2025');
+      prisma.listing.findUnique
+        .mockResolvedValueOnce({ sellerId: 'u1' })
+        .mockResolvedValueOnce({ status: 'ACTIVE' });
+      prisma.listing.update.mockRejectedValue(original);
+
+      const promise = service.update('l1', 'u1', updateDto({ priceCents: 1 }));
+
+      await expect(promise).rejects.toBe(original);
     });
 
     it('com vehicle completo envia data.vehicle = { update: campos do veículo }', async () => {
@@ -447,6 +489,16 @@ describe('ListingsService', () => {
       expect(JSON.stringify(result)).not.toContain('passwordHash');
     });
 
+    it('a resposta pública não tem sellerId nem status', async () => {
+      prisma.listing.findFirst.mockResolvedValue(listingEntity());
+
+      const result = await service.findOnePublic('l1');
+
+      expect(result).not.toBeInstanceOf(MyListingResponseDto);
+      expect(result).not.toHaveProperty('sellerId');
+      expect(result).not.toHaveProperty('status');
+    });
+
     it('lança NotFoundException quando o anúncio não existe ou não está ACTIVE', async () => {
       prisma.listing.findFirst.mockResolvedValue(null);
 
@@ -458,13 +510,13 @@ describe('ListingsService', () => {
   });
 
   describe('findMine', () => {
-    it('busca os anúncios pelo sellerId, sem filtrar status', async () => {
+    it('busca os anúncios pelo sellerId, sem os arquivados', async () => {
       prisma.listing.findMany.mockResolvedValue([]);
 
       await service.findMine('u1');
 
       expect(prisma.listing.findMany).toHaveBeenCalledWith({
-        where: { sellerId: 'u1' },
+        where: { sellerId: 'u1', status: { not: 'ARCHIVED' } },
         include: { seller: true, vehicle: true },
         orderBy: { createdAt: 'desc' },
       });
@@ -483,6 +535,161 @@ describe('ListingsService', () => {
         expect.any(ListingResponseDto),
       ]);
       expect(result.map((item) => item.id)).toEqual(['l1', 'l2']);
+    });
+  });
+
+  describe('pause, activate e markSold', () => {
+    // [método, status de partida válido, status de chegada, status inválido]
+    const cases = [
+      ['pause', 'ACTIVE', 'PAUSED', 'SOLD'],
+      ['activate', 'PAUSED', 'ACTIVE', 'ACTIVE'],
+      ['markSold', 'ACTIVE', 'SOLD', 'ARCHIVED'],
+    ] as const;
+
+    it.each(cases)(
+      '%s lança NotFoundException quando o anúncio não existe',
+      async (method) => {
+        prisma.listing.findUnique.mockResolvedValue(null);
+
+        const promise = service[method]('l1', 'u1');
+
+        await expect(promise).rejects.toBeInstanceOf(NotFoundException);
+        await expect(promise).rejects.toThrow('Anúncio não encontrado');
+        expect(prisma.listing.updateMany).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each(cases)(
+      '%s lança ForbiddenException quando o anúncio é de outro usuário',
+      async (method, from) => {
+        prisma.listing.findUnique.mockResolvedValue({ sellerId: 'outro', status: from });
+
+        const promise = service[method]('l1', 'u1');
+
+        await expect(promise).rejects.toBeInstanceOf(ForbiddenException);
+        await expect(promise).rejects.toThrow('Este anúncio não pertence a você');
+        expect(prisma.listing.updateMany).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each(cases)(
+      '%s lança ConflictException quando a ação não é permitida no status atual',
+      async (method, _from, _to, invalid) => {
+        prisma.listing.findUnique.mockResolvedValue({ sellerId: 'u1', status: invalid });
+
+        const promise = service[method]('l1', 'u1');
+
+        await expect(promise).rejects.toBeInstanceOf(ConflictException);
+        await expect(promise).rejects.toThrow(
+          'Ação não permitida no status atual do anúncio',
+        );
+        expect(prisma.listing.updateMany).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each(cases)(
+      '%s lança ConflictException quando outra requisição muda o status antes da gravação',
+      async (method, from) => {
+        prisma.listing.findUnique.mockResolvedValue({ sellerId: 'u1', status: from });
+        prisma.listing.updateMany.mockResolvedValue({ count: 0 });
+
+        const promise = service[method]('l1', 'u1');
+
+        await expect(promise).rejects.toBeInstanceOf(ConflictException);
+        await expect(promise).rejects.toThrow(
+          'O anúncio mudou de status; recarregue e tente novamente',
+        );
+        expect(prisma.listing.findUniqueOrThrow).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each(cases)(
+      '%s grava com updateMany filtrando pelo dono e pelo status lido (%s → %s)',
+      async (method, from, to) => {
+        prisma.listing.findUnique.mockResolvedValue({ sellerId: 'u1', status: from });
+        prisma.listing.updateMany.mockResolvedValue({ count: 1 });
+        prisma.listing.findUniqueOrThrow.mockResolvedValue(listingEntity({ status: to }));
+
+        await service[method]('l1', 'u1');
+
+        expect(prisma.listing.findUnique).toHaveBeenCalledWith({
+          where: { id: 'l1' },
+          select: { sellerId: true, status: true },
+        });
+        expect(prisma.listing.updateMany).toHaveBeenCalledWith({
+          where: { id: 'l1', sellerId: 'u1', status: from },
+          data: { status: to },
+        });
+      },
+    );
+
+    it.each(cases)(
+      '%s devolve o anúncio atualizado como ListingResponseDto',
+      async (method, from, to) => {
+        prisma.listing.findUnique.mockResolvedValue({ sellerId: 'u1', status: from });
+        prisma.listing.updateMany.mockResolvedValue({ count: 1 });
+        prisma.listing.findUniqueOrThrow.mockResolvedValue(listingEntity({ status: to }));
+
+        const result = await service[method]('l1', 'u1');
+
+        expect(prisma.listing.findUniqueOrThrow).toHaveBeenCalledWith({
+          where: { id: 'l1' },
+          include: { seller: true, vehicle: true },
+        });
+        expect(result).toBeInstanceOf(ListingResponseDto);
+        expect(result.status).toBe(to);
+        expect(JSON.stringify(result)).not.toContain('passwordHash');
+      },
+    );
+  });
+
+  describe('respostas do dono', () => {
+    it('findMine devolve MyListingResponseDto com status e sem sellerId', async () => {
+      prisma.listing.findMany.mockResolvedValue([
+        listingEntity({ status: 'PAUSED' }),
+      ]);
+
+      const [item] = await service.findMine('u1');
+
+      expect(item).toBeInstanceOf(MyListingResponseDto);
+      expect(item.status).toBe('PAUSED');
+      expect(item).not.toHaveProperty('sellerId');
+    });
+
+    it('findAll devolve itens públicos, sem sellerId nem status', async () => {
+      prisma.listing.findMany.mockResolvedValue([listingEntity()]);
+      prisma.listing.count.mockResolvedValue(1);
+
+      const { items } = await service.findAll(query());
+
+      expect(items[0]).not.toBeInstanceOf(MyListingResponseDto);
+      expect(items[0]).not.toHaveProperty('sellerId');
+      expect(items[0]).not.toHaveProperty('status');
+    });
+
+    it('update devolve MyListingResponseDto', async () => {
+      prisma.listing.findUnique.mockResolvedValue({ sellerId: 'u1' });
+      prisma.listing.update.mockResolvedValue(listingEntity());
+
+      const result = await service.update('l1', 'u1', updateDto({ priceCents: 1 }));
+
+      expect(result).toBeInstanceOf(MyListingResponseDto);
+      expect(result).not.toHaveProperty('sellerId');
+    });
+
+    it.each([
+      ['pause', 'ACTIVE'],
+      ['activate', 'PAUSED'],
+      ['markSold', 'ACTIVE'],
+    ] as const)('%s devolve MyListingResponseDto', async (method, from) => {
+      prisma.listing.findUnique.mockResolvedValue({ sellerId: 'u1', status: from });
+      prisma.listing.updateMany.mockResolvedValue({ count: 1 });
+      prisma.listing.findUniqueOrThrow.mockResolvedValue(listingEntity());
+
+      const result = await service[method]('l1', 'u1');
+
+      expect(result).toBeInstanceOf(MyListingResponseDto);
+      expect(result).not.toHaveProperty('sellerId');
     });
   });
 
@@ -507,14 +714,40 @@ describe('ListingsService', () => {
       expect(prisma.listing.delete).not.toHaveBeenCalled();
     });
 
-    it('apaga o anúncio pelo id quando o usuário é o dono', async () => {
-      prisma.listing.findUnique.mockResolvedValue({ sellerId: 'u1' });
-      prisma.listing.delete.mockResolvedValue(listingEntity());
+    it('arquiva o anúncio (status ARCHIVED) em vez de apagar quando o usuário é o dono', async () => {
+      prisma.listing.findUnique.mockResolvedValue({ sellerId: 'u1', status: 'ACTIVE' });
+      prisma.listing.updateMany.mockResolvedValue({ count: 1 });
 
       await expect(service.remove('l1', 'u1')).resolves.toBeUndefined();
-      expect(prisma.listing.delete).toHaveBeenCalledWith({
-        where: { id: 'l1' },
+      expect(prisma.listing.updateMany).toHaveBeenCalledWith({
+        where: { id: 'l1', sellerId: 'u1', status: 'ACTIVE' },
+        data: { status: 'ARCHIVED' },
       });
+      expect(prisma.listing.delete).not.toHaveBeenCalled();
+    });
+
+    it('lança ConflictException quando o anúncio já está arquivado', async () => {
+      prisma.listing.findUnique.mockResolvedValue({ sellerId: 'u1', status: 'ARCHIVED' });
+
+      const promise = service.remove('l1', 'u1');
+
+      await expect(promise).rejects.toBeInstanceOf(ConflictException);
+      await expect(promise).rejects.toThrow(
+        'Ação não permitida no status atual do anúncio',
+      );
+      expect(prisma.listing.updateMany).not.toHaveBeenCalled();
+    });
+
+    it('lança ConflictException quando outra requisição muda o status antes da gravação', async () => {
+      prisma.listing.findUnique.mockResolvedValue({ sellerId: 'u1', status: 'ACTIVE' });
+      prisma.listing.updateMany.mockResolvedValue({ count: 0 });
+
+      const promise = service.remove('l1', 'u1');
+
+      await expect(promise).rejects.toBeInstanceOf(ConflictException);
+      await expect(promise).rejects.toThrow(
+        'O anúncio mudou de status; recarregue e tente novamente',
+      );
     });
   });
 });

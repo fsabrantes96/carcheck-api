@@ -12,7 +12,9 @@ import {
     UseGuards,
 } from '@nestjs/common';
 import {
+    ApiBadRequestResponse,
     ApiBearerAuth,
+    ApiConflictResponse,
     ApiCreatedResponse,
     ApiForbiddenResponse,
     ApiNoContentResponse,
@@ -28,6 +30,7 @@ import type { JwtPayload } from '../auth/types/jwt-payload.js';
 import { CreateListingDto } from './dto/create-listing.dto.js';
 import { ListListingsQueryDto } from './dto/list-listings-query.dto.js';
 import { ListingResponseDto } from './dto/listing-response.dto.js';
+import { MyListingResponseDto } from './dto/my-listing-response.dto.js';
 import { PaginatedListingsResponseDto } from './dto/paginated-listings-response.dto.js';
 import { UpdateListingDto } from './dto/update-listing.dto.js';
 import { ListingsService } from './listings.service.js';
@@ -46,9 +49,9 @@ export class ListingsController {
     @Get('mine')
     @UseGuards(JwtAuthGuard)
     @ApiBearerAuth()
-    @ApiOkResponse({ type: ListingResponseDto, isArray: true })
+    @ApiOkResponse({ type: MyListingResponseDto, isArray: true, description: 'Anúncios do usuário, sem os arquivados' })
     @ApiUnauthorizedResponse({ type: ErrorResponseDto, description: 'Token ausente, inválido ou expirado' })
-    findMine(@CurrentUser() user: JwtPayload): Promise<ListingResponseDto[]> {
+    findMine(@CurrentUser() user: JwtPayload): Promise<MyListingResponseDto[]> {
         return this.listings.findMine(user.sub);
     }
 
@@ -62,36 +65,89 @@ export class ListingsController {
     @Post()
     @UseGuards(JwtAuthGuard)
     @ApiBearerAuth()
-    @ApiCreatedResponse({ type: ListingResponseDto })
+    @ApiCreatedResponse({ type: MyListingResponseDto })
     @ApiUnauthorizedResponse({ type: ErrorResponseDto, description: 'Token ausente, inválido ou expirado' })
     create(
         @CurrentUser() user: JwtPayload,
         @Body() dto: CreateListingDto,
-    ): Promise<ListingResponseDto> {
+    ): Promise<MyListingResponseDto> {
         return this.listings.create(user.sub, dto);
     }
 
     @Patch(':id')
     @UseGuards(JwtAuthGuard)
     @ApiBearerAuth()
-    @ApiOkResponse({ type: ListingResponseDto })
+    @ApiOkResponse({ type: MyListingResponseDto })
+    @ApiBadRequestResponse({ type: ErrorResponseDto, description: 'Dados inválidos (inclusive enviar status, que muda só pelas rotas de transição)' })
+    @ApiUnauthorizedResponse({ type: ErrorResponseDto, description: 'Token ausente, inválido ou expirado' })
     @ApiForbiddenResponse({ type: ErrorResponseDto, description: 'Este anúncio não pertence a você' })
     @ApiNotFoundResponse({ type: ErrorResponseDto, description: 'Anúncio não encontrado' })
+    @ApiConflictResponse({ type: ErrorResponseDto, description: 'Anúncio arquivado não pode ser alterado' })
     update(
         @Param('id', ParseUUIDPipe) id: string,
         @CurrentUser() user: JwtPayload,
         @Body() dto: UpdateListingDto,
-    ): Promise<ListingResponseDto> {
+    ): Promise<MyListingResponseDto> {
         return this.listings.update(id, user.sub, dto);
+    }
+
+    @Post(':id/pause')
+    @HttpCode(200)
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth()
+    @ApiOkResponse({ type: MyListingResponseDto, description: 'Anúncio pausado (ACTIVE → PAUSED)' })
+    @ApiUnauthorizedResponse({ type: ErrorResponseDto, description: 'Token ausente, inválido ou expirado' })
+    @ApiForbiddenResponse({ type: ErrorResponseDto, description: 'Este anúncio não pertence a você' })
+    @ApiNotFoundResponse({ type: ErrorResponseDto, description: 'Anúncio não encontrado' })
+    @ApiConflictResponse({ type: ErrorResponseDto, description: 'Ação não permitida no status atual do anúncio, ou o status mudou durante a requisição' })
+    pause(
+        @Param('id', ParseUUIDPipe) id: string,
+        @CurrentUser() user: JwtPayload,
+    ): Promise<MyListingResponseDto> {
+        return this.listings.pause(id, user.sub);
+    }
+
+    @Post(':id/activate')
+    @HttpCode(200)
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth()
+    @ApiOkResponse({ type: MyListingResponseDto, description: 'Anúncio reativado (PAUSED → ACTIVE)' })
+    @ApiUnauthorizedResponse({ type: ErrorResponseDto, description: 'Token ausente, inválido ou expirado' })
+    @ApiForbiddenResponse({ type: ErrorResponseDto, description: 'Este anúncio não pertence a você' })
+    @ApiNotFoundResponse({ type: ErrorResponseDto, description: 'Anúncio não encontrado' })
+    @ApiConflictResponse({ type: ErrorResponseDto, description: 'Ação não permitida no status atual do anúncio, ou o status mudou durante a requisição' })
+    activate(
+        @Param('id', ParseUUIDPipe) id: string,
+        @CurrentUser() user: JwtPayload,
+    ): Promise<MyListingResponseDto> {
+        return this.listings.activate(id, user.sub);
+    }
+
+    @Post(':id/mark-sold')
+    @HttpCode(200)
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth()
+    @ApiOkResponse({ type: MyListingResponseDto, description: 'Anúncio marcado como vendido (ACTIVE ou PAUSED → SOLD)' })
+    @ApiUnauthorizedResponse({ type: ErrorResponseDto, description: 'Token ausente, inválido ou expirado' })
+    @ApiForbiddenResponse({ type: ErrorResponseDto, description: 'Este anúncio não pertence a você' })
+    @ApiNotFoundResponse({ type: ErrorResponseDto, description: 'Anúncio não encontrado' })
+    @ApiConflictResponse({ type: ErrorResponseDto, description: 'Ação não permitida no status atual do anúncio, ou o status mudou durante a requisição' })
+    markSold(
+        @Param('id', ParseUUIDPipe) id: string,
+        @CurrentUser() user: JwtPayload,
+    ): Promise<MyListingResponseDto> {
+        return this.listings.markSold(id, user.sub);
     }
 
     @Delete(':id')
     @HttpCode(204)
     @UseGuards(JwtAuthGuard)
     @ApiBearerAuth()
-    @ApiNoContentResponse({ description: 'Anúncio removido' })
+    @ApiNoContentResponse({ description: 'Anúncio arquivado (status ARCHIVED); não é apagado do banco' })
+    @ApiUnauthorizedResponse({ type: ErrorResponseDto, description: 'Token ausente, inválido ou expirado' })
     @ApiForbiddenResponse({ type: ErrorResponseDto, description: 'Este anúncio não pertence a você' })
     @ApiNotFoundResponse({ type: ErrorResponseDto, description: 'Anúncio não encontrado' })
+    @ApiConflictResponse({ type: ErrorResponseDto, description: 'Anúncio já arquivado, ou o status mudou durante a requisição' })
     remove(
         @Param('id', ParseUUIDPipe) id: string,
         @CurrentUser() user: JwtPayload,
