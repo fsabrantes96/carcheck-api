@@ -27,6 +27,8 @@ npx vitest run -t "name of test"                        # single test by name
 npm run test:e2e              # vitest with vitest.config.e2e.ts (**/*.e2e-spec.ts), boots the full AppModule
 ```
 
+**Windows gotcha (port 3000):** stopping the task that ran `npm run start:dev` can leave the child Node process (`node --enable-source-maps ...\dist\main`) still listening on port 3000. If the port stays busy, find the owner with `Get-NetTCPConnection -LocalPort 3000 -State Listen` (the `OwningProcess` column), confirm it is the process you started (e.g. `Get-CimInstance Win32_Process -Filter "ProcessId=<pid>"` for its command line and start time), and stop only that PID. Never kill every `node.exe`: the user may have their own `start:dev` running.
+
 Env vars (`.env`, see `.env.example`): `DATABASE_URL`, `JWT_SECRET` (required, `getOrThrow`), `JWT_EXPIRES_IN_SECONDS` (default 3600).
 
 CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs on PRs to `main`: `npm ci`, `npm run build`, `npm test`. No database service is started in CI, so unit tests must not need a live DB.
