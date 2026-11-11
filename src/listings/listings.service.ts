@@ -1,4 +1,5 @@
 import {
+    ConflictException,
     ForbiddenException,
     Injectable,
     NotFoundException,
@@ -97,7 +98,7 @@ export class ListingsService {
 
     async findMine(sellerId: string): Promise<ListingResponseDto[]> {
         const listings = await this.prisma.listing.findMany({
-            where: { sellerId },
+            where: { sellerId, status: { not: 'ARCHIVED' } },
             include,
             orderBy: { createdAt: 'desc' },
         });
@@ -128,9 +129,28 @@ export class ListingsService {
         return ListingResponseDto.from(listing);
     }
 
+    /** Arquiva o anúncio (status ARCHIVED) em vez de apagá-lo. */
     async remove(id: string, userId: string): Promise<void> {
-        await this.assertOwner(id, userId);
-        await this.prisma.listing.delete({ where: { id } });
+        const listing = await this.prisma.listing.findUnique({
+            where: { id },
+            select: { sellerId: true, status: true },
+        });
+        if (!listing) throw new NotFoundException('Anúncio não encontrado');
+        if (listing.sellerId !== userId) {
+            throw new ForbiddenException('Este anúncio não pertence a você');
+        }
+        if (listing.status === 'ARCHIVED') {
+            throw new ConflictException('Ação não permitida no status atual do anúncio');
+        }
+
+        // Grava só se o status ainda for o que foi lido (proteção contra corrida).
+        const { count } = await this.prisma.listing.updateMany({
+            where: { id, sellerId: userId, status: listing.status },
+            data: { status: 'ARCHIVED' },
+        });
+        if (count === 0) {
+            throw new ConflictException('O anúncio mudou de status; recarregue e tente novamente');
+        }
     }
 
     private async assertOwner(id: string, userId: string): Promise<void> {

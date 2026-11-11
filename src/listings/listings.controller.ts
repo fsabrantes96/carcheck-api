@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common';
 import {
     ApiBearerAuth,
+    ApiConflictResponse,
     ApiCreatedResponse,
     ApiForbiddenResponse,
     ApiNoContentResponse,
@@ -89,9 +90,11 @@ export class ListingsController {
     @HttpCode(204)
     @UseGuards(JwtAuthGuard)
     @ApiBearerAuth()
-    @ApiNoContentResponse({ description: 'Anúncio removido' })
+    @ApiNoContentResponse({ description: 'Anúncio arquivado (status ARCHIVED); não é apagado do banco' })
+    @ApiUnauthorizedResponse({ type: ErrorResponseDto, description: 'Token ausente, inválido ou expirado' })
     @ApiForbiddenResponse({ type: ErrorResponseDto, description: 'Este anúncio não pertence a você' })
     @ApiNotFoundResponse({ type: ErrorResponseDto, description: 'Anúncio não encontrado' })
+    @ApiConflictResponse({ type: ErrorResponseDto, description: 'Anúncio já arquivado, ou o status mudou durante a requisição' })
     remove(
         @Param('id', ParseUUIDPipe) id: string,
         @CurrentUser() user: JwtPayload,
