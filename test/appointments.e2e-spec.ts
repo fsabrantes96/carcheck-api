@@ -579,7 +579,7 @@ describe('Appointments (e2e)', () => {
       const res = await requestAppointment(listingId, hoursFromNow(48).replace('Z', '')).expect(400);
 
       expect(res.body.message).toBe('Dados inválidos');
-      expect(res.body.errors).toEqual(['startsAt must include a timezone (Z or ±hh:mm)']);
+      expect(res.body.errors).toEqual(['startsAt precisa ter fuso horário (Z ou ±hh:mm)']);
       expect(await prisma.appointment.count()).toBe(0);
     });
 

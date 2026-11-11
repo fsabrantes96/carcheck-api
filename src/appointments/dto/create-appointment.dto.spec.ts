@@ -41,6 +41,15 @@ describe('CreateAppointmentDto', () => {
     expect(await errorsFor({ ...valid, startsAt })).toEqual(['startsAt']);
   });
 
+  it('a mensagem de startsAt sem fuso é em pt-BR', async () => {
+    const [error] = await validate(
+      plainToInstance(CreateAppointmentDto, { ...valid, startsAt: '2030-01-03T12:00:00' }),
+      { whitelist: true, forbidNonWhitelisted: true },
+    );
+
+    expect(Object.values(error.constraints ?? {})).toContain('startsAt precisa ter fuso horário (Z ou ±hh:mm)');
+  });
+
   it.each(['listingId', 'inspectorProfileId'])('rejeita %s que não é uuid', async (field) => {
     expect(await errorsFor({ ...valid, [field]: '123' })).toEqual([field]);
   });
