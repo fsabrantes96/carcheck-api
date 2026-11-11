@@ -37,6 +37,42 @@ describe('RegisterDto', () => {
     expect(dto.email).toBe(123);
     expect(errors[0].constraints).toHaveProperty('isEmail');
   });
+
+  it('aceita nome com 100 caracteres e senha com 72', async () => {
+    const dto = plainToInstance(RegisterDto, {
+      name: 'a'.repeat(100),
+      email: 'maria@x.com',
+      password: 's'.repeat(72),
+    });
+
+    expect(await validate(dto)).toHaveLength(0);
+  });
+
+  it('rejeita nome com mais de 100 caracteres', async () => {
+    const dto = plainToInstance(RegisterDto, {
+      ...base,
+      name: 'a'.repeat(101),
+      email: 'maria@x.com',
+    });
+
+    const errors = await validate(dto);
+
+    expect(errors.map((e) => e.property)).toEqual(['name']);
+    expect(errors[0].constraints).toHaveProperty('maxLength');
+  });
+
+  it('rejeita senha com mais de 72 caracteres', async () => {
+    const dto = plainToInstance(RegisterDto, {
+      ...base,
+      email: 'maria@x.com',
+      password: 's'.repeat(73),
+    });
+
+    const errors = await validate(dto);
+
+    expect(errors.map((e) => e.property)).toEqual(['password']);
+    expect(errors[0].constraints).toHaveProperty('maxLength');
+  });
 });
 
 describe('LoginDto', () => {
@@ -65,5 +101,26 @@ describe('LoginDto', () => {
 
     expect(dto.email).toBe(123);
     expect(errors[0].constraints).toHaveProperty('isEmail');
+  });
+
+  it('aceita senha com 72 caracteres', async () => {
+    const dto = plainToInstance(LoginDto, {
+      email: 'maria@x.com',
+      password: 's'.repeat(72),
+    });
+
+    expect(await validate(dto)).toHaveLength(0);
+  });
+
+  it('rejeita senha com mais de 72 caracteres', async () => {
+    const dto = plainToInstance(LoginDto, {
+      email: 'maria@x.com',
+      password: 's'.repeat(73),
+    });
+
+    const errors = await validate(dto);
+
+    expect(errors.map((e) => e.property)).toEqual(['password']);
+    expect(errors[0].constraints).toHaveProperty('maxLength');
   });
 });
