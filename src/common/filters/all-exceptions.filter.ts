@@ -9,6 +9,7 @@ import type { ExceptionFilter } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { Prisma } from '../../generated/prisma/client.js';
 import type { ErrorResponseDto } from '../dto/error-response.dto.js';
+import { isBodyParserError } from '../http/body-parser-error.js';
 
 /** Erros conhecidos do Prisma que viram respostas HTTP previsíveis. */
 const PRISMA_ERROR_MAP: Record<
@@ -22,6 +23,13 @@ const PRISMA_ERROR_MAP: Record<
     message: 'Operação viola uma relação com outro registro',
   },
 };
+
+/** Mensagens dos erros 4xx do body-parser, no lugar das mensagens internas. */
+const BODY_PARSER_MESSAGES: Record<string, string> = {
+  'entity.too.large': 'Corpo da requisição muito grande',
+  'entity.parse.failed': 'Corpo da requisição inválido',
+};
+const BODY_PARSER_DEFAULT_MESSAGE = 'Requisição inválida';
 
 const INTERNAL_ERROR_MESSAGE = 'Erro interno do servidor';
 const VALIDATION_MESSAGE = 'Dados inválidos';
@@ -58,6 +66,19 @@ export class AllExceptionsFilter implements ExceptionFilter {
   private toBody(exception: unknown, request: Request): ErrorBody {
     if (exception instanceof HttpException) {
       return this.fromHttpException(exception);
+    }
+
+    // Só 4xx do parser são repassados; 5xx do parser caem no 500 genérico.
+    if (
+      isBodyParserError(exception) &&
+      exception.status >= 400 &&
+      exception.status <= 499
+    ) {
+      return {
+        statusCode: exception.status,
+        message:
+          BODY_PARSER_MESSAGES[exception.type] ?? BODY_PARSER_DEFAULT_MESSAGE,
+      };
     }
 
     if (exception instanceof Prisma.PrismaClientKnownRequestError) {

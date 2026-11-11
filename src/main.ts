@@ -2,9 +2,11 @@ import { NestFactory } from '@nestjs/core';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module.js';
+import { AppExpressAdapter } from './common/http/app-express.adapter.js';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  // Adapter próprio para os erros do body-parser chegarem intactos ao filtro.
+  const app = await NestFactory.create(AppModule, new AppExpressAdapter());
 
   app.useGlobalPipes(
     new ValidationPipe({
