@@ -704,7 +704,7 @@ describe('ListingsService', () => {
 
         await expect(promise).rejects.toBeInstanceOf(ConflictException);
         await expect(promise).rejects.toThrow(
-          'O anúncio tem avaliação paga em andamento e não pode sair de ACTIVE',
+          'O anúncio tem avaliação paga em andamento; não é possível pausar, vender ou arquivar',
         );
         expect(prisma.appointment.findFirst).toHaveBeenCalledWith({
           where: { listingId: 'l1', status: 'PAID' },
@@ -713,6 +713,18 @@ describe('ListingsService', () => {
         expect(prisma.appointment.updateMany).not.toHaveBeenCalled();
       },
     );
+
+    it('PAUSED → SOLD com agendamento PAID também responde 409 com a mesma mensagem', async () => {
+      prisma.listing.findUnique.mockResolvedValue({ sellerId: 'u1', status: 'PAUSED' });
+      prisma.appointment.findFirst.mockResolvedValue({ id: 'pago' });
+
+      const promise = service.markSold('l1', 'u1');
+
+      await expect(promise).rejects.toBeInstanceOf(ConflictException);
+      await expect(promise).rejects.toThrow(
+        'O anúncio tem avaliação paga em andamento; não é possível pausar, vender ou arquivar',
+      );
+    });
 
     it('activate (PAUSED → ACTIVE) não mexe em agendamentos', async () => {
       prisma.listing.findUnique.mockResolvedValue({ sellerId: 'u1', status: 'PAUSED' });

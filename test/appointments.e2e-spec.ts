@@ -153,7 +153,7 @@ describe('Appointments (e2e)', () => {
         .set(auth(seller))
         .expect(409);
 
-      expect(res.body.message).toBe('O anúncio tem avaliação paga em andamento e não pode sair de ACTIVE');
+      expect(res.body.message).toBe('O anúncio tem avaliação paga em andamento; não é possível pausar, vender ou arquivar');
       expect((await prisma.listing.findUniqueOrThrow({ where: { id: listingId } })).status).toBe('ACTIVE');
       expect((await prisma.appointment.findUniqueOrThrow({ where: { id: created.body.id } })).status).toBe('PAID');
     });
