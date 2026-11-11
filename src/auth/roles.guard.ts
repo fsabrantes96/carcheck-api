@@ -10,7 +10,6 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import type { Role } from '../generated/prisma/client.js';
 import { ROLES_KEY } from './roles.decorator.js';
 import type { AuthenticatedRequest } from './types/jwt-payload.js';
-import { Observable } from 'rxjs';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
