@@ -63,7 +63,9 @@ Contrato OpenAPI em JSON: `http://localhost:3000/docs-json`
 ```
 prisma/          schema e migrations
 src/
-├── auth/        cadastro e login
+├── auth/        cadastro, login, guards e roles
+├── inspectors/  perfil de avaliador
+├── listings/    anúncios de veículos (CRUD + filtros)
 ├── prisma/      PrismaService e PrismaModule
 └── generated/   Prisma Client gerado (não versionado)
 ```
