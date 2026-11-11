@@ -5,6 +5,10 @@ import {
     NotFoundException,
 } from '@nestjs/common';
 import type { Prisma } from '../generated/prisma/client.js';
+import {
+    isPrismaError,
+    PRISMA_RECORD_NOT_FOUND,
+} from '../common/prisma/prisma-errors.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CreateListingDto } from './dto/create-listing.dto.js';
 import { ListListingsQueryDto } from './dto/list-listings-query.dto.js';
@@ -114,21 +118,37 @@ export class ListingsService {
     ): Promise<ListingResponseDto> {
         await this.assertOwner(id, userId);
 
-        // Campos ausentes chegam como undefined, e o Prisma os ignora (update parcial).
-        const listing = await this.prisma.listing.update({
-            where: { id },
-            data: {
-                title: dto.title,
-                description: dto.description,
-                priceCents: dto.priceCents,
-                city: dto.city,
-                state: dto.state,
-                status: dto.status,
-                vehicle: dto.vehicle && { update: toVehicleData(dto.vehicle) },
-            },
-            include,
-        });
-        return ListingResponseDto.from(listing);
+        try {
+            // Campos ausentes chegam como undefined, e o Prisma os ignora (update parcial).
+            // O filtro de status no where impede editar um anúncio arquivado,
+            // mesmo que ele seja arquivado entre o assertOwner e esta gravação.
+            const listing = await this.prisma.listing.update({
+                where: { id, status: { not: 'ARCHIVED' } },
+                data: {
+                    title: dto.title,
+                    description: dto.description,
+                    priceCents: dto.priceCents,
+                    city: dto.city,
+                    state: dto.state,
+                    vehicle: dto.vehicle && { update: toVehicleData(dto.vehicle) },
+                },
+                include,
+            });
+            return ListingResponseDto.from(listing);
+        } catch (error) {
+            if (isPrismaError(error, PRISMA_RECORD_NOT_FOUND)) {
+                // Consulta de apoio: só decide se o motivo foi o anúncio arquivado.
+                // P2025 também pode vir do veículo aninhado; nesse caso o erro segue.
+                const current = await this.prisma.listing.findUnique({
+                    where: { id },
+                    select: { status: true },
+                });
+                if (current?.status === 'ARCHIVED') {
+                    throw new ConflictException('Anúncio arquivado não pode ser alterado');
+                }
+            }
+            throw error;
+        }
     }
 
     pause(id: string, userId: string): Promise<ListingResponseDto> {

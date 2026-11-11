@@ -12,6 +12,7 @@ import {
     UseGuards,
 } from '@nestjs/common';
 import {
+    ApiBadRequestResponse,
     ApiBearerAuth,
     ApiConflictResponse,
     ApiCreatedResponse,
@@ -76,8 +77,11 @@ export class ListingsController {
     @UseGuards(JwtAuthGuard)
     @ApiBearerAuth()
     @ApiOkResponse({ type: ListingResponseDto })
+    @ApiBadRequestResponse({ type: ErrorResponseDto, description: 'Dados inválidos (inclusive enviar status, que muda só pelas rotas de transição)' })
+    @ApiUnauthorizedResponse({ type: ErrorResponseDto, description: 'Token ausente, inválido ou expirado' })
     @ApiForbiddenResponse({ type: ErrorResponseDto, description: 'Este anúncio não pertence a você' })
     @ApiNotFoundResponse({ type: ErrorResponseDto, description: 'Anúncio não encontrado' })
+    @ApiConflictResponse({ type: ErrorResponseDto, description: 'Anúncio arquivado não pode ser alterado' })
     update(
         @Param('id', ParseUUIDPipe) id: string,
         @CurrentUser() user: JwtPayload,
