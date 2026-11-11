@@ -1,8 +1,9 @@
-import { ConflictException } from '@nestjs/common';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Prisma } from '../generated/prisma/client.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import { InspectorResponseDto } from './dto/inspector-response.dto.js';
 import type { CreateInspectorProfileDto } from './dto/create-inspector-profile.dto.js';
+import type { UpdateInspectorProfileDto } from './dto/update-inspector-profile.dto.js';
 import { InspectorsService } from './inspectors.service.js';
 
 function prismaError(code: string) {
@@ -26,6 +27,7 @@ type PrismaMock = {
   inspectorProfile: {
     findUnique: ReturnType<typeof vi.fn>;
     create: ReturnType<typeof vi.fn>;
+    update: ReturnType<typeof vi.fn>;
   };
   user: { update: ReturnType<typeof vi.fn> };
   $transaction: ReturnType<typeof vi.fn>;
@@ -37,7 +39,11 @@ describe('InspectorsService', () => {
 
   beforeEach(() => {
     prisma = {
-      inspectorProfile: { findUnique: vi.fn(), create: vi.fn() },
+      inspectorProfile: {
+        findUnique: vi.fn(),
+        create: vi.fn(),
+        update: vi.fn(),
+      },
       user: { update: vi.fn() },
       $transaction: vi.fn(),
     };
@@ -150,6 +156,106 @@ describe('InspectorsService', () => {
       prisma.inspectorProfile.create.mockRejectedValue(error);
 
       await expect(service.create('u1', dto)).rejects.toBe(error);
+    });
+  });
+
+  describe('update', () => {
+    const existing = {
+      id: 'p1',
+      userId: 'u1',
+      ...dto,
+      verified: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    function updatedProfile(changes: Partial<CreateInspectorProfileDto>) {
+      return { ...existing, ...changes, user: { id: 'u1', name: 'João' } };
+    }
+
+    it('envia ao inspectorProfile.update todos os campos informados', async () => {
+      const changes = {
+        bio: 'Mecânico há 20 anos, especialista em suspensão.',
+        specialties: ['SUSPENSION'],
+        city: 'Ribeirão Preto',
+        state: 'MG',
+        serviceRadiusKm: 50,
+        basePriceCents: 20000,
+      } satisfies UpdateInspectorProfileDto;
+      prisma.inspectorProfile.findUnique.mockResolvedValue(existing);
+      prisma.inspectorProfile.update.mockResolvedValue(
+        updatedProfile(changes),
+      );
+
+      await service.update('u1', changes);
+
+      expect(prisma.inspectorProfile.update).toHaveBeenCalledTimes(1);
+      expect(prisma.inspectorProfile.update).toHaveBeenCalledWith({
+        where: { userId: 'u1' },
+        data: {
+          bio: 'Mecânico há 20 anos, especialista em suspensão.',
+          specialties: ['SUSPENSION'],
+          city: 'Ribeirão Preto',
+          state: 'MG',
+          serviceRadiusKm: 50,
+          basePriceCents: 20000,
+        },
+        include: { user: true },
+      });
+    });
+
+    it('não altera os campos ausentes no update parcial', async () => {
+      prisma.inspectorProfile.findUnique.mockResolvedValue(existing);
+      prisma.inspectorProfile.update.mockResolvedValue(
+        updatedProfile({ city: 'Ribeirão Preto' }),
+      );
+
+      await service.update('u1', { city: 'Ribeirão Preto' });
+
+      const [{ data }] = prisma.inspectorProfile.update.mock.calls[0] as [
+        { data: Record<string, unknown> },
+      ];
+      expect(data.city).toBe('Ribeirão Preto');
+      // Para o Prisma, undefined significa "não alterar este campo".
+      for (const field of [
+        'bio',
+        'specialties',
+        'state',
+        'serviceRadiusKm',
+        'basePriceCents',
+      ]) {
+        expect(data[field]).toBeUndefined();
+      }
+    });
+
+    it('devolve o perfil atualizado como InspectorResponseDto', async () => {
+      prisma.inspectorProfile.findUnique.mockResolvedValue(existing);
+      prisma.inspectorProfile.update.mockResolvedValue(
+        updatedProfile({ city: 'Ribeirão Preto' }),
+      );
+
+      const result = await service.update('u1', { city: 'Ribeirão Preto' });
+
+      expect(result).toBeInstanceOf(InspectorResponseDto);
+      expect(result).toEqual({
+        id: 'p1',
+        name: 'João',
+        ...dto,
+        city: 'Ribeirão Preto',
+        verified: false,
+      });
+    });
+
+    it('lança NotFoundException quando o usuário não tem perfil', async () => {
+      prisma.inspectorProfile.findUnique.mockResolvedValue(null);
+
+      const promise = service.update('u1', { city: 'Ribeirão Preto' });
+
+      await expect(promise).rejects.toBeInstanceOf(NotFoundException);
+      await expect(promise).rejects.toThrow(
+        'Perfil de avaliador não encontrado',
+      );
+      expect(prisma.inspectorProfile.update).not.toHaveBeenCalled();
     });
   });
 });
