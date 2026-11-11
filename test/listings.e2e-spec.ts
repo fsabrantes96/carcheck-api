@@ -213,15 +213,18 @@ describe('Listings (e2e)', () => {
       expect(await prisma.listing.count({ where: { id: listingId } })).toBe(1);
     });
 
-    it('o dono apaga com 204 e o anúncio sai do banco', async () => {
+    it('o dono arquiva com 204: o anúncio continua no banco com status ARCHIVED e o veículo é mantido', async () => {
       await request(app.getHttpServer())
         .delete(`/listings/${listingId}`)
         .set('Authorization', `Bearer ${seller.token}`)
         .expect(204);
 
-      expect(await prisma.listing.count({ where: { id: listingId } })).toBe(0);
+      const saved = await prisma.listing.findUniqueOrThrow({
+        where: { id: listingId },
+      });
+      expect(saved.status).toBe('ARCHIVED');
       expect(await prisma.vehicleDetails.count({ where: { listingId } })).toBe(
-        0,
+        1,
       );
     });
   });

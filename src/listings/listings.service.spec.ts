@@ -1,4 +1,8 @@
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import type { CreateListingDto } from './dto/create-listing.dto.js';
 import { ListListingsQueryDto } from './dto/list-listings-query.dto.js';
@@ -57,6 +61,7 @@ type PrismaMock = {
     findMany: ReturnType<typeof vi.fn>;
     count: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
+    updateMany: ReturnType<typeof vi.fn>;
     delete: ReturnType<typeof vi.fn>;
   };
   $transaction: ReturnType<typeof vi.fn>;
@@ -81,6 +86,7 @@ describe('ListingsService', () => {
         findMany: vi.fn(),
         count: vi.fn(),
         update: vi.fn(),
+        updateMany: vi.fn(),
         delete: vi.fn(),
       },
       $transaction: vi.fn(),
@@ -458,13 +464,13 @@ describe('ListingsService', () => {
   });
 
   describe('findMine', () => {
-    it('busca os anúncios pelo sellerId, sem filtrar status', async () => {
+    it('busca os anúncios pelo sellerId, sem os arquivados', async () => {
       prisma.listing.findMany.mockResolvedValue([]);
 
       await service.findMine('u1');
 
       expect(prisma.listing.findMany).toHaveBeenCalledWith({
-        where: { sellerId: 'u1' },
+        where: { sellerId: 'u1', status: { not: 'ARCHIVED' } },
         include: { seller: true, vehicle: true },
         orderBy: { createdAt: 'desc' },
       });
@@ -507,14 +513,40 @@ describe('ListingsService', () => {
       expect(prisma.listing.delete).not.toHaveBeenCalled();
     });
 
-    it('apaga o anúncio pelo id quando o usuário é o dono', async () => {
-      prisma.listing.findUnique.mockResolvedValue({ sellerId: 'u1' });
-      prisma.listing.delete.mockResolvedValue(listingEntity());
+    it('arquiva o anúncio (status ARCHIVED) em vez de apagar quando o usuário é o dono', async () => {
+      prisma.listing.findUnique.mockResolvedValue({ sellerId: 'u1', status: 'ACTIVE' });
+      prisma.listing.updateMany.mockResolvedValue({ count: 1 });
 
       await expect(service.remove('l1', 'u1')).resolves.toBeUndefined();
-      expect(prisma.listing.delete).toHaveBeenCalledWith({
-        where: { id: 'l1' },
+      expect(prisma.listing.updateMany).toHaveBeenCalledWith({
+        where: { id: 'l1', sellerId: 'u1', status: 'ACTIVE' },
+        data: { status: 'ARCHIVED' },
       });
+      expect(prisma.listing.delete).not.toHaveBeenCalled();
+    });
+
+    it('lança ConflictException quando o anúncio já está arquivado', async () => {
+      prisma.listing.findUnique.mockResolvedValue({ sellerId: 'u1', status: 'ARCHIVED' });
+
+      const promise = service.remove('l1', 'u1');
+
+      await expect(promise).rejects.toBeInstanceOf(ConflictException);
+      await expect(promise).rejects.toThrow(
+        'Ação não permitida no status atual do anúncio',
+      );
+      expect(prisma.listing.updateMany).not.toHaveBeenCalled();
+    });
+
+    it('lança ConflictException quando outra requisição muda o status antes da gravação', async () => {
+      prisma.listing.findUnique.mockResolvedValue({ sellerId: 'u1', status: 'ACTIVE' });
+      prisma.listing.updateMany.mockResolvedValue({ count: 0 });
+
+      const promise = service.remove('l1', 'u1');
+
+      await expect(promise).rejects.toBeInstanceOf(ConflictException);
+      await expect(promise).rejects.toThrow(
+        'O anúncio mudou de status; recarregue e tente novamente',
+      );
     });
   });
 });
