@@ -9,8 +9,13 @@ import { partialUniqueViolation } from '../../test/support/prisma-error-fixtures
 import type { BusinessRules } from '../config/business-rules.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import { AppointmentsService } from './appointments.service.js';
-import { BuyerAppointmentResponseDto } from './dto/appointment-response.dto.js';
+import {
+  BuyerAppointmentResponseDto,
+  InspectorAppointmentResponseDto,
+  SellerAppointmentResponseDto,
+} from './dto/appointment-response.dto.js';
 import type { CreateAppointmentDto } from './dto/create-appointment.dto.js';
+import { ListAppointmentsQueryDto } from './dto/list-appointments-query.dto.js';
 
 const NOW = '2030-01-01T12:00:00.000Z';
 const LISTING_ID = '11111111-1111-4111-8111-111111111111';
@@ -71,8 +76,36 @@ type PrismaMock = {
     findFirst: ReturnType<typeof vi.fn>;
     create: ReturnType<typeof vi.fn>;
     findUniqueOrThrow: ReturnType<typeof vi.fn>;
+    findUnique: ReturnType<typeof vi.fn>;
+    findMany: ReturnType<typeof vi.fn>;
+    count: ReturnType<typeof vi.fn>;
   };
 };
+
+function setupPrisma(): PrismaMock {
+  const prisma: PrismaMock = {
+    $transaction: vi.fn(),
+    $queryRaw: vi.fn().mockResolvedValue([{ sellerId: 'seller', status: 'ACTIVE' }]),
+    inspectorProfile: {
+      findFirst: vi.fn().mockResolvedValue({ userId: 'inspector', basePriceCents: 15000 }),
+    },
+    appointment: {
+      findFirst: vi.fn().mockResolvedValue(null),
+      create: vi.fn().mockResolvedValue({ id: 'a1' }),
+      findUniqueOrThrow: vi.fn().mockResolvedValue(loadedAppointment()),
+      findUnique: vi.fn(),
+      findMany: vi.fn().mockResolvedValue([]),
+      count: vi.fn().mockResolvedValue(0),
+    },
+  };
+  // Forma com callback (transação interativa) e forma de array.
+  prisma.$transaction.mockImplementation((arg: unknown) =>
+    typeof arg === 'function'
+      ? (arg as (tx: PrismaMock) => Promise<unknown>)(prisma)
+      : Promise.all(arg as Promise<unknown>[]),
+  );
+  return prisma;
+}
 
 describe('AppointmentsService.create', () => {
   let prisma: PrismaMock;
@@ -88,21 +121,7 @@ describe('AppointmentsService.create', () => {
   }
 
   beforeEach(() => {
-    prisma = {
-      $transaction: vi.fn(),
-      $queryRaw: vi.fn().mockResolvedValue([{ sellerId: 'seller', status: 'ACTIVE' }]),
-      inspectorProfile: {
-        findFirst: vi.fn().mockResolvedValue({ userId: 'inspector', basePriceCents: 15000 }),
-      },
-      appointment: {
-        findFirst: vi.fn().mockResolvedValue(null),
-        create: vi.fn().mockResolvedValue({ id: 'a1' }),
-        findUniqueOrThrow: vi.fn().mockResolvedValue(loadedAppointment()),
-      },
-    };
-    prisma.$transaction.mockImplementation((callback: (tx: PrismaMock) => Promise<unknown>) =>
-      callback(prisma),
-    );
+    prisma = setupPrisma();
     clock = new FakeClock(NOW);
     build();
   });
@@ -318,6 +337,113 @@ describe('AppointmentsService.create', () => {
       prisma.appointment.create.mockRejectedValue(other);
 
       await expect(service.create('buyer', dto())).rejects.toBe(other);
+    });
+  });
+});
+
+describe('AppointmentsService.list e findOne', () => {
+  let prisma: PrismaMock;
+  let service: AppointmentsService;
+
+  function query(params: Partial<ListAppointmentsQueryDto> = {}) {
+    return Object.assign(new ListAppointmentsQueryDto(), params);
+  }
+
+  function findManyArgs() {
+    return prisma.appointment.findMany.mock.calls[0][0] as Record<string, unknown>;
+  }
+
+  beforeEach(() => {
+    prisma = setupPrisma();
+    service = new AppointmentsService(prisma as unknown as PrismaService, rules, new FakeClock(NOW));
+  });
+
+  describe('list', () => {
+    it('sem "as", filtra os agendamentos em que o usuário é comprador, vendedor ou avaliador', async () => {
+      await service.list('u1', query());
+
+      expect(findManyArgs().where).toEqual({
+        OR: [{ buyerId: 'u1' }, { sellerId: 'u1' }, { inspectorUserId: 'u1' }],
+      });
+    });
+
+    it.each([
+      ['BUYER', { buyerId: 'u1' }],
+      ['SELLER', { sellerId: 'u1' }],
+      ['INSPECTOR', { inspectorUserId: 'u1' }],
+    ] as const)('com as=%s, filtra só por esse papel', async (as, where) => {
+      await service.list('u1', query({ as }));
+
+      expect(findManyArgs().where).toEqual(where);
+    });
+
+    it('combina o filtro de status com o do usuário', async () => {
+      await service.list('u1', query({ as: 'BUYER', status: 'ACCEPTED' }));
+
+      expect(findManyArgs().where).toEqual({ buyerId: 'u1', status: 'ACCEPTED' });
+    });
+
+    it('pagina com skip/take e ordena de forma estável (createdAt desc, id desc)', async () => {
+      await service.list('u1', query({ page: 3, limit: 10 }));
+
+      expect(findManyArgs()).toMatchObject({
+        skip: 20,
+        take: 10,
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      });
+    });
+
+    it('conta com o mesmo where, no mesmo $transaction', async () => {
+      await service.list('u1', query({ status: 'REQUESTED' }));
+
+      expect(prisma.appointment.count).toHaveBeenCalledWith({ where: findManyArgs().where });
+      expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    });
+
+    it('cada item sai no formato do papel do usuário naquele agendamento', async () => {
+      prisma.appointment.findMany.mockResolvedValue([
+        loadedAppointment({ id: 'a1', buyerId: 'u1' }),
+        loadedAppointment({ id: 'a2', sellerId: 'u1' }),
+        loadedAppointment({ id: 'a3', inspectorUserId: 'u1' }),
+      ]);
+      prisma.appointment.count.mockResolvedValue(3);
+
+      const result = await service.list('u1', query({ page: 1, limit: 20 }));
+
+      expect(result.items[0]).toBeInstanceOf(BuyerAppointmentResponseDto);
+      expect(result.items[1]).toBeInstanceOf(SellerAppointmentResponseDto);
+      expect(result.items[2]).toBeInstanceOf(InspectorAppointmentResponseDto);
+      expect(result).toMatchObject({ total: 3, page: 1, limit: 20 });
+    });
+  });
+
+  describe('findOne', () => {
+    it('404 quando o agendamento não existe', async () => {
+      prisma.appointment.findUnique.mockResolvedValue(null);
+
+      const promise = service.findOne('a1', 'u1');
+
+      await expect(promise).rejects.toBeInstanceOf(NotFoundException);
+      await expect(promise).rejects.toThrow('Agendamento não encontrado');
+    });
+
+    it('404, com a mesma mensagem, quando o usuário não participa (não revela que existe)', async () => {
+      prisma.appointment.findUnique.mockResolvedValue(loadedAppointment());
+
+      const promise = service.findOne('a1', 'intruso');
+
+      await expect(promise).rejects.toBeInstanceOf(NotFoundException);
+      await expect(promise).rejects.toThrow('Agendamento não encontrado');
+    });
+
+    it.each([
+      ['buyer', BuyerAppointmentResponseDto],
+      ['seller', SellerAppointmentResponseDto],
+      ['inspector', InspectorAppointmentResponseDto],
+    ] as const)('o usuário %s recebe o DTO do seu papel', async (userId, type) => {
+      prisma.appointment.findUnique.mockResolvedValue(loadedAppointment());
+
+      await expect(service.findOne('a1', userId)).resolves.toBeInstanceOf(type);
     });
   });
 });

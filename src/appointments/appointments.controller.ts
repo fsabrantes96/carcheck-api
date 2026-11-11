@@ -1,11 +1,13 @@
-import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query, UseGuards } from '@nestjs/common';
 import {
     ApiBadRequestResponse,
     ApiBearerAuth,
     ApiConflictResponse,
     ApiCreatedResponse,
+    ApiExtraModels,
     ApiForbiddenResponse,
     ApiNotFoundResponse,
+    ApiOkResponse,
     ApiTags,
     ApiTooManyRequestsResponse,
     ApiUnauthorizedResponse,
@@ -17,7 +19,14 @@ import type { JwtPayload } from '../auth/types/jwt-payload.js';
 import { ErrorResponseDto } from '../common/dto/error-response.dto.js';
 import { APPOINTMENT_CREATE_THROTTLE } from '../common/throttler/throttler.config.js';
 import { AppointmentsService } from './appointments.service.js';
-import { BuyerAppointmentResponseDto } from './dto/appointment-response.dto.js';
+import {
+    APPOINTMENT_RESPONSE_MODELS,
+    appointmentResponseSchema,
+    BuyerAppointmentResponseDto,
+} from './dto/appointment-response.dto.js';
+import type { AppointmentResponseDto } from './dto/appointment-response.dto.js';
+import { ListAppointmentsQueryDto } from './dto/list-appointments-query.dto.js';
+import { PaginatedAppointmentsResponseDto } from './dto/paginated-appointments-response.dto.js';
 import { CreateAppointmentDto } from './dto/create-appointment.dto.js';
 
 /**
@@ -26,6 +35,7 @@ import { CreateAppointmentDto } from './dto/create-appointment.dto.js';
  * agendamento, não a role global.
  */
 @ApiTags('appointments')
+@ApiExtraModels(...APPOINTMENT_RESPONSE_MODELS)
 @ApiBearerAuth()
 @ApiUnauthorizedResponse({ type: ErrorResponseDto, description: 'Token ausente, inválido ou expirado' })
 @UseGuards(JwtAuthGuard)
@@ -46,5 +56,26 @@ export class AppointmentsController {
         @Body() dto: CreateAppointmentDto,
     ): Promise<BuyerAppointmentResponseDto> {
         return this.appointments.create(user.sub, dto);
+    }
+
+    // Rotas estáticas antes de ':id'.
+    @Get()
+    @ApiOkResponse({ type: PaginatedAppointmentsResponseDto })
+    @ApiBadRequestResponse({ type: ErrorResponseDto, description: 'Filtros inválidos (as, status, page, limit <= 50)' })
+    list(
+        @CurrentUser() user: JwtPayload,
+        @Query() query: ListAppointmentsQueryDto,
+    ): Promise<PaginatedAppointmentsResponseDto> {
+        return this.appointments.list(user.sub, query);
+    }
+
+    @Get(':id')
+    @ApiOkResponse({ schema: appointmentResponseSchema(), description: 'Formato conforme o seu papel (myRole)' })
+    @ApiNotFoundResponse({ type: ErrorResponseDto, description: 'Agendamento não encontrado (ou você não participa dele)' })
+    findOne(
+        @Param('id', ParseUUIDPipe) id: string,
+        @CurrentUser() user: JwtPayload,
+    ): Promise<AppointmentResponseDto> {
+        return this.appointments.findOne(id, user.sub);
     }
 }

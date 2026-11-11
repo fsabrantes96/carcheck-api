@@ -12,7 +12,7 @@ import { splitPlatformFee } from '../common/money/platform-fee.js';
 import { isUniqueViolationOn } from '../common/prisma/prisma-errors.js';
 import { BUSINESS_RULES } from '../config/business-rules.js';
 import type { BusinessRules } from '../config/business-rules.js';
-import type { ListingStatus } from '../generated/prisma/client.js';
+import type { ListingStatus, Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { deadlineFor } from './appointment-deadlines.js';
 import { APPOINTMENT_INCLUDE } from './appointment.include.js';
@@ -21,8 +21,25 @@ import {
   MAX_ADVANCE_DAYS,
   SLOT_OCCUPYING_STATUSES,
 } from './appointments.constants.js';
-import { BuyerAppointmentResponseDto } from './dto/appointment-response.dto.js';
+import { participantOf } from './appointments.state-machine.js';
+import type { Participant } from './appointments.state-machine.js';
+import {
+  appointmentResponseFor,
+  BuyerAppointmentResponseDto,
+} from './dto/appointment-response.dto.js';
+import type { AppointmentResponseDto } from './dto/appointment-response.dto.js';
+import type { ListAppointmentsQueryDto } from './dto/list-appointments-query.dto.js';
+import type { PaginatedAppointmentsResponseDto } from './dto/paginated-appointments-response.dto.js';
 import type { CreateAppointmentDto } from './dto/create-appointment.dto.js';
+
+const NOT_FOUND_MESSAGE = 'Agendamento não encontrado';
+
+/** Campo do agendamento que guarda o usuário de cada papel. */
+const PARTICIPANT_FIELD: Record<Participant, 'buyerId' | 'sellerId' | 'inspectorUserId'> = {
+  BUYER: 'buyerId',
+  SELLER: 'sellerId',
+  INSPECTOR: 'inspectorUserId',
+};
 
 const HOUR_MS = 3_600_000;
 const DAY_MS = 24 * HOUR_MS;
@@ -123,6 +140,53 @@ export class AppointmentsService {
       include: APPOINTMENT_INCLUDE,
     });
     return BuyerAppointmentResponseDto.from(appointment);
+  }
+
+  /**
+   * Agendamentos em que o usuário participa (ou só num papel, com `as`).
+   * O filtro do usuário está sempre no where; cada item sai no formato do
+   * papel dele naquele agendamento. Ordem estável: mais recentes primeiro,
+   * com o id como desempate.
+   */
+  async list(userId: string, query: ListAppointmentsQueryDto): Promise<PaginatedAppointmentsResponseDto> {
+    const { as, status, page, limit } = query;
+    const where: Prisma.AppointmentWhereInput = {
+      ...(as
+        ? { [PARTICIPANT_FIELD[as]]: userId }
+        : { OR: [{ buyerId: userId }, { sellerId: userId }, { inspectorUserId: userId }] }),
+      ...(status && { status }),
+    };
+
+    const [appointments, total] = await this.prisma.$transaction([
+      this.prisma.appointment.findMany({
+        where,
+        include: APPOINTMENT_INCLUDE,
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.appointment.count({ where }),
+    ]);
+
+    return {
+      items: appointments.map((appointment) =>
+        appointmentResponseFor(participantOf(appointment, userId) as Participant, appointment),
+      ),
+      total,
+      page,
+      limit,
+    };
+  }
+
+  /** Detalhe: 404 quando não existe ou quando o usuário não participa (recurso privado). */
+  async findOne(id: string, userId: string): Promise<AppointmentResponseDto> {
+    const appointment = await this.prisma.appointment.findUnique({
+      where: { id },
+      include: APPOINTMENT_INCLUDE,
+    });
+    const role = appointment && participantOf(appointment, userId);
+    if (!appointment || !role) throw new NotFoundException(NOT_FOUND_MESSAGE);
+    return appointmentResponseFor(role, appointment);
   }
 
   /** 400 se o início não respeitar a antecedência mínima ou o horizonte de 60 dias. */
