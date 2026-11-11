@@ -726,7 +726,11 @@ describe('ListingsService', () => {
     it('não mexe em agendamentos quando a transição é inválida (409 antes da transação)', async () => {
       prisma.listing.findUnique.mockResolvedValue({ sellerId: 'u1', status: 'ARCHIVED' });
 
-      await expect(service.pause('l1', 'u1')).rejects.toBeInstanceOf(ConflictException);
+      const promise = service.pause('l1', 'u1');
+
+      await expect(promise).rejects.toBeInstanceOf(ConflictException);
+      await expect(promise).rejects.toThrow('Ação não permitida no status atual do anúncio');
+      expect(prisma.$transaction).not.toHaveBeenCalled();
       expect(prisma.appointment.updateMany).not.toHaveBeenCalled();
     });
   });

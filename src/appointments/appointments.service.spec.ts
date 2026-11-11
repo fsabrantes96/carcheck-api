@@ -596,7 +596,10 @@ describe('AppointmentsService: ações (accept, decline, confirm, cancel)', () =
     it('papel sem permissão recebe 403 mesmo em estado errado (403 vem antes do 409)', async () => {
       prisma.appointment.findUnique.mockResolvedValue(snapshot('CANCELLED'));
 
-      await expect(call.accept(service, 'buyer')).rejects.toBeInstanceOf(ForbiddenException);
+      const promise = call.accept(service, 'buyer');
+
+      await expect(promise).rejects.toBeInstanceOf(ForbiddenException);
+      await expect(promise).rejects.toThrow('Você não pode aceitar este agendamento');
     });
 
     it.each([
@@ -768,12 +771,17 @@ describe('AppointmentsService: ações (accept, decline, confirm, cancel)', () =
       expect(result).toBeInstanceOf(type);
     });
 
-    it('decline, confirm e cancel não abrem transação (uma gravação só)', async () => {
-      prisma.appointment.findUnique.mockResolvedValue(snapshot('REQUESTED'));
+    it.each([
+      ['decline', 'inspector', 'REQUESTED'],
+      ['confirm', 'seller', 'ACCEPTED'],
+      ['cancel', 'buyer', 'REQUESTED'],
+    ] as const)('%s não abre transação (uma gravação só)', async (action, user, status) => {
+      prisma.appointment.findUnique.mockResolvedValue(snapshot(status));
 
-      await service.cancel('a1', 'buyer');
+      await call[action](service, user);
 
       expect(prisma.$transaction).not.toHaveBeenCalled();
+      expect(prisma.appointment.updateMany).toHaveBeenCalledTimes(1);
     });
   });
 });
