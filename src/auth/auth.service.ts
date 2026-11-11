@@ -17,6 +17,15 @@ import { RegisterDto } from './dto/register.dto.js';
 import { UserResponseDto } from './dto/user-response.dto.js';
 import type { JwtPayload } from './types/jwt-payload.js';
 
+const BCRYPT_ROUNDS = 10;
+
+/**
+ * Hash fixo, com o mesmo custo do hash real, usado no login quando o e-mail
+ * não existe: o bcrypt.compare roda do mesmo jeito e o tempo de resposta não
+ * revela se o e-mail está cadastrado.
+ */
+const DUMMY_HASH = bcrypt.hashSync('carcheck-dummy-password', BCRYPT_ROUNDS);
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -30,7 +39,7 @@ export class AuthService {
     });
     if (exists) throw new ConflictException('E-mail já cadastrado');
 
-    const passwordHash = await bcrypt.hash(dto.password, 10);
+    const passwordHash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
     let user;
     try {
       user = await this.prisma.user.create({
@@ -52,11 +61,14 @@ export class AuthService {
       where: { email: dto.email },
     });
 
-    const passwordOk = user
-      ? await bcrypt.compare(dto.password, user.passwordHash)
-      : false;
+    if (!user) {
+      // Tempo constante: compara com o hash fixo e descarta o resultado.
+      await bcrypt.compare(dto.password, DUMMY_HASH);
+      throw new UnauthorizedException('E-mail ou senha inválidos');
+    }
 
-    if (!user || !passwordOk) {
+    const passwordOk = await bcrypt.compare(dto.password, user.passwordHash);
+    if (!passwordOk) {
       throw new UnauthorizedException('E-mail ou senha inválidos');
     }
 
