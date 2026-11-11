@@ -1,6 +1,15 @@
-import { ConflictException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
+import {
+  isPrismaError,
+  PRISMA_UNIQUE_VIOLATION,
+} from '../common/prisma/prisma-errors.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { LoginDto } from './dto/login.dto.js';
 import { LoginResponseDto } from './dto/login-response.dto.js';
@@ -10,44 +19,56 @@ import type { JwtPayload } from './types/jwt-payload.js';
 
 @Injectable()
 export class AuthService {
-    constructor(private readonly prisma: PrismaService, private readonly jwt: JwtService,) { }
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly jwt: JwtService,
+  ) {}
 
-    async register(dto: RegisterDto): Promise<UserResponseDto> {
-        const exists = await this.prisma.user.findUnique({
-            where: { email: dto.email },
-        });
-        if (exists) throw new ConflictException('E-mail já cadastrado');
+  async register(dto: RegisterDto): Promise<UserResponseDto> {
+    const exists = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
+    if (exists) throw new ConflictException('E-mail já cadastrado');
 
-        const passwordHash = await bcrypt.hash(dto.password, 10);
-        const user = await this.prisma.user.create({
-            data: { name: dto.name, email: dto.email, passwordHash },
-        });
-
-        return UserResponseDto.from(user);
+    const passwordHash = await bcrypt.hash(dto.password, 10);
+    let user;
+    try {
+      user = await this.prisma.user.create({
+        data: { name: dto.name, email: dto.email, passwordHash },
+      });
+    } catch (error) {
+      // Corrida: outra requisição criou o mesmo e-mail depois da checagem.
+      if (isPrismaError(error, PRISMA_UNIQUE_VIOLATION)) {
+        throw new ConflictException('E-mail já cadastrado');
+      }
+      throw error;
     }
 
-    async login(dto: LoginDto): Promise<LoginResponseDto> {
-        const user = await this.prisma.user.findUnique({
-            where: { email: dto.email },
-        });
+    return UserResponseDto.from(user);
+  }
 
-        const passwordOk = user
-            ? await bcrypt.compare(dto.password, user.passwordHash)
-            : false;
+  async login(dto: LoginDto): Promise<LoginResponseDto> {
+    const user = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
 
-        if (!user || !passwordOk) {
-            throw new UnauthorizedException('E-mail ou senha inválidos');
-        }
+    const passwordOk = user
+      ? await bcrypt.compare(dto.password, user.passwordHash)
+      : false;
 
-        const payload: JwtPayload = { sub: user.id, email: user.email };
-        const accessToken = await this.jwt.signAsync(payload);
-
-        return { accessToken, user: UserResponseDto.from(user) };
+    if (!user || !passwordOk) {
+      throw new UnauthorizedException('E-mail ou senha inválidos');
     }
 
-    async me(userId: string): Promise<UserResponseDto> {
-        const user = await this.prisma.user.findUnique({ where: { id: userId } });
-        if (!user) throw new NotFoundException('Usuário não encontrado');
-        return UserResponseDto.from(user);
-    }
+    const payload: JwtPayload = { sub: user.id, email: user.email };
+    const accessToken = await this.jwt.signAsync(payload);
+
+    return { accessToken, user: UserResponseDto.from(user) };
+  }
+
+  async me(userId: string): Promise<UserResponseDto> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('Usuário não encontrado');
+    return UserResponseDto.from(user);
+  }
 }
