@@ -113,7 +113,7 @@ describe('Appointments (e2e)', () => {
 
   describe('anúncio saindo de ACTIVE', () => {
     it.each(['pause', 'mark-sold'])(
-      '%s cancela os agendamentos em aberto do anúncio (CANCELLED, endedBy SYSTEM)',
+      '%s cancela os agendamentos em aberto do anúncio (CANCELLED, endedBy SELLER)',
       async (route) => {
         const listingId = await createListing();
         const created = await requestAppointment(listingId).expect(201);
@@ -124,19 +124,19 @@ describe('Appointments (e2e)', () => {
           .expect(200);
 
         const saved = await prisma.appointment.findUniqueOrThrow({ where: { id: created.body.id } });
-        expect(saved).toMatchObject({ status: 'CANCELLED', endedBy: 'SYSTEM' });
+        expect(saved).toMatchObject({ status: 'CANCELLED', endedBy: 'SELLER' });
         expect(saved.endedAt).toBeInstanceOf(Date);
       },
     );
 
-    it('DELETE (arquivar) também cancela os agendamentos em aberto', async () => {
+    it('DELETE (arquivar) também cancela os agendamentos em aberto (endedBy SELLER)', async () => {
       const listingId = await createListing();
       const created = await requestAppointment(listingId).expect(201);
 
       await request(app.getHttpServer()).delete(`/listings/${listingId}`).set(auth(seller)).expect(204);
 
       const saved = await prisma.appointment.findUniqueOrThrow({ where: { id: created.body.id } });
-      expect(saved.status).toBe('CANCELLED');
+      expect(saved).toMatchObject({ status: 'CANCELLED', endedBy: 'SELLER' });
     });
 
     it('responde 409 e não muda nada quando há agendamento PAID', async () => {
@@ -177,7 +177,7 @@ describe('Appointments (e2e)', () => {
         expect(open, `rodada ${round}: agendamento aberto em anúncio pausado`).toBe(0);
         if (created.status === 201) {
           const saved = await prisma.appointment.findUniqueOrThrow({ where: { id: created.body.id } });
-          expect(saved).toMatchObject({ status: 'CANCELLED', endedBy: 'SYSTEM' });
+          expect(saved).toMatchObject({ status: 'CANCELLED', endedBy: 'SELLER' });
         }
       }
     });

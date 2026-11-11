@@ -672,13 +672,13 @@ describe('ListingsService', () => {
     ] as const;
 
     it.each(leaving)(
-      '%s cancela os agendamentos REQUESTED, ACCEPTED e AWAITING_PAYMENT do anúncio (CANCELLED, endedBy SYSTEM)',
+      '%s cancela os agendamentos REQUESTED, ACCEPTED e AWAITING_PAYMENT do anúncio (CANCELLED, endedBy SELLER)',
       async (_name, run) => {
         await run(service);
 
         expect(prisma.appointment.updateMany).toHaveBeenCalledWith({
           where: { listingId: 'l1', status: { in: ['REQUESTED', 'ACCEPTED', 'AWAITING_PAYMENT'] } },
-          data: { status: 'CANCELLED', endedBy: 'SYSTEM', endedAt: NOW },
+          data: { status: 'CANCELLED', endedBy: 'SELLER', endedAt: NOW },
         });
       },
     );
