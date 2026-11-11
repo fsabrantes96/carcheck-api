@@ -228,6 +228,26 @@ describe('InspectorsService', () => {
       }
     });
 
+    it('não repassa ao Prisma campos que não estão no DTO (ex.: verified, userId)', async () => {
+      prisma.inspectorProfile.findUnique.mockResolvedValue(existing);
+      prisma.inspectorProfile.update.mockResolvedValue(
+        updatedProfile({ city: 'Ribeirão Preto' }),
+      );
+      const withExtras = {
+        city: 'Ribeirão Preto',
+        verified: true,
+        userId: 'outro',
+      } as UpdateInspectorProfileDto;
+
+      await service.update('u1', withExtras);
+
+      const [{ data }] = prisma.inspectorProfile.update.mock.calls[0] as [
+        { data: Record<string, unknown> },
+      ];
+      expect(data).not.toHaveProperty('verified');
+      expect(data).not.toHaveProperty('userId');
+    });
+
     it('devolve o perfil atualizado como InspectorResponseDto', async () => {
       prisma.inspectorProfile.findUnique.mockResolvedValue(existing);
       prisma.inspectorProfile.update.mockResolvedValue(

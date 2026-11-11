@@ -78,9 +78,18 @@ export class InspectorsService {
     if (!exists)
       throw new NotFoundException('Perfil de avaliador não encontrado');
 
+    // Campo a campo: só o que o DTO declara chega ao Prisma. Campos ausentes
+    // ficam undefined, e o Prisma não os altera (update parcial).
     const profile = await this.prisma.inspectorProfile.update({
       where: { userId },
-      data: dto,
+      data: {
+        bio: dto.bio,
+        specialties: dto.specialties,
+        city: dto.city,
+        state: dto.state,
+        serviceRadiusKm: dto.serviceRadiusKm,
+        basePriceCents: dto.basePriceCents,
+      },
       include: { user: true },
     });
     return InspectorResponseDto.from(profile);
