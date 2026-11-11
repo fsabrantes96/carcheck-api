@@ -19,8 +19,8 @@ import { APPOINTMENT_INCLUDE } from './appointment.include.js';
 import {
   APPOINTMENT_OPEN_TRIPLET_INDEX,
   EXPIRABLE_STATUSES,
+  EXPIRING_SLOT_STATUSES,
   MAX_ADVANCE_DAYS,
-  SLOT_OCCUPYING_STATUSES,
 } from './appointments.constants.js';
 import { decide, participantOf } from './appointments.state-machine.js';
 import type { AppointmentAction, Participant } from './appointments.state-machine.js';
@@ -118,14 +118,16 @@ export class AppointmentsService {
         }
 
         // Checagem branda: a garantia é a exclusion constraint, aplicada no
-        // aceite. Ignora quem ocupa o horário mas já venceu (expiresAt <= agora).
+        // aceite. PAID ocupa sempre; ACCEPTED/AWAITING_PAYMENT só se não venceram.
         const busy = await tx.appointment.findFirst({
           where: {
             inspectorUserId: inspector.userId,
-            status: { in: SLOT_OCCUPYING_STATUSES },
             startsAt: { lt: endsAt },
             endsAt: { gt: startsAt },
-            OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+            OR: [
+              { status: 'PAID' },
+              { status: { in: EXPIRING_SLOT_STATUSES }, expiresAt: { gt: now } },
+            ],
           },
           select: { id: true },
         });
@@ -230,10 +232,11 @@ export class AppointmentsService {
 
       // Libera horários presos por agendamentos do mesmo avaliador que já
       // venceram e o job ainda não varreu; senão a constraint daria um falso 409.
+      // Nunca toca em PAID (EXPIRE não sai de PAID).
       await tx.appointment.updateMany({
         where: {
           inspectorUserId: snapshot.inspectorUserId,
-          status: { in: SLOT_OCCUPYING_STATUSES },
+          status: { in: EXPIRING_SLOT_STATUSES },
           expiresAt: { lte: now },
         },
         data: { status: 'EXPIRED', endedBy: 'SYSTEM', endedAt: now },

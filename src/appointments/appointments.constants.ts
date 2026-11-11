@@ -16,8 +16,13 @@ export const INSPECTOR_RESPONSE_WINDOW_MINUTES = 24 * 60;
 export const SELLER_CONFIRM_WINDOW_MINUTES = 24 * 60;
 export const PAYMENT_WINDOW_MINUTES = 30;
 
-/** Estados que ocupam o horário do avaliador (mesmos da exclusion constraint). */
-export const SLOT_OCCUPYING_STATUSES: AppointmentStatus[] = ['ACCEPTED', 'AWAITING_PAYMENT', 'PAID'];
+/**
+ * Ocupam o horário do avaliador: ACCEPTED, AWAITING_PAYMENT e PAID (mesmos da
+ * exclusion constraint). Destes, os que ocupam horário E podem vencer são os
+ * abaixo. PAID ocupa o horário sem prazo:
+ * nunca é expirado nem tratado como livre, mesmo com expiresAt preenchido.
+ */
+export const EXPIRING_SLOT_STATUSES: AppointmentStatus[] = ['ACCEPTED', 'AWAITING_PAYMENT'];
 
 /** Estados com prazo de expiração (expiresAt obrigatório). */
 export const EXPIRABLE_STATUSES: AppointmentStatus[] = ['REQUESTED', 'ACCEPTED', 'AWAITING_PAYMENT'];
