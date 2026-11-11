@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 CarCheck API: NestJS backend for a vehicle marketplace where a buyer can book an **inspector** (mechanic/specialist) to evaluate a car before buying. It's a personal study project focused on clean backend↔frontend contracts (DTOs + generated OpenAPI). Code comments, error messages, commit messages, and PR descriptions are written in **Portuguese (pt-BR)**.
 
-Roadmap (README): auth, inspector profiles, listings and the listing lifecycle are done. Next up: appointment scheduling, then inspection reports/reviews, then proximity search (PostGIS). [docs/ai-tooling-plan.md](docs/ai-tooling-plan.md) lists the planned AI agents and skills, and in doing so mentions future domain concepts such as an appointment state machine, escrowed payments with commission in cents, and role-specific response DTOs.
+Roadmap (README): auth, inspector profiles, listings, the listing lifecycle and appointment scheduling up to AWAITING_PAYMENT are done. Next up: the expiry job (PR C), payment/escrow, then inspection reports/reviews, then proximity search (PostGIS). [docs/ai-tooling-plan.md](docs/ai-tooling-plan.md) lists the planned AI agents and skills, and in doing so mentions future domain concepts such as an appointment state machine, escrowed payments with commission in cents, and role-specific response DTOs.
 
 Known risks and their status (open, accepted, resolved) live in [docs/audit.md](docs/audit.md). Read it before designing, reviewing, or testing, and update it when a change resolves or introduces a risk.
 
@@ -29,7 +29,7 @@ npm run test:e2e              # vitest with vitest.config.e2e.ts (test/**/*.e2e-
 
 **Windows gotcha (port 3000):** stopping the task that ran `npm run start:dev` can leave the child Node process (`node --enable-source-maps ...\dist\main`) still listening on port 3000. If the port stays busy, find the owner with `Get-NetTCPConnection -LocalPort 3000 -State Listen` (the `OwningProcess` column), confirm it is the process you started (e.g. `Get-CimInstance Win32_Process -Filter "ProcessId=<pid>"` for its command line and start time), and stop only that PID. Never kill every `node.exe`: the user may have their own `start:dev` running.
 
-Env vars (`.env`, see `.env.example`): `DATABASE_URL`, `JWT_SECRET` (required, `getOrThrow`), `JWT_EXPIRES_IN_SECONDS` (default 3600).
+Env vars (`.env`, see `.env.example`): `DATABASE_URL`, `JWT_SECRET` (required, `getOrThrow`), `JWT_EXPIRES_IN_SECONDS` (default 3600). Business rules are validated at boot by `validateEnv` ([src/config/env.validation.ts](src/config/env.validation.ts)) and injected with `@Inject(BUSINESS_RULES)`: `PLATFORM_FEE_BPS` (**required**, integer 0..10000), `MIN_INSPECTION_PRICE_CENTS` (default 5000), `APPOINTMENT_DURATION_MINUTES` (default 60), `APPOINTMENT_MIN_NOTICE_HOURS` (default 24). The e2e config sets `PLATFORM_FEE_BPS`.
 
 CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs on PRs to `main`: `npm ci`, `npm run build`, `npm test`. No database service is started in CI, so unit tests must not need a live DB.
 
@@ -60,6 +60,19 @@ CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs on PRs to `main`:
 - Archived listings are hidden from `GET /listings`, `GET /listings/:id` and `GET /listings/mine`.
 - Public responses (`ListingResponseDto`) carry neither `sellerId` nor `status`; owner routes (`POST`, `GET /mine`, `PATCH`, transitions) return `MyListingResponseDto` (public fields + `status`, still no `sellerId`).
 - The appointment design that builds on this is in [docs/appointments-design.md](docs/appointments-design.md).
+
+### Appointments ([src/appointments/](src/appointments/))
+
+Design: [docs/appointments-design.md](docs/appointments-design.md). The flow ends at `AWAITING_PAYMENT`; `PAID`, `REPORT_SUBMITTED`, `DISPUTED` and `COMPLETED` exist in the enum and the transition table but no route reaches them.
+
+- **Private resource**: non-participants get 404 ("Agendamento não encontrado"); a participant whose role can't act gets 403; wrong state gets 409. Only `JwtAuthGuard` (no `RolesGuard`): the role that matters is the user's role *in that appointment* (`participantOf`), not the global role.
+- **State machine**: pure `decide(actor, action, status)` in [appointments.state-machine.ts](src/appointments/appointments.state-machine.ts); one route per intent (`accept`, `decline`, `confirm`, `cancel`), never a PATCH with status. Writes use `updateMany` filtered by the status read and `expiresAt > now`; `count === 0` is a 409.
+- **Deadlines** come from the injectable `CLOCK` ([src/common/clock/clock.ts](src/common/clock/clock.ts)), never the DB `now()`; tests use `FakeClock` (`test/support/fake-clock.ts`). `expiresAt = min(entered state + window, startsAt)` (`deadlineFor`). An action on an expired appointment writes `EXPIRED` **outside** any transaction and then returns 409.
+- **Double booking** is prevented in the DB by the exclusion constraint `Appointment_inspector_slot_excl` (only `ACCEPTED`, `AWAITING_PAYMENT`, `PAID` occupy the slot). Its 23P01 reaches the app as P2039/P2010 with the SQLSTATE in `meta.driverAdapterError.cause.originalCode`; `isPgError` detects it and the global filter returns 409. The partial unique index `Appointment_open_triplet_key` (`APPOINTMENT_OPEN_TRIPLET_INDEX`) blocks duplicate open requests (P2002, recognized by name with `isUniqueViolationOn`). These constraints and the CHECKs live only in the migration SQL; Prisma ignores them (drift verified). Don't drop them.
+- **Money** is frozen at creation (`priceCents`, `platformFeeBps`, `platformFeeCents`, `inspectorPayoutCents`) with the pure `splitPlatformFee` ([src/common/money/platform-fee.ts](src/common/money/platform-fee.ts)): integer half-up, `fee + payout === price`.
+- **Responses per role** (`myRole` discriminator, `oneOf` in OpenAPI): Seller = base (no money), Buyer = base + `priceCents`, Inspector = base + price, fee bps, fee and payout. Forbidden fields don't exist in the response. No response carries user ids.
+- Creating locks the listing with `SELECT ... FOR SHARE`; listing transitions update the listing first, then cancel open appointments (or 409 if one is `PAID`).
+- **Advancing state in dev** (no routes for payment/report yet): open `npx prisma studio`, edit the `Appointment` row. The CHECKs still apply: `PAID` needs `meetingAddress` set (and may have `expiresAt` null); `REQUESTED`/`ACCEPTED`/`AWAITING_PAYMENT` need `expiresAt`; `DECLINED`/`CANCELLED`/`EXPIRED` need `endedBy` (and only they may have it). To simulate an expired deadline, set `expiresAt` in the past and call any action. To let an inspector receive requests, set `InspectorProfile.verified = true` there too.
 
 ### Auth ([src/auth/](src/auth/))
 
