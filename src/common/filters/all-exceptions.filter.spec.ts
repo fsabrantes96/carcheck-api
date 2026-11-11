@@ -7,6 +7,11 @@ import {
 import type { ArgumentsHost } from '@nestjs/common';
 import { ThrottlerException } from '@nestjs/throttler';
 import { Prisma } from '../../generated/prisma/client.js';
+import {
+  databaseErrorWithPgCode,
+  exclusionViolationFromModelQuery,
+  exclusionViolationFromRawQuery,
+} from '../../../test/support/prisma-error-fixtures.js';
 import { AllExceptionsFilter } from './all-exceptions.filter.js';
 
 function prismaError(code: string, message = 'erro do prisma', meta = {}) {
@@ -116,6 +121,48 @@ describe('AllExceptionsFilter', () => {
       );
       expect(body.message).toBe('Erro interno do servidor');
       expect(JSON.stringify(body)).not.toContain('nome');
+    });
+  });
+
+  describe('violação de exclusion constraint (23P01)', () => {
+    it('responde 409 com a mensagem do agendamento quando vem de uma query de model (P2039)', () => {
+      const { response, body } = run(exclusionViolationFromModelQuery());
+
+      expect(response.status).toHaveBeenCalledWith(HttpStatus.CONFLICT);
+      expect(body).toMatchObject({
+        statusCode: 409,
+        error: 'Conflict',
+        message: 'O agendamento mudou ou o horário não está mais disponível',
+      });
+    });
+
+    it('responde 409 também quando vem de um $executeRaw (P2010)', () => {
+      const { response } = run(exclusionViolationFromRawQuery());
+
+      expect(response.status).toHaveBeenCalledWith(HttpStatus.CONFLICT);
+    });
+
+    it('não vaza o nome da constraint, o detail nem o meta', () => {
+      const { body } = run(exclusionViolationFromModelQuery());
+      const serialized = JSON.stringify(body);
+
+      expect(serialized).not.toContain('Appointment_inspector_slot_excl');
+      expect(serialized).not.toContain('inspectorUserId');
+      expect(serialized).not.toContain('meta');
+    });
+
+    it('não registra no Logger.error (é um conflito esperado)', () => {
+      run(exclusionViolationFromModelQuery());
+
+      expect(loggerError).not.toHaveBeenCalled();
+    });
+
+    it('mantém 500 e registra no Logger um erro do banco com outro SQLSTATE no mesmo formato (ex.: 23514, CHECK)', () => {
+      const { response, body } = run(databaseErrorWithPgCode('23514'));
+
+      expect(response.status).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
+      expect(body.message).toBe('Erro interno do servidor');
+      expect(loggerError).toHaveBeenCalledTimes(1);
     });
   });
 
