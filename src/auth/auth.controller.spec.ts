@@ -6,10 +6,15 @@ import {
 } from '@nestjs/throttler';
 import type { ExecutionContext } from '@nestjs/common';
 import {
+  GUARDS_METADATA,
+  HTTP_CODE_METADATA,
+} from '@nestjs/common/constants.js';
+import {
   THROTTLE_ERROR_MESSAGE,
   throttlerOptions,
 } from '../common/throttler/throttler.config.js';
 import { AuthController } from './auth.controller.js';
+import { JwtAuthGuard } from './jwt-auth.guard.js';
 
 // Chaves de metadata usadas pelo @Throttle (o pacote não as exporta no index):
 // node_modules/@nestjs/throttler/dist/throttler.constants.js
@@ -139,5 +144,25 @@ describe('AuthController (rate limit)', () => {
 
       await expect(guard.canActivate(context('me'))).resolves.toBe(true);
     });
+  });
+});
+
+describe('AuthController (guards e status codes)', () => {
+  it('me usa só o JwtAuthGuard', () => {
+    expect(Reflect.getMetadata(GUARDS_METADATA, handler('me'))).toEqual([
+      JwtAuthGuard,
+    ]);
+  });
+
+  it.each(['register', 'login'] as const)('%s não tem guard', (name) => {
+    expect(Reflect.getMetadata(GUARDS_METADATA, handler(name))).toBeUndefined();
+  });
+
+  it('a classe AuthController não declara guards', () => {
+    expect(Reflect.getMetadata(GUARDS_METADATA, AuthController)).toBeUndefined();
+  });
+
+  it('login responde 200 (HttpCode explícito)', () => {
+    expect(Reflect.getMetadata(HTTP_CODE_METADATA, handler('login'))).toBe(200);
   });
 });
