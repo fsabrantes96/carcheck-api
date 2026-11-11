@@ -227,14 +227,15 @@ export class ListingsService {
             }
             if (to === 'ACTIVE') return;
 
-            // 2) Saindo de ACTIVE: com avaliação paga em andamento, não pode (rollback).
+            // 2) Indo para PAUSED, SOLD ou ARCHIVED (de ACTIVE ou de PAUSED): com
+            // avaliação paga em andamento, não pode (rollback).
             const paid = await tx.appointment.findFirst({
                 where: { listingId: id, status: 'PAID' },
                 select: { id: true },
             });
             if (paid) {
                 throw new ConflictException(
-                    'O anúncio tem avaliação paga em andamento e não pode sair de ACTIVE',
+                    'O anúncio tem avaliação paga em andamento; não é possível pausar, vender ou arquivar',
                 );
             }
 
