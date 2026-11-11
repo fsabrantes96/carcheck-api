@@ -12,6 +12,8 @@ import { ListingResponseDto } from './dto/listing-response.dto.js';
 import { PaginatedListingsResponseDto } from './dto/paginated-listings-response.dto.js';
 import { UpdateListingDto } from './dto/update-listing.dto.js';
 import type { VehicleDto } from './dto/vehicle.dto.js';
+import { decideListingTransition } from './listings.state-machine.js';
+import type { ListingAction } from './listings.state-machine.js';
 
 const include = { seller: true, vehicle: true } as const;
 
@@ -129,8 +131,46 @@ export class ListingsService {
         return ListingResponseDto.from(listing);
     }
 
+    pause(id: string, userId: string): Promise<ListingResponseDto> {
+        return this.transitionAndLoad(id, userId, 'PAUSE');
+    }
+
+    activate(id: string, userId: string): Promise<ListingResponseDto> {
+        return this.transitionAndLoad(id, userId, 'ACTIVATE');
+    }
+
+    markSold(id: string, userId: string): Promise<ListingResponseDto> {
+        return this.transitionAndLoad(id, userId, 'MARK_SOLD');
+    }
+
     /** Arquiva o anúncio (status ARCHIVED) em vez de apagá-lo. */
     async remove(id: string, userId: string): Promise<void> {
+        await this.transition(id, userId, 'ARCHIVE');
+    }
+
+    private async transitionAndLoad(
+        id: string,
+        userId: string,
+        action: ListingAction,
+    ): Promise<ListingResponseDto> {
+        await this.transition(id, userId, action);
+        const listing = await this.prisma.listing.findUniqueOrThrow({
+            where: { id },
+            include,
+        });
+        return ListingResponseDto.from(listing);
+    }
+
+    /**
+     * Aplica uma transição de status: 404 se não existe, 403 se não é do
+     * usuário, 409 se a ação não é permitida no status atual ou se outra
+     * requisição mudou o status entre a leitura e a gravação.
+     */
+    private async transition(
+        id: string,
+        userId: string,
+        action: ListingAction,
+    ): Promise<void> {
         const listing = await this.prisma.listing.findUnique({
             where: { id },
             select: { sellerId: true, status: true },
@@ -139,14 +179,15 @@ export class ListingsService {
         if (listing.sellerId !== userId) {
             throw new ForbiddenException('Este anúncio não pertence a você');
         }
-        if (listing.status === 'ARCHIVED') {
+        const decision = decideListingTransition(action, listing.status);
+        if (!decision.ok) {
             throw new ConflictException('Ação não permitida no status atual do anúncio');
         }
 
         // Grava só se o status ainda for o que foi lido (proteção contra corrida).
         const { count } = await this.prisma.listing.updateMany({
             where: { id, sellerId: userId, status: listing.status },
-            data: { status: 'ARCHIVED' },
+            data: { status: decision.to },
         });
         if (count === 0) {
             throw new ConflictException('O anúncio mudou de status; recarregue e tente novamente');

@@ -11,7 +11,10 @@ type HandlerName =
   | 'findMine'
   | 'create'
   | 'update'
-  | 'remove';
+  | 'remove'
+  | 'pause'
+  | 'activate'
+  | 'markSold';
 type Handler = (...args: never[]) => unknown;
 
 function handler(name: HandlerName): Handler {
@@ -48,4 +51,20 @@ describe('ListingsController (guards e status codes)', () => {
       204,
     );
   });
+
+  it.each(['pause', 'activate', 'markSold'] as const)(
+    '%s usa só o JwtAuthGuard',
+    (name) => {
+      expect(Reflect.getMetadata(GUARDS_METADATA, handler(name))).toEqual([
+        JwtAuthGuard,
+      ]);
+    },
+  );
+
+  it.each(['pause', 'activate', 'markSold'] as const)(
+    '%s responde 200 (HttpCode explícito, não o 201 padrão do POST)',
+    (name) => {
+      expect(Reflect.getMetadata(HTTP_CODE_METADATA, handler(name))).toBe(200);
+    },
+  );
 });
