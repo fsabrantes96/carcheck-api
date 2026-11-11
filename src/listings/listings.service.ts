@@ -1,9 +1,13 @@
 import {
     ConflictException,
     ForbiddenException,
+    Inject,
     Injectable,
     NotFoundException,
+    Optional,
 } from '@nestjs/common';
+import { CLOCK, SystemClock } from '../common/clock/clock.js';
+import type { Clock } from '../common/clock/clock.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import {
     isPrismaError,
@@ -35,7 +39,11 @@ function toVehicleData(vehicle: VehicleDto) {
 
 @Injectable()
 export class ListingsService {
-    constructor(private readonly prisma: PrismaService) { }
+    constructor(
+        private readonly prisma: PrismaService,
+        // Opcional com padrão: só carimba o endedAt dos agendamentos cancelados.
+        @Optional() @Inject(CLOCK) private readonly clock: Clock = new SystemClock(),
+    ) { }
 
     async create(sellerId: string, dto: CreateListingDto): Promise<MyListingResponseDto> {
         const listing = await this.prisma.listing.create({
@@ -205,14 +213,37 @@ export class ListingsService {
             throw new ConflictException('Ação não permitida no status atual do anúncio');
         }
 
-        // Grava só se o status ainda for o que foi lido (proteção contra corrida).
-        const { count } = await this.prisma.listing.updateMany({
-            where: { id, sellerId: userId, status: listing.status },
-            data: { status: decision.to },
+        const to = decision.to;
+        await this.prisma.$transaction(async (tx) => {
+            // 1) UPDATE do anúncio primeiro: pega o lock da linha, e uma criação de
+            // agendamento concorrente (SELECT ... FOR SHARE) espera esta transação.
+            // Grava só se o status ainda for o que foi lido (proteção contra corrida).
+            const { count } = await tx.listing.updateMany({
+                where: { id, sellerId: userId, status: listing.status },
+                data: { status: to },
+            });
+            if (count === 0) {
+                throw new ConflictException('O anúncio mudou de status; recarregue e tente novamente');
+            }
+            if (to === 'ACTIVE') return;
+
+            // 2) Saindo de ACTIVE: com avaliação paga em andamento, não pode (rollback).
+            const paid = await tx.appointment.findFirst({
+                where: { listingId: id, status: 'PAID' },
+                select: { id: true },
+            });
+            if (paid) {
+                throw new ConflictException(
+                    'O anúncio tem avaliação paga em andamento e não pode sair de ACTIVE',
+                );
+            }
+
+            // 3) Cancela os agendamentos ainda não pagos do anúncio.
+            await tx.appointment.updateMany({
+                where: { listingId: id, status: { in: ['REQUESTED', 'ACCEPTED', 'AWAITING_PAYMENT'] } },
+                data: { status: 'CANCELLED', endedBy: 'SYSTEM', endedAt: this.clock.now() },
+            });
         });
-        if (count === 0) {
-            throw new ConflictException('O anúncio mudou de status; recarregue e tente novamente');
-        }
     }
 
     private async assertOwner(id: string, userId: string): Promise<void> {
