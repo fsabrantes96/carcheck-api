@@ -1,5 +1,6 @@
-import { ConflictException } from '@nestjs/common';
+import { ConflictException, UnauthorizedException } from '@nestjs/common';
 import type { JwtService } from '@nestjs/jwt';
+import * as bcrypt from 'bcrypt';
 import { Prisma } from '../generated/prisma/client.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import { AuthService } from './auth.service.js';
@@ -10,6 +11,9 @@ import { UserResponseDto } from './dto/user-response.dto.js';
 // de pacotes de node_modules; por isso as asserções não dependem do valor dele.
 vi.mock('bcrypt', () => ({
   hash: vi.fn().mockResolvedValue('hash-falso'),
+  // hashSync roda na importação do service (hash fixo do login): devolve
+  // string para o teste não depender de undefined.
+  hashSync: vi.fn().mockReturnValue('hash-fixo-falso'),
   compare: vi.fn(),
 }));
 
@@ -128,6 +132,91 @@ describe('AuthService', () => {
       prisma.user.create.mockRejectedValue(error);
 
       await expect(service.register(dto)).rejects.toBe(error);
+    });
+  });
+
+  // Estes casos dependem do vi.mock('bcrypt') acima. No Windows, rode o
+  // Vitest com o cwd em maiúsculo (cd "C:/dev/carcheck-api"); com c:\ o mock
+  // não é aplicado e o vi.spyOn não alcança o import do service.
+  describe('login', () => {
+    const loginDto = { email: 'maria@x.com', password: 'senha12345' };
+    const user = {
+      id: 'u1',
+      name: 'Maria Silva',
+      email: 'maria@x.com',
+      passwordHash: 'hash-do-usuario',
+      roles: ['USER'],
+      createdAt: new Date('2026-11-10T12:00:00.000Z'),
+    };
+    let compare: ReturnType<typeof vi.fn>;
+    let jwt: { signAsync: ReturnType<typeof vi.fn> };
+
+    beforeEach(() => {
+      compare = vi.mocked(bcrypt.compare) as unknown as ReturnType<
+        typeof vi.fn
+      >;
+      compare.mockReset();
+      jwt = { signAsync: vi.fn().mockResolvedValue('token-jwt') };
+      service = new AuthService(
+        prisma as unknown as PrismaService,
+        jwt as unknown as JwtService,
+      );
+    });
+
+    it('devolve accessToken e o usuário sem passwordHash quando a senha confere', async () => {
+      prisma.user.findUnique.mockResolvedValue(user);
+      compare.mockResolvedValue(true);
+
+      const result = await service.login(loginDto);
+
+      expect(result).toEqual({
+        accessToken: 'token-jwt',
+        user: {
+          id: 'u1',
+          name: 'Maria Silva',
+          email: 'maria@x.com',
+          createdAt: user.createdAt,
+        },
+      });
+      expect(result.user).toBeInstanceOf(UserResponseDto);
+      expect(result.user).not.toHaveProperty('passwordHash');
+      expect(jwt.signAsync).toHaveBeenCalledWith({
+        sub: 'u1',
+        email: 'maria@x.com',
+      });
+    });
+
+    it('compara a senha com o passwordHash do usuário e lança 401 quando ela não confere', async () => {
+      prisma.user.findUnique.mockResolvedValue(user);
+      compare.mockResolvedValue(false);
+
+      const promise = service.login(loginDto);
+
+      await expect(promise).rejects.toBeInstanceOf(UnauthorizedException);
+      await expect(promise).rejects.toThrow('E-mail ou senha inválidos');
+      expect(compare).toHaveBeenCalledTimes(1);
+      expect(compare).toHaveBeenCalledWith(
+        loginDto.password,
+        'hash-do-usuario',
+      );
+      expect(jwt.signAsync).not.toHaveBeenCalled();
+    });
+
+    it('executa bcrypt.compare com um hash fixo quando o usuário não existe (tempo constante) e lança 401', async () => {
+      prisma.user.findUnique.mockResolvedValue(null);
+      // Mesmo que o compare dissesse "confere", sem usuário o login falha.
+      compare.mockResolvedValue(true);
+
+      const promise = service.login(loginDto);
+
+      await expect(promise).rejects.toBeInstanceOf(UnauthorizedException);
+      await expect(promise).rejects.toThrow('E-mail ou senha inválidos');
+      expect(compare).toHaveBeenCalledTimes(1);
+      expect(compare).toHaveBeenCalledWith(
+        loginDto.password,
+        expect.any(String),
+      );
+      expect(jwt.signAsync).not.toHaveBeenCalled();
     });
   });
 });
