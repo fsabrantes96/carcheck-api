@@ -30,7 +30,15 @@ export class InspectorsService {
     try {
       profile = await this.prisma.$transaction(async (tx) => {
         const created = await tx.inspectorProfile.create({
-          data: { ...dto, userId },
+          data: {
+            bio: dto.bio,
+            specialties: dto.specialties,
+            city: dto.city,
+            state: dto.state,
+            serviceRadiusKm: dto.serviceRadiusKm,
+            basePriceCents: dto.basePriceCents,
+            userId,
+          },
           include: { user: true },
         });
         await tx.user.update({

@@ -10,17 +10,36 @@ import { ListListingsQueryDto } from './dto/list-listings-query.dto.js';
 import { ListingResponseDto } from './dto/listing-response.dto.js';
 import { PaginatedListingsResponseDto } from './dto/paginated-listings-response.dto.js';
 import { UpdateListingDto } from './dto/update-listing.dto.js';
+import type { VehicleDto } from './dto/vehicle.dto.js';
 
 const include = { seller: true, vehicle: true } as const;
+
+function toVehicleData(vehicle: VehicleDto) {
+    return {
+        brand: vehicle.brand,
+        model: vehicle.model,
+        year: vehicle.year,
+        mileageKm: vehicle.mileageKm,
+        fuel: vehicle.fuel,
+        transmission: vehicle.transmission,
+    };
+}
 
 @Injectable()
 export class ListingsService {
     constructor(private readonly prisma: PrismaService) { }
 
     async create(sellerId: string, dto: CreateListingDto): Promise<ListingResponseDto> {
-        const { vehicle, ...data } = dto;
         const listing = await this.prisma.listing.create({
-            data: { ...data, sellerId, vehicle: { create: { ...vehicle } } },
+            data: {
+                title: dto.title,
+                description: dto.description,
+                priceCents: dto.priceCents,
+                city: dto.city,
+                state: dto.state,
+                sellerId,
+                vehicle: { create: toVehicleData(dto.vehicle) },
+            },
             include,
         });
         return ListingResponseDto.from(listing);
@@ -92,10 +111,18 @@ export class ListingsService {
     ): Promise<ListingResponseDto> {
         await this.assertOwner(id, userId);
 
-        const { vehicle, ...data } = dto;
+        // Campos ausentes chegam como undefined, e o Prisma os ignora (update parcial).
         const listing = await this.prisma.listing.update({
             where: { id },
-            data: { ...data, ...(vehicle && { vehicle: { update: { ...vehicle } } }) },
+            data: {
+                title: dto.title,
+                description: dto.description,
+                priceCents: dto.priceCents,
+                city: dto.city,
+                state: dto.state,
+                status: dto.status,
+                vehicle: dto.vehicle && { update: toVehicleData(dto.vehicle) },
+            },
             include,
         });
         return ListingResponseDto.from(listing);
