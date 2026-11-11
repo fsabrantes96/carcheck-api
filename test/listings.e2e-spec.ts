@@ -47,15 +47,15 @@ describe('Listings (e2e)', () => {
   }
 
   describe('POST /listings', () => {
-    it('cria o anúncio com 201, status ACTIVE e os dados do veículo', async () => {
+    it('cria o anúncio com 201, status ACTIVE, os dados do veículo e sem sellerId', async () => {
       const res = await request(app.getHttpServer())
         .post('/listings')
         .set('Authorization', `Bearer ${seller.token}`)
         .send(listingPayload())
         .expect(201);
 
+      expect(res.body).not.toHaveProperty('sellerId');
       expect(res.body).toMatchObject({
-        sellerId: seller.id,
         sellerName: 'Carlos Vendedor',
         title: 'Gol 1.0 2018 completo',
         priceCents: 4_500_000,

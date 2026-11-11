@@ -8,6 +8,7 @@ import type { PrismaService } from '../prisma/prisma.service.js';
 import type { CreateListingDto } from './dto/create-listing.dto.js';
 import { ListListingsQueryDto } from './dto/list-listings-query.dto.js';
 import { ListingResponseDto } from './dto/listing-response.dto.js';
+import { MyListingResponseDto } from './dto/my-listing-response.dto.js';
 import type { UpdateListingDto } from './dto/update-listing.dto.js';
 import type { VehicleDto } from './dto/vehicle.dto.js';
 import { ListingsService } from './listings.service.js';
@@ -140,15 +141,14 @@ describe('ListingsService', () => {
       });
     });
 
-    it('devolve o ListingResponseDto sem dados sensíveis do vendedor', async () => {
+    it('devolve o MyListingResponseDto do dono, com status e sem sellerId nem dados sensíveis', async () => {
       prisma.listing.create.mockResolvedValue(listingEntity());
 
       const result = await service.create('u1', createDto);
 
-      expect(result).toBeInstanceOf(ListingResponseDto);
+      expect(result).toBeInstanceOf(MyListingResponseDto);
       expect(result).toEqual({
         id: 'l1',
-        sellerId: 'u1',
         sellerName: 'Maria',
         title: createDto.title,
         description: createDto.description,
@@ -489,6 +489,16 @@ describe('ListingsService', () => {
       expect(JSON.stringify(result)).not.toContain('passwordHash');
     });
 
+    it('a resposta pública não tem sellerId nem status', async () => {
+      prisma.listing.findFirst.mockResolvedValue(listingEntity());
+
+      const result = await service.findOnePublic('l1');
+
+      expect(result).not.toBeInstanceOf(MyListingResponseDto);
+      expect(result).not.toHaveProperty('sellerId');
+      expect(result).not.toHaveProperty('status');
+    });
+
     it('lança NotFoundException quando o anúncio não existe ou não está ACTIVE', async () => {
       prisma.listing.findFirst.mockResolvedValue(null);
 
@@ -631,6 +641,56 @@ describe('ListingsService', () => {
         expect(JSON.stringify(result)).not.toContain('passwordHash');
       },
     );
+  });
+
+  describe('respostas do dono', () => {
+    it('findMine devolve MyListingResponseDto com status e sem sellerId', async () => {
+      prisma.listing.findMany.mockResolvedValue([
+        listingEntity({ status: 'PAUSED' }),
+      ]);
+
+      const [item] = await service.findMine('u1');
+
+      expect(item).toBeInstanceOf(MyListingResponseDto);
+      expect(item.status).toBe('PAUSED');
+      expect(item).not.toHaveProperty('sellerId');
+    });
+
+    it('findAll devolve itens públicos, sem sellerId nem status', async () => {
+      prisma.listing.findMany.mockResolvedValue([listingEntity()]);
+      prisma.listing.count.mockResolvedValue(1);
+
+      const { items } = await service.findAll(query());
+
+      expect(items[0]).not.toBeInstanceOf(MyListingResponseDto);
+      expect(items[0]).not.toHaveProperty('sellerId');
+      expect(items[0]).not.toHaveProperty('status');
+    });
+
+    it('update devolve MyListingResponseDto', async () => {
+      prisma.listing.findUnique.mockResolvedValue({ sellerId: 'u1' });
+      prisma.listing.update.mockResolvedValue(listingEntity());
+
+      const result = await service.update('l1', 'u1', updateDto({ priceCents: 1 }));
+
+      expect(result).toBeInstanceOf(MyListingResponseDto);
+      expect(result).not.toHaveProperty('sellerId');
+    });
+
+    it.each([
+      ['pause', 'ACTIVE'],
+      ['activate', 'PAUSED'],
+      ['markSold', 'ACTIVE'],
+    ] as const)('%s devolve MyListingResponseDto', async (method, from) => {
+      prisma.listing.findUnique.mockResolvedValue({ sellerId: 'u1', status: from });
+      prisma.listing.updateMany.mockResolvedValue({ count: 1 });
+      prisma.listing.findUniqueOrThrow.mockResolvedValue(listingEntity());
+
+      const result = await service[method]('l1', 'u1');
+
+      expect(result).toBeInstanceOf(MyListingResponseDto);
+      expect(result).not.toHaveProperty('sellerId');
+    });
   });
 
   describe('remove', () => {
