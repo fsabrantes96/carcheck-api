@@ -1,6 +1,7 @@
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
+import { PrismaService } from '../../src/prisma/prisma.service.js';
 
 /** Chaves do formato único de erro (sem `errors`). */
 export const ERROR_KEYS = [
@@ -78,4 +79,37 @@ export function listingPayload(
       transmission: 'MANUAL',
     },
   };
+}
+
+/** Data ISO `hours` horas a partir de `from` (padrão: agora). */
+export function hoursFromNow(hours: number, from: Date = new Date()): string {
+  return new Date(from.getTime() + hours * 3_600_000).toISOString();
+}
+
+export interface TestInspector extends TestUser {
+  profileId: string;
+}
+
+/**
+ * Cadastra um avaliador com perfil e o marca como verificado direto no
+ * banco (a verificação é manual por decisão de produto).
+ */
+export async function verifiedInspector(
+  app: INestApplication<App>,
+  email: string,
+  name = 'Avaliador de Teste',
+  profile: Partial<typeof inspectorProfilePayload> = {},
+): Promise<TestInspector> {
+  const user = await registerAndLogin(app, email, name);
+  const res = await request(app.getHttpServer())
+    .post('/inspectors/me')
+    .set('Authorization', `Bearer ${user.token}`)
+    .send({ ...inspectorProfilePayload, ...profile })
+    .expect(201);
+  const profileId = (res.body as { id: string }).id;
+  await app.get(PrismaService).inspectorProfile.update({
+    where: { id: profileId },
+    data: { verified: true },
+  });
+  return { ...user, profileId };
 }

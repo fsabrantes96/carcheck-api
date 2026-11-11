@@ -3,6 +3,7 @@ import {
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
+import { FakeClock } from '../../test/support/fake-clock.js';
 import { Prisma } from '../generated/prisma/client.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import type { CreateListingDto } from './dto/create-listing.dto.js';
@@ -76,6 +77,10 @@ type PrismaMock = {
     updateMany: ReturnType<typeof vi.fn>;
     delete: ReturnType<typeof vi.fn>;
   };
+  appointment: {
+    findFirst: ReturnType<typeof vi.fn>;
+    updateMany: ReturnType<typeof vi.fn>;
+  };
   $transaction: ReturnType<typeof vi.fn>;
 };
 
@@ -102,11 +107,18 @@ describe('ListingsService', () => {
         updateMany: vi.fn(),
         delete: vi.fn(),
       },
+      appointment: {
+        findFirst: vi.fn().mockResolvedValue(null),
+        updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+      },
       $transaction: vi.fn(),
     };
     // Forma de array: as "queries" já são as promises devolvidas pelos mocks.
-    prisma.$transaction.mockImplementation((ops: Promise<unknown>[]) =>
-      Promise.all(ops),
+    // Forma com callback (transação interativa): chama com o próprio mock.
+    prisma.$transaction.mockImplementation((arg: unknown) =>
+      typeof arg === 'function'
+        ? (arg as (tx: PrismaMock) => Promise<unknown>)(prisma)
+        : Promise.all(arg as Promise<unknown>[]),
     );
     service = new ListingsService(prisma as unknown as PrismaService);
   });
@@ -641,6 +653,82 @@ describe('ListingsService', () => {
         expect(JSON.stringify(result)).not.toContain('passwordHash');
       },
     );
+  });
+
+  describe('saída de ACTIVE com agendamentos em aberto', () => {
+    const NOW = new Date('2030-01-01T12:00:00.000Z');
+
+    beforeEach(() => {
+      service = new ListingsService(prisma as unknown as PrismaService, new FakeClock(NOW));
+      prisma.listing.findUnique.mockResolvedValue({ sellerId: 'u1', status: 'ACTIVE' });
+      prisma.listing.updateMany.mockResolvedValue({ count: 1 });
+      prisma.listing.findUniqueOrThrow.mockResolvedValue(listingEntity());
+    });
+
+    const leaving = [
+      ['pause', (s: ListingsService) => s.pause('l1', 'u1')],
+      ['markSold', (s: ListingsService) => s.markSold('l1', 'u1')],
+      ['remove (arquivar)', (s: ListingsService) => s.remove('l1', 'u1')],
+    ] as const;
+
+    it.each(leaving)(
+      '%s cancela os agendamentos REQUESTED, ACCEPTED e AWAITING_PAYMENT do anúncio (CANCELLED, endedBy SYSTEM)',
+      async (_name, run) => {
+        await run(service);
+
+        expect(prisma.appointment.updateMany).toHaveBeenCalledWith({
+          where: { listingId: 'l1', status: { in: ['REQUESTED', 'ACCEPTED', 'AWAITING_PAYMENT'] } },
+          data: { status: 'CANCELLED', endedBy: 'SYSTEM', endedAt: NOW },
+        });
+      },
+    );
+
+    it.each(leaving)(
+      '%s faz tudo numa transação, com o UPDATE do anúncio antes de mexer nos agendamentos',
+      async (_name, run) => {
+        await run(service);
+
+        expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+        const listingUpdate = prisma.listing.updateMany.mock.invocationCallOrder[0];
+        expect(listingUpdate).toBeLessThan(prisma.appointment.findFirst.mock.invocationCallOrder[0]);
+        expect(listingUpdate).toBeLessThan(prisma.appointment.updateMany.mock.invocationCallOrder[0]);
+      },
+    );
+
+    it.each(leaving)(
+      '%s responde 409 e não cancela nada quando existe agendamento PAID',
+      async (_name, run) => {
+        prisma.appointment.findFirst.mockResolvedValue({ id: 'pago' });
+
+        const promise = run(service);
+
+        await expect(promise).rejects.toBeInstanceOf(ConflictException);
+        await expect(promise).rejects.toThrow(
+          'O anúncio tem avaliação paga em andamento e não pode sair de ACTIVE',
+        );
+        expect(prisma.appointment.findFirst).toHaveBeenCalledWith({
+          where: { listingId: 'l1', status: 'PAID' },
+          select: { id: true },
+        });
+        expect(prisma.appointment.updateMany).not.toHaveBeenCalled();
+      },
+    );
+
+    it('activate (PAUSED → ACTIVE) não mexe em agendamentos', async () => {
+      prisma.listing.findUnique.mockResolvedValue({ sellerId: 'u1', status: 'PAUSED' });
+
+      await service.activate('l1', 'u1');
+
+      expect(prisma.appointment.findFirst).not.toHaveBeenCalled();
+      expect(prisma.appointment.updateMany).not.toHaveBeenCalled();
+    });
+
+    it('não mexe em agendamentos quando a transição é inválida (409 antes da transação)', async () => {
+      prisma.listing.findUnique.mockResolvedValue({ sellerId: 'u1', status: 'ARCHIVED' });
+
+      await expect(service.pause('l1', 'u1')).rejects.toBeInstanceOf(ConflictException);
+      expect(prisma.appointment.updateMany).not.toHaveBeenCalled();
+    });
   });
 
   describe('respostas do dono', () => {
