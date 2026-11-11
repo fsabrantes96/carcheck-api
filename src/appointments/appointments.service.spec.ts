@@ -216,6 +216,18 @@ describe('AppointmentsService.create', () => {
   });
 
   describe('erros, na ordem do desenho', () => {
+    it.each(['2030-W02-4T14:00:00Z', '2030-010T14:00:00Z'])(
+      '400 para startsAt que passa no ISO 8601 mas não vira uma data válida (%s), sem abrir transação',
+      async (startsAt) => {
+        await expectRejection(
+          service.create('buyer', dto({ startsAt })),
+          BadRequestException,
+          'startsAt inválido: use data e hora no formato aaaa-mm-ddThh:mm:ss com fuso (Z ou ±hh:mm)',
+        );
+        expect(prisma.$transaction).not.toHaveBeenCalled();
+      },
+    );
+
     it('400 com menos de 24h de antecedência, sem abrir transação', async () => {
       await expectRejection(
         service.create('buyer', dto({ startsAt: '2030-01-02T11:59:00.000Z' })),

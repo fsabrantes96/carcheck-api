@@ -468,6 +468,19 @@ describe('Appointments (e2e)', () => {
       expect(await prisma.appointment.count()).toBe(0);
     }
 
+    it.each(['2030-W02-4T14:00:00Z', '2030-010T14:00:00Z'])(
+      'responde 400 (não 500) para startsAt ISO 8601 que não vira data válida: %s',
+      async (startsAt) => {
+        const listingId = await createListing();
+
+        await expectError(
+          await requestAppointment(listingId, startsAt),
+          400,
+          'startsAt inválido: use data e hora no formato aaaa-mm-ddThh:mm:ss com fuso (Z ou ±hh:mm)',
+        );
+      },
+    );
+
     it('responde 404 "Anúncio não encontrado" quando o anúncio está PAUSED', async () => {
       const listingId = await createListing();
       await request(app.getHttpServer()).post(`/listings/${listingId}/pause`).set(auth(seller)).expect(200);
