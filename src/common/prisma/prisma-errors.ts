@@ -41,3 +41,15 @@ export function isPgError(error: unknown, pgCode: string): boolean {
   const code = typeof cause.originalCode === 'string' ? cause.originalCode : cause.code;
   return code === pgCode;
 }
+
+/**
+ * Indica se o erro é um P2002 (violação de unicidade) do índice informado.
+ * Com o @prisma/adapter-pg o nome chega em
+ * meta.driverAdapterError.cause.constraint.index. Nunca lança: formato
+ * incompleto devolve false.
+ */
+export function isUniqueViolationOn(error: unknown, indexName: string): boolean {
+  if (!isPrismaError(error, PRISMA_UNIQUE_VIOLATION)) return false;
+  const cause = asRecord(asRecord(asRecord(error.meta)?.driverAdapterError)?.cause);
+  return asRecord(cause?.constraint)?.index === indexName;
+}

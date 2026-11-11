@@ -3,8 +3,13 @@ import {
   exclusionViolationFromModelQuery,
   exclusionViolationFromRawQuery,
   knownErrorWithMeta,
+  partialUniqueViolation,
 } from '../../../test/support/prisma-error-fixtures.js';
-import { isPgError, PG_EXCLUSION_VIOLATION } from './prisma-errors.js';
+import {
+  isPgError,
+  isUniqueViolationOn,
+  PG_EXCLUSION_VIOLATION,
+} from './prisma-errors.js';
 
 describe('isPgError', () => {
   it('reconhece o 23P01 de uma query de model (formato real, P2039)', () => {
@@ -49,5 +54,36 @@ describe('isPgError', () => {
     ],
   ])('devolve false para o que não é erro conhecido do Prisma: %s', (_label, value) => {
     expect(isPgError(value, '23P01')).toBe(false);
+  });
+});
+
+describe('isUniqueViolationOn', () => {
+  it('reconhece o P2002 do índice pelo nome (formato real)', () => {
+    const error = partialUniqueViolation('Appointment_open_triplet_key');
+
+    expect(isUniqueViolationOn(error, 'Appointment_open_triplet_key')).toBe(true);
+  });
+
+  it('devolve false para o P2002 de outro índice', () => {
+    const error = partialUniqueViolation('User_email_key');
+
+    expect(isUniqueViolationOn(error, 'Appointment_open_triplet_key')).toBe(false);
+  });
+
+  it.each([
+    ['sem meta', undefined],
+    ['sem driverAdapterError', {}],
+    ['sem cause', { driverAdapterError: {} }],
+    ['sem constraint', { driverAdapterError: { cause: {} } }],
+    ['constraint nula', { driverAdapterError: { cause: { constraint: null } } }],
+  ])('devolve false, sem lançar, com formato incompleto: %s', (_label, meta) => {
+    const error = partialUniqueViolation('x');
+    error.meta = meta as Record<string, unknown> | undefined;
+
+    expect(isUniqueViolationOn(error, 'x')).toBe(false);
+  });
+
+  it('devolve false para erro que não é P2002', () => {
+    expect(isUniqueViolationOn(exclusionViolationFromModelQuery(), 'Appointment_open_triplet_key')).toBe(false);
   });
 });

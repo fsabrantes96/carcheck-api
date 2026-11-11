@@ -10,6 +10,7 @@ import { validateEnv } from './config/env.validation.js';
 import { ClockModule } from './common/clock/clock.js';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter.js';
 import { throttlerOptions } from './common/throttler/throttler.config.js';
+import { AppointmentsModule } from './appointments/appointments.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { InspectorsModule } from './inspectors/inspectors.module.js';
 import { ListingsModule } from './listings/listings.module.js';
@@ -24,6 +25,7 @@ import { ListingsModule } from './listings/listings.module.js';
     AuthModule,
     InspectorsModule,
     ListingsModule,
+    AppointmentsModule,
   ],
   controllers: [AppController],
   providers: [

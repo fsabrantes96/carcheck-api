@@ -18,3 +18,11 @@ export const throttlerOptions: ThrottlerModuleOptions = {
 export const AUTH_THROTTLE = {
   default: { ttl: ONE_MINUTE_MS, limit: 5 },
 };
+
+/**
+ * Limite da criação de agendamento: 10 por minuto por IP (risco 28).
+ * Usar com @Throttle(APPOINTMENT_CREATE_THROTTLE).
+ */
+export const APPOINTMENT_CREATE_THROTTLE = {
+  default: { ttl: ONE_MINUTE_MS, limit: 10 },
+};
