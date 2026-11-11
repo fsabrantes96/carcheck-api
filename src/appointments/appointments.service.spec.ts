@@ -314,8 +314,19 @@ describe('AppointmentsService.create', () => {
       expect(prisma.appointment.create).not.toHaveBeenCalled();
     });
 
+    /** findFirst que responde conforme a consulta: pedido do trio (tem buyerId) ou horário. */
+    function findFirstAnswers(answers: { duplicate: boolean; busy: boolean }) {
+      prisma.appointment.findFirst.mockImplementation(({ where }: { where: Record<string, unknown> }) =>
+        Promise.resolve(
+          'buyerId' in where
+            ? answers.duplicate ? { id: 'duplicado' } : null
+            : answers.busy ? { id: 'ocupado' } : null,
+        ),
+      );
+    }
+
     it('409 quando o horário do avaliador já está ocupado (checagem branda)', async () => {
-      prisma.appointment.findFirst.mockResolvedValue({ id: 'outro' });
+      findFirstAnswers({ duplicate: false, busy: true });
 
       await expectRejection(
         service.create('buyer', dto()),
@@ -340,6 +351,35 @@ describe('AppointmentsService.create', () => {
         },
         select: { id: true },
       });
+    });
+
+    it('procura pedido em andamento do mesmo trio nos estados do índice parcial', async () => {
+      await service.create('buyer', dto());
+
+      expect(prisma.appointment.findFirst).toHaveBeenCalledWith({
+        where: {
+          buyerId: 'buyer',
+          listingId: LISTING_ID,
+          inspectorUserId: 'inspector',
+          status: { in: ['REQUESTED', 'ACCEPTED', 'AWAITING_PAYMENT', 'PAID', 'REPORT_SUBMITTED', 'DISPUTED'] },
+        },
+        select: { id: true },
+      });
+    });
+
+    it('409 de pedido duplicado vem antes do horário ocupado (não revela a agenda do avaliador)', async () => {
+      findFirstAnswers({ duplicate: true, busy: true });
+
+      await expectRejection(
+        service.create('buyer', dto()),
+        ConflictException,
+        'Você já tem um agendamento em andamento para este anúncio com este avaliador',
+      );
+      const queries = prisma.appointment.findFirst.mock.calls.map(
+        ([args]) => ('buyerId' in (args as { where: object }).where ? 'duplicado' : 'horário'),
+      );
+      expect(queries).toEqual(['duplicado']);
+      expect(prisma.appointment.create).not.toHaveBeenCalled();
     });
 
     it('409 quando já existe pedido em andamento do mesmo trio (P2002 do índice parcial)', async () => {
