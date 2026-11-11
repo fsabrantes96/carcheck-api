@@ -82,6 +82,35 @@ describe('InspectorsService', () => {
       });
     });
 
+    it('envia ao inspectorProfile.create exatamente os campos do perfil mais o userId', async () => {
+      prisma.inspectorProfile.findUnique.mockResolvedValue(null);
+      prisma.inspectorProfile.create.mockResolvedValue({
+        id: 'p1',
+        userId: 'u1',
+        ...dto,
+        verified: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        user: { id: 'u1', name: 'João' },
+      });
+
+      await service.create('u1', dto);
+
+      expect(prisma.inspectorProfile.create).toHaveBeenCalledTimes(1);
+      expect(prisma.inspectorProfile.create).toHaveBeenCalledWith({
+        data: {
+          bio: 'Mecânico há 15 anos, especialista em câmbio.',
+          specialties: ['ENGINE', 'BRAKES'],
+          city: 'Barretos',
+          state: 'SP',
+          serviceRadiusKm: 30,
+          basePriceCents: 15000,
+          userId: 'u1',
+        },
+        include: { user: true },
+      });
+    });
+
     it('lança ConflictException quando o usuário já tem perfil na checagem prévia', async () => {
       prisma.inspectorProfile.findUnique.mockResolvedValue({ id: 'p1' });
 
