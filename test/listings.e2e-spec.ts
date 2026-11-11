@@ -154,28 +154,23 @@ describe('Listings (e2e)', () => {
     });
   });
 
-  describe('PATCH /listings/:id com status PAUSED', () => {
-    it('tira o anúncio de GET /listings e faz GET /listings/:id responder 404', async () => {
+  describe('PATCH /listings/:id com status', () => {
+    it('responde 400 (campo não permitido) e não altera o status do anúncio', async () => {
       const listing = await createListing();
-      await request(app.getHttpServer())
-        .get(`/listings/${listing.id}`)
-        .expect(200);
 
-      const patched = await request(app.getHttpServer())
+      const res = await request(app.getHttpServer())
         .patch(`/listings/${listing.id}`)
         .set('Authorization', `Bearer ${seller.token}`)
         .send({ status: 'PAUSED' })
-        .expect(200);
-      expect(patched.body.status).toBe('PAUSED');
+        .expect(400);
 
-      const list = await request(app.getHttpServer())
-        .get('/listings')
-        .expect(200);
-      expect(list.body).toMatchObject({ items: [], total: 0 });
-      const one = await request(app.getHttpServer())
-        .get(`/listings/${listing.id}`)
-        .expect(404);
-      expect(one.body.message).toBe('Anúncio não encontrado');
+      expect(res.body.message).toBe('Dados inválidos');
+      expect(Object.keys(res.body).sort()).toEqual(VALIDATION_ERROR_KEYS);
+      expect(res.body.errors).toEqual(['property status should not exist']);
+      const saved = await prisma.listing.findUniqueOrThrow({
+        where: { id: listing.id },
+      });
+      expect(saved.status).toBe('ACTIVE');
     });
   });
 

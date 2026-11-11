@@ -3,6 +3,7 @@ import {
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
+import { Prisma } from '../generated/prisma/client.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import type { CreateListingDto } from './dto/create-listing.dto.js';
 import { ListListingsQueryDto } from './dto/list-listings-query.dto.js';
@@ -29,10 +30,19 @@ const createDto = {
   vehicle,
 } satisfies CreateListingDto;
 
-// UpdateListingDto declara `status` sem `?` (embora tenha @IsOptional), então
-// um literal parcial não satisfaz o tipo; o cast representa o body de um PATCH.
-function updateDto(body: Partial<UpdateListingDto>): UpdateListingDto {
+// O cast representa o body de um PATCH e permite simular campos que o DTO não
+// declara (ex.: `status`, que saiu do UpdateListingDto).
+function updateDto(
+  body: Partial<UpdateListingDto> & Record<string, unknown>,
+): UpdateListingDto {
   return body as UpdateListingDto;
+}
+
+function prismaError(code: string) {
+  return new Prisma.PrismaClientKnownRequestError('erro do prisma', {
+    code,
+    clientVersion: 'test',
+  });
 }
 
 function listingEntity(overrides: Record<string, unknown> = {}) {
@@ -195,12 +205,12 @@ describe('ListingsService', () => {
       expect(prisma.listing.update).not.toHaveBeenCalled();
     });
 
-    it('envia where pelo id e include com seller e vehicle', async () => {
+    it('envia where pelo id, sem anúncios arquivados, e include com seller e vehicle', async () => {
       await service.update('l1', 'u1', updateDto({ priceCents: 5000000 }));
 
       expect(prisma.listing.update).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { id: 'l1' },
+          where: { id: 'l1', status: { not: 'ARCHIVED' } },
           include: { seller: true, vehicle: true },
         }),
       );
@@ -215,10 +225,34 @@ describe('ListingsService', () => {
       expect(updateData()).toEqual({ priceCents: 5000000 });
     });
 
-    it('repassa o status quando ele vem no body', async () => {
+    it('não envia status ao Prisma mesmo que o body traga (o campo saiu do DTO)', async () => {
       await service.update('l1', 'u1', updateDto({ status: 'SOLD' }));
 
-      expect(updateData()).toEqual({ status: 'SOLD' });
+      expect(updateData()).toEqual({});
+    });
+
+    it('lança ConflictException quando o anúncio está arquivado', async () => {
+      prisma.listing.findUnique
+        .mockResolvedValueOnce({ sellerId: 'u1' })
+        .mockResolvedValueOnce({ status: 'ARCHIVED' });
+      prisma.listing.update.mockRejectedValue(prismaError('P2025'));
+
+      const promise = service.update('l1', 'u1', updateDto({ priceCents: 1 }));
+
+      await expect(promise).rejects.toBeInstanceOf(ConflictException);
+      await expect(promise).rejects.toThrow('Anúncio arquivado não pode ser alterado');
+    });
+
+    it('repassa o erro original quando o update falha com P2025 e o anúncio não está arquivado', async () => {
+      const original = prismaError('P2025');
+      prisma.listing.findUnique
+        .mockResolvedValueOnce({ sellerId: 'u1' })
+        .mockResolvedValueOnce({ status: 'ACTIVE' });
+      prisma.listing.update.mockRejectedValue(original);
+
+      const promise = service.update('l1', 'u1', updateDto({ priceCents: 1 }));
+
+      await expect(promise).rejects.toBe(original);
     });
 
     it('com vehicle completo envia data.vehicle = { update: campos do veículo }', async () => {
