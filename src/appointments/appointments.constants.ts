@@ -8,6 +8,16 @@ import type { AppointmentStatus } from '../generated/prisma/client.js';
  */
 export const APPOINTMENT_OPEN_TRIPLET_INDEX = 'Appointment_open_triplet_key';
 
+/** Estados "em andamento" do índice único parcial do trio (mesma lista da migration). */
+export const OPEN_TRIPLET_STATUSES: AppointmentStatus[] = [
+  'REQUESTED',
+  'ACCEPTED',
+  'AWAITING_PAYMENT',
+  'PAID',
+  'REPORT_SUBMITTED',
+  'DISPUTED',
+];
+
 /** Horizonte máximo para agendar, em dias. */
 export const MAX_ADVANCE_DAYS = 60;
 

@@ -21,6 +21,7 @@ import {
   EXPIRABLE_STATUSES,
   EXPIRING_SLOT_STATUSES,
   MAX_ADVANCE_DAYS,
+  OPEN_TRIPLET_STATUSES,
 } from './appointments.constants.js';
 import { decide, participantOf } from './appointments.state-machine.js';
 import type { AppointmentAction, Participant } from './appointments.state-machine.js';
@@ -37,6 +38,7 @@ import type { PaginatedAppointmentsResponseDto } from './dto/paginated-appointme
 import type { CreateAppointmentDto } from './dto/create-appointment.dto.js';
 
 const NOT_FOUND_MESSAGE = 'Agendamento não encontrado';
+const DUPLICATE_MESSAGE = 'Você já tem um agendamento em andamento para este anúncio com este avaliador';
 
 /** Campo do agendamento que guarda o usuário de cada papel. */
 const PARTICIPANT_FIELD: Record<Participant, 'buyerId' | 'sellerId' | 'inspectorUserId'> = {
@@ -123,6 +125,20 @@ export class AppointmentsService {
           throw new ConflictException('Este avaliador está indisponível no momento');
         }
 
+        // Pedido duplicado antes do horário: com um pedido em andamento, a
+        // resposta é sempre a mesma e não revela a agenda do avaliador. A
+        // garantia contra corrida é o índice único parcial (P2002 abaixo).
+        const duplicate = await tx.appointment.findFirst({
+          where: {
+            buyerId,
+            listingId: dto.listingId,
+            inspectorUserId: inspector.userId,
+            status: { in: OPEN_TRIPLET_STATUSES },
+          },
+          select: { id: true },
+        });
+        if (duplicate) throw new ConflictException(DUPLICATE_MESSAGE);
+
         // Checagem branda: a garantia é a exclusion constraint, aplicada no
         // aceite. PAID ocupa sempre; ACCEPTED/AWAITING_PAYMENT só se não venceram.
         const busy = await tx.appointment.findFirst({
@@ -161,9 +177,7 @@ export class AppointmentsService {
       });
     } catch (error) {
       if (isUniqueViolationOn(error, APPOINTMENT_OPEN_TRIPLET_INDEX)) {
-        throw new ConflictException(
-          'Você já tem um agendamento em andamento para este anúncio com este avaliador',
-        );
+        throw new ConflictException(DUPLICATE_MESSAGE);
       }
       throw error;
     }
