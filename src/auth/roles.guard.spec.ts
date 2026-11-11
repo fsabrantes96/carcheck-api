@@ -20,6 +20,14 @@ class AdminController {
 
   @Roles(Role.INSPECTOR)
   inspectorNoHandler(this: void) {}
+
+  @Roles()
+  rolesVazioNoHandler(this: void) {}
+}
+
+@Roles()
+class RolesVazioNaClasseController {
+  semRolesNoHandler(this: void) {}
 }
 
 class HandlerController {
@@ -62,17 +70,53 @@ describe('RolesGuard', () => {
       expect(prisma.user.findUnique).not.toHaveBeenCalled();
     });
 
-    it('libera o acesso sem consultar o banco quando @Roles está vazio', async () => {
-      const ctx = criarContexto(HandlerController, HandlerController.prototype.rolesVazio);
-
-      await expect(guard.canActivate(ctx)).resolves.toBe(true);
-      expect(prisma.user.findUnique).not.toHaveBeenCalled();
-    });
-
     it('libera o acesso mesmo sem usuário autenticado', async () => {
       const ctx = criarContexto(SemRolesController, SemRolesController.prototype.rota);
 
       await expect(guard.canActivate(ctx)).resolves.toBe(true);
+    });
+  });
+
+  // Risco 11 (docs/audit.md), opção (A): @Roles() vazio falha fechado.
+  describe('quando @Roles está declarado vazio', () => {
+    it('lança 403 sem consultar o banco quando @Roles() vazio está no handler', async () => {
+      const ctx = criarContexto(
+        HandlerController,
+        HandlerController.prototype.rolesVazio,
+        usuario,
+      );
+
+      await expect(guard.canActivate(ctx)).rejects.toThrow(
+        new ForbiddenException('Sem permissão para esta ação'),
+      );
+      expect(prisma.user.findUnique).not.toHaveBeenCalled();
+    });
+
+    it('lança 403 sem consultar o banco quando @Roles() vazio está na classe e o handler não declara @Roles', async () => {
+      const ctx = criarContexto(
+        RolesVazioNaClasseController,
+        RolesVazioNaClasseController.prototype.semRolesNoHandler,
+        usuario,
+      );
+
+      await expect(guard.canActivate(ctx)).rejects.toThrow(
+        new ForbiddenException('Sem permissão para esta ação'),
+      );
+      expect(prisma.user.findUnique).not.toHaveBeenCalled();
+    });
+
+    it('lança 403 quando a classe tem @Roles(ADMIN) e o handler tem @Roles() vazio, mesmo para ADMIN', async () => {
+      prisma.user.findUnique.mockResolvedValue({ roles: [Role.ADMIN] });
+      const ctx = criarContexto(
+        AdminController,
+        AdminController.prototype.rolesVazioNoHandler,
+        usuario,
+      );
+
+      await expect(guard.canActivate(ctx)).rejects.toThrow(
+        new ForbiddenException('Sem permissão para esta ação'),
+      );
+      expect(prisma.user.findUnique).not.toHaveBeenCalled();
     });
   });
 
