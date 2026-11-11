@@ -13,6 +13,7 @@ export default defineConfig({
       DATABASE_URL: e2eDatabaseUrl(),
       JWT_SECRET: 'segredo-apenas-para-e2e',
       JWT_EXPIRES_IN_SECONDS: '3600',
+      PLATFORM_FEE_BPS: '1000',
     },
     // Os arquivos dividem o mesmo banco e limpam as tabelas: um por vez.
     fileParallelism: false,

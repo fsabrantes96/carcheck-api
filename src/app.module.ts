@@ -5,6 +5,8 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
+import { BusinessRulesModule } from './config/business-rules.js';
+import { validateEnv } from './config/env.validation.js';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter.js';
 import { throttlerOptions } from './common/throttler/throttler.config.js';
 import { AuthModule } from './auth/auth.module.js';
@@ -13,7 +15,8 @@ import { ListingsModule } from './listings/listings.module.js';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
+    BusinessRulesModule,
     ThrottlerModule.forRoot(throttlerOptions),
     PrismaModule,
     AuthModule,
