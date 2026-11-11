@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 CarCheck API: NestJS backend for a vehicle marketplace where a buyer can book an **inspector** (mechanic/specialist) to evaluate a car before buying. It's a personal study project focused on clean backend↔frontend contracts (DTOs + generated OpenAPI). Code comments, error messages, commit messages, and PR descriptions are written in **Portuguese (pt-BR)**.
 
-Roadmap (README): auth, inspector profiles, and listings are done. Next up: appointment scheduling, then inspection reports/reviews, then proximity search (PostGIS). [docs/ai-tooling-plan.md](docs/ai-tooling-plan.md) lists the planned AI agents and skills, and in doing so mentions future domain concepts such as an appointment state machine, escrowed payments with commission in cents, and role-specific response DTOs.
+Roadmap (README): auth, inspector profiles, listings and the listing lifecycle are done. Next up: appointment scheduling, then inspection reports/reviews, then proximity search (PostGIS). [docs/ai-tooling-plan.md](docs/ai-tooling-plan.md) lists the planned AI agents and skills, and in doing so mentions future domain concepts such as an appointment state machine, escrowed payments with commission in cents, and role-specific response DTOs.
 
 Known risks and their status (open, accepted, resolved) live in [docs/audit.md](docs/audit.md). Read it before designing, reviewing, or testing, and update it when a change resolves or introduces a risk.
 
@@ -37,6 +37,7 @@ CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs on PRs to `main`:
 
 - **ESM + NodeNext**: `"type": "module"`. Every relative import must end in `.js` (`import { X } from './x.service.js'`). Use `import type` for type-only imports (e.g. `JwtPayload`, Prisma `Role`/`Prisma` types), since `isolatedModules` is on.
 - **Prisma 7**: the schema is [prisma/schema.prisma](prisma/schema.prisma) and the CLI config (datasource URL, migrations path) is [prisma7.config.ts](prisma7.config.ts). The client is generated into `src/generated/prisma/` (gitignored) and imported from `../generated/prisma/client.js`, which also provides enums like `Role` and `ListingStatus`. `PrismaService` ([src/prisma/prisma.service.ts](src/prisma/prisma.service.ts)) extends `PrismaClient` with the `@prisma/adapter-pg` driver adapter and is exported by a `@Global()` `PrismaModule`. `prisma/prisma.module.ts` and `prisma/prisma.service.ts` are empty leftover files; the real ones are under `src/prisma/`.
+- **`prisma migrate dev` does not regenerate the client** in Prisma 7: run `npx prisma generate` after it (see the `prisma-migration-workflow` skill).
 - **Money** is stored as integer cents (`priceCents`, `basePriceCents`).
 - **Global `ValidationPipe`** in [src/main.ts](src/main.ts) uses `whitelist`, `forbidNonWhitelisted`, and `transform`. Unknown fields are rejected, and query-string numbers need `@Type(() => Number)` (see `ListListingsQueryDto`).
 
@@ -51,6 +52,14 @@ CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs on PRs to `main`:
   - **Public resource** (anyone may know it exists, e.g. listings): 404 when it doesn't exist; **403** when it exists but the caller isn't the owner. Services use a private `assertOwner(id, userId)`.
   - **Private resource** (only participants may know it exists, e.g. appointments, payments): **404** both when it doesn't exist and when the caller isn't a participant, so existence isn't leaked. A participant whose role can't perform an action gets 403.
   - Public reads filter by visibility in the `where` (e.g. `status: 'ACTIVE'`), never after fetching.
+
+### Listing lifecycle ([src/listings/](src/listings/))
+
+- Status changes only through intent routes, never through `PATCH`: `POST /listings/:id/pause` (ACTIVE→PAUSED), `/activate` (PAUSED→ACTIVE), `/mark-sold` (ACTIVE|PAUSED→SOLD) and `DELETE /listings/:id`, which **archives** (→ARCHIVED, 204) instead of deleting. `ARCHIVED` is final; `SOLD` only goes to `ARCHIVED`. The rules live in the pure function `decideListingTransition` ([src/listings/listings.state-machine.ts](src/listings/listings.state-machine.ts)), applied with `updateMany` filtered by the status that was read (409 on invalid transition or race). Never delete a listing physically.
+- `UpdateListingDto` has no `status` (sending it is a 400 through the whitelist). `PATCH` on an archived listing is a 409, enforced in the `update` `where` (`status: { not: 'ARCHIVED' }`).
+- Archived listings are hidden from `GET /listings`, `GET /listings/:id` and `GET /listings/mine`.
+- Public responses (`ListingResponseDto`) carry neither `sellerId` nor `status`; owner routes (`POST`, `GET /mine`, `PATCH`, transitions) return `MyListingResponseDto` (public fields + `status`, still no `sellerId`).
+- The appointment design that builds on this is in [docs/appointments-design.md](docs/appointments-design.md).
 
 ### Auth ([src/auth/](src/auth/))
 

@@ -65,7 +65,7 @@ prisma/          schema e migrations
 src/
 ├── auth/        cadastro, login, guards e roles
 ├── inspectors/  perfil de avaliador
-├── listings/    anúncios de veículos (CRUD + filtros)
+├── listings/    anúncios de veículos (CRUD, filtros e ciclo de vida)
 ├── prisma/      PrismaService e PrismaModule
 └── generated/   Prisma Client gerado (não versionado)
 ```
@@ -76,6 +76,21 @@ src/
 - Response DTO para toda saída (nunca expor a entity)
 - O contrato é gerado pelo código (Swagger), nunca escrito à mão
 
+## Ciclo de vida do anúncio
+
+| De | Ação | Para |
+|---|---|---|
+| `ACTIVE` | `POST /listings/:id/pause` | `PAUSED` |
+| `PAUSED` | `POST /listings/:id/activate` | `ACTIVE` |
+| `ACTIVE`, `PAUSED` | `POST /listings/:id/mark-sold` | `SOLD` |
+| `ACTIVE`, `PAUSED`, `SOLD` | `DELETE /listings/:id` | `ARCHIVED` (final) |
+
+- O `PATCH /listings/:id` não altera o status (enviar `status` responde 400) e responde 409 em anúncio arquivado.
+- Anúncio arquivado não é apagado do banco, mas some de `GET /listings`, `GET /listings/:id` e `GET /listings/mine`.
+- A resposta pública não traz `sellerId` nem `status`; as rotas do dono devolvem o status.
+
+O desenho completo do agendamento, que depende destas regras, está em [docs/appointments-design.md](docs/appointments-design.md).
+
 ## Roadmap
 
 - [x] Setup (NestJS + Prisma + Docker)
@@ -83,6 +98,7 @@ src/
 - [x] Login com JWT e guards
 - [x] Perfil de avaliador
 - [x] Anúncios de veículos (CRUD + filtros)
+- [x] Ciclo de vida do anúncio (pausar, reativar, vender, arquivar)
 - [ ] Agendamento de avaliação
 - [ ] Laudo e avaliações
 - [ ] Busca por proximidade
