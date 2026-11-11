@@ -10,6 +10,22 @@ jobs:
     env:
       DATABASE_URL: postgresql://app:app@localhost:5432/carcheck
       JWT_SECRET: segredo-apenas-para-ci
+    # Postgres só para os e2e, na mesma imagem do docker-compose.yml. Ele
+    # roda dentro do runner do GitHub, que não enxerga a máquina de ninguém.
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: app
+          POSTGRES_DB: carcheck_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U app -d carcheck_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -20,3 +36,11 @@ jobs:
       - run: npm run lint
       - run: npm run build
       - run: npm test
+      - name: Aplica as migrations no banco de teste
+        run: npx prisma migrate deploy --config prisma7.config.ts
+        env:
+          DATABASE_URL: postgresql://app:app@localhost:5432/carcheck_test
+      - name: Testes e2e
+        run: npm run test:e2e
+        env:
+          E2E_DATABASE_URL: postgresql://app:app@localhost:5432/carcheck_test
