@@ -1,5 +1,5 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module.js';
 
@@ -23,4 +23,14 @@ async function bootstrap() {
 
   await app.listen(3000);
 }
-bootstrap();
+
+// Se a aplicação não subir (banco fora do ar, variável de ambiente faltando,
+// porta ocupada), registra o erro e encerra com código 1 para quem a iniciou
+// (terminal, Docker, CI) perceber a falha.
+bootstrap().catch((error: unknown) => {
+  new Logger('Bootstrap').error(
+    'Falha ao iniciar a aplicação',
+    error instanceof Error ? error.stack : String(error),
+  );
+  process.exit(1);
+});
