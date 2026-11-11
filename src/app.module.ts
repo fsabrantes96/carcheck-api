@@ -7,6 +7,7 @@ import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { BusinessRulesModule } from './config/business-rules.js';
 import { validateEnv } from './config/env.validation.js';
+import { ClockModule } from './common/clock/clock.js';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter.js';
 import { throttlerOptions } from './common/throttler/throttler.config.js';
 import { AuthModule } from './auth/auth.module.js';
@@ -17,6 +18,7 @@ import { ListingsModule } from './listings/listings.module.js';
   imports: [
     ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
     BusinessRulesModule,
+    ClockModule,
     ThrottlerModule.forRoot(throttlerOptions),
     PrismaModule,
     AuthModule,
