@@ -50,6 +50,7 @@ CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs on PRs to `main`:
 - JWT payload is `{ sub: userId, email }`. `JwtAuthGuard` verifies the Bearer token and sets `request.user`. `@CurrentUser()` reads it.
 - Roles (`USER`, `INSPECTOR`, `ADMIN`) live on `User.roles` (an array) and are **not** in the token. `RolesGuard` with `@Roles(...)` loads them from the DB on each request, so role changes apply right away. Use `@UseGuards(JwtAuthGuard, RolesGuard)` in that order.
 - Creating an inspector profile (`POST /inspectors/me`) pushes `INSPECTOR` onto the user's roles inside the same transaction.
+- **Inspector verification is manual and intentional for now.** `InspectorProfile.verified` starts as `false` and is set to `true` by hand (e.g. via `npx prisma studio`). No route sets it, and `UpdateInspectorProfileDto` deliberately excludes it. This is a product decision, not a bug: don't "fix" it by adding `verified` to a DTO or creating an endpoint unless asked. `GET /inspectors` lists only verified profiles.
 - `AuthModule` exports `JwtModule`, `JwtAuthGuard`, and `RolesGuard`, so feature modules that use the guards import `AuthModule`.
 
 ## Conventions
