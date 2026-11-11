@@ -13,29 +13,29 @@ datasource db {
 }
 
 model User {
-  id                String   @id @default(uuid())
-  name              String
-  email             String   @unique
-  passwordHash      String
-  listings          Listing[]
-  roles             Role[]   @default([USER])
-  createdAt         DateTime @default(now())
-  inspectorProfile  InspectorProfile?
+  id               String            @id @default(uuid())
+  name             String
+  email            String            @unique
+  passwordHash     String
+  listings         Listing[]
+  roles            Role[]            @default([USER])
+  createdAt        DateTime          @default(now())
+  inspectorProfile InspectorProfile?
 }
 
 model InspectorProfile {
-  id              String        @id @default(uuid())
-  userId          String        @unique
-  user            User          @relation(fields: [userId], references: [id])
+  id              String      @id @default(uuid())
+  userId          String      @unique
+  user            User        @relation(fields: [userId], references: [id])
   bio             String
   specialties     Specialty[]
   city            String
   state           String
   serviceRadiusKm Int
   basePriceCents  Int
-  verified        Boolean       @default(false)
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  verified        Boolean     @default(false)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
 }
 
 enum Role {
@@ -58,6 +58,7 @@ enum ListingStatus {
   ACTIVE
   SOLD
   PAUSED
+  ARCHIVED // substitui a exclusão física; status final
 }
 
 enum FuelType {
@@ -77,18 +78,18 @@ enum Transmission {
 }
 
 model Listing {
-  id          String         @id @default(uuid())
+  id          String          @id @default(uuid())
   sellerId    String
-  seller      User           @relation(fields: [sellerId], references: [id])
+  seller      User            @relation(fields: [sellerId], references: [id])
   title       String
   description String
   priceCents  Int
   city        String
   state       String
-  status      ListingStatus  @default(ACTIVE)
+  status      ListingStatus   @default(ACTIVE)
   vehicle     VehicleDetails?
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
 
   @@index([status, createdAt])
   @@index([sellerId])
