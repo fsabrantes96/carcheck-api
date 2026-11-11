@@ -85,6 +85,12 @@ export class AppointmentsService {
   async create(buyerId: string, dto: CreateAppointmentDto): Promise<BuyerAppointmentResponseDto> {
     const now = this.clock.now();
     const startsAt = new Date(dto.startsAt);
+    // O @IsISO8601 aceita formatos (semana, dia ordinal) que o Date não entende.
+    if (Number.isNaN(startsAt.getTime())) {
+      throw new BadRequestException(
+        'startsAt inválido: use data e hora no formato aaaa-mm-ddThh:mm:ss com fuso (Z ou ±hh:mm)',
+      );
+    }
     this.assertSchedulingWindow(now, startsAt);
     const endsAt = new Date(startsAt.getTime() + this.rules.appointmentDurationMinutes * 60_000);
 
