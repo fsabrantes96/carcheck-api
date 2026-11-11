@@ -9,6 +9,7 @@ import {
     ApiTags,
     ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import { ErrorResponseDto } from '../common/dto/error-response.dto.js';
 import { CurrentUser } from '../auth/current-user.decorator.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { Roles } from '../auth/roles.decorator.js';
@@ -35,8 +36,8 @@ export class InspectorsController {
     @UseGuards(JwtAuthGuard)
     @ApiBearerAuth()
     @ApiCreatedResponse({ type: InspectorResponseDto })
-    @ApiConflictResponse({ description: 'Você já possui perfil de avaliador' })
-    @ApiUnauthorizedResponse({ description: 'Token ausente, inválido ou expirado' })
+    @ApiConflictResponse({ type: ErrorResponseDto, description: 'Você já possui perfil de avaliador' })
+    @ApiUnauthorizedResponse({ type: ErrorResponseDto, description: 'Token ausente, inválido ou expirado' })
     create(
         @CurrentUser() user: JwtPayload,
         @Body() dto: CreateInspectorProfileDto,
@@ -49,8 +50,8 @@ export class InspectorsController {
     @Roles('INSPECTOR')
     @ApiBearerAuth()
     @ApiOkResponse({ type: InspectorResponseDto })
-    @ApiForbiddenResponse({ description: 'Você não é avaliador' })
-    @ApiNotFoundResponse({ description: 'Perfil de avaliador não encontrado' })
+    @ApiForbiddenResponse({ type: ErrorResponseDto, description: 'Você não é avaliador' })
+    @ApiNotFoundResponse({ type: ErrorResponseDto, description: 'Perfil de avaliador não encontrado' })
     findMine(@CurrentUser() user: JwtPayload): Promise<InspectorResponseDto> {
         return this.inspectors.findMine(user.sub);
     }
@@ -60,8 +61,8 @@ export class InspectorsController {
     @Roles('INSPECTOR')
     @ApiBearerAuth()
     @ApiOkResponse({ type: InspectorResponseDto })
-    @ApiForbiddenResponse({ description: 'Você não é avaliador' })
-    @ApiNotFoundResponse({ description: 'Perfil de avaliador não encontrado' })
+    @ApiForbiddenResponse({ type: ErrorResponseDto, description: 'Você não é avaliador' })
+    @ApiNotFoundResponse({ type: ErrorResponseDto, description: 'Perfil de avaliador não encontrado' })
     update(
         @CurrentUser() user: JwtPayload,
         @Body() dto: UpdateInspectorProfileDto,

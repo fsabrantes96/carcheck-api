@@ -21,6 +21,7 @@ import {
     ApiTags,
     ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import { ErrorResponseDto } from '../common/dto/error-response.dto.js';
 import { CurrentUser } from '../auth/current-user.decorator.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import type { JwtPayload } from '../auth/types/jwt-payload.js';
@@ -46,14 +47,14 @@ export class ListingsController {
     @UseGuards(JwtAuthGuard)
     @ApiBearerAuth()
     @ApiOkResponse({ type: ListingResponseDto, isArray: true })
-    @ApiUnauthorizedResponse({ description: 'Token ausente, inválido ou expirado' })
+    @ApiUnauthorizedResponse({ type: ErrorResponseDto, description: 'Token ausente, inválido ou expirado' })
     findMine(@CurrentUser() user: JwtPayload): Promise<ListingResponseDto[]> {
         return this.listings.findMine(user.sub);
     }
 
     @Get(':id')
     @ApiOkResponse({ type: ListingResponseDto })
-    @ApiNotFoundResponse({ description: 'Anúncio não encontrado' })
+    @ApiNotFoundResponse({ type: ErrorResponseDto, description: 'Anúncio não encontrado' })
     findOne(@Param('id', ParseUUIDPipe) id: string): Promise<ListingResponseDto> {
         return this.listings.findOnePublic(id);
     }
@@ -62,7 +63,7 @@ export class ListingsController {
     @UseGuards(JwtAuthGuard)
     @ApiBearerAuth()
     @ApiCreatedResponse({ type: ListingResponseDto })
-    @ApiUnauthorizedResponse({ description: 'Token ausente, inválido ou expirado' })
+    @ApiUnauthorizedResponse({ type: ErrorResponseDto, description: 'Token ausente, inválido ou expirado' })
     create(
         @CurrentUser() user: JwtPayload,
         @Body() dto: CreateListingDto,
@@ -74,8 +75,8 @@ export class ListingsController {
     @UseGuards(JwtAuthGuard)
     @ApiBearerAuth()
     @ApiOkResponse({ type: ListingResponseDto })
-    @ApiForbiddenResponse({ description: 'Este anúncio não pertence a você' })
-    @ApiNotFoundResponse({ description: 'Anúncio não encontrado' })
+    @ApiForbiddenResponse({ type: ErrorResponseDto, description: 'Este anúncio não pertence a você' })
+    @ApiNotFoundResponse({ type: ErrorResponseDto, description: 'Anúncio não encontrado' })
     update(
         @Param('id', ParseUUIDPipe) id: string,
         @CurrentUser() user: JwtPayload,
@@ -89,8 +90,8 @@ export class ListingsController {
     @UseGuards(JwtAuthGuard)
     @ApiBearerAuth()
     @ApiNoContentResponse({ description: 'Anúncio removido' })
-    @ApiForbiddenResponse({ description: 'Este anúncio não pertence a você' })
-    @ApiNotFoundResponse({ description: 'Anúncio não encontrado' })
+    @ApiForbiddenResponse({ type: ErrorResponseDto, description: 'Este anúncio não pertence a você' })
+    @ApiNotFoundResponse({ type: ErrorResponseDto, description: 'Anúncio não encontrado' })
     remove(
         @Param('id', ParseUUIDPipe) id: string,
         @CurrentUser() user: JwtPayload,
