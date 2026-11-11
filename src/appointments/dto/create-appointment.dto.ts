@@ -20,6 +20,6 @@ export class CreateAppointmentDto {
         description: 'Início da avaliação em ISO 8601 com fuso (Z ou ±hh:mm)',
     })
     @IsISO8601({ strict: true })
-    @Matches(/(Z|[+-]\d{2}:\d{2})$/, { message: 'startsAt must include a timezone (Z or ±hh:mm)' })
+    @Matches(/(Z|[+-]\d{2}:\d{2})$/, { message: 'startsAt precisa ter fuso horário (Z ou ±hh:mm)' })
     startsAt: string;
 }
