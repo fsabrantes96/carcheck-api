@@ -1,28 +1,8 @@
-import { NestFactory } from '@nestjs/core';
-import { Logger, ValidationPipe } from '@nestjs/common';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { AppModule } from './app.module.js';
-import { AppExpressAdapter } from './common/http/app-express.adapter.js';
+import { Logger } from '@nestjs/common';
+import { createApp } from './app.setup.js';
 
 async function bootstrap() {
-  // Adapter próprio para os erros do body-parser chegarem intactos ao filtro.
-  const app = await NestFactory.create(AppModule, new AppExpressAdapter());
-
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,            
-      forbidNonWhitelisted: true, 
-      transform: true,            
-    }),
-  );
-
-  const config = new DocumentBuilder()
-    .setTitle('CarCheck API')
-    .setVersion('0.1')
-    .addBearerAuth()
-    .build();
-  SwaggerModule.setup('docs', app, SwaggerModule.createDocument(app, config));
-
+  const app = await createApp();
   await app.listen(3000);
 }
 
