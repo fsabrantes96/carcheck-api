@@ -24,7 +24,11 @@ export class RolesGuard implements CanActivate {
             [context.getHandler(), context.getClass()],
         );
 
-        if (!required || required.length === 0) return true;
+        if (!required) return true;
+        // @Roles() vazio falha fechado: ninguém tem uma role da lista vazia.
+        if (required.length === 0) {
+            throw new ForbiddenException('Sem permissão para esta ação');
+        }
 
         const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
         if (!request.user) throw new UnauthorizedException();

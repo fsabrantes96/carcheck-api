@@ -1,6 +1,7 @@
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import type { CreateListingDto } from './dto/create-listing.dto.js';
+import { ListListingsQueryDto } from './dto/list-listings-query.dto.js';
 import { ListingResponseDto } from './dto/listing-response.dto.js';
 import type { UpdateListingDto } from './dto/update-listing.dto.js';
 import type { VehicleDto } from './dto/vehicle.dto.js';
@@ -52,9 +53,20 @@ type PrismaMock = {
   listing: {
     create: ReturnType<typeof vi.fn>;
     findUnique: ReturnType<typeof vi.fn>;
+    findFirst: ReturnType<typeof vi.fn>;
+    findMany: ReturnType<typeof vi.fn>;
+    count: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
+    delete: ReturnType<typeof vi.fn>;
   };
+  $transaction: ReturnType<typeof vi.fn>;
 };
+
+// Instancia o DTO de verdade para herdar os defaults (page = 1, limit = 20),
+// como faz o ValidationPipe com transform.
+function query(params: Partial<ListListingsQueryDto> = {}): ListListingsQueryDto {
+  return Object.assign(new ListListingsQueryDto(), params);
+}
 
 describe('ListingsService', () => {
   let prisma: PrismaMock;
@@ -62,8 +74,21 @@ describe('ListingsService', () => {
 
   beforeEach(() => {
     prisma = {
-      listing: { create: vi.fn(), findUnique: vi.fn(), update: vi.fn() },
+      listing: {
+        create: vi.fn(),
+        findUnique: vi.fn(),
+        findFirst: vi.fn(),
+        findMany: vi.fn(),
+        count: vi.fn(),
+        update: vi.fn(),
+        delete: vi.fn(),
+      },
+      $transaction: vi.fn(),
     };
+    // Forma de array: as "queries" já são as promises devolvidas pelos mocks.
+    prisma.$transaction.mockImplementation((ops: Promise<unknown>[]) =>
+      Promise.all(ops),
+    );
     service = new ListingsService(prisma as unknown as PrismaService);
   });
 
@@ -222,6 +247,274 @@ describe('ListingsService', () => {
 
       expect(result).toBeInstanceOf(ListingResponseDto);
       expect(result.id).toBe('l1');
+    });
+  });
+
+  describe('findAll', () => {
+    type FindManyArgs = {
+      where: Record<string, unknown>;
+      skip: number;
+      take: number;
+      orderBy: unknown;
+      include: unknown;
+    };
+
+    function findManyArgs(): FindManyArgs {
+      const [args] = prisma.listing.findMany.mock.calls[0] as [FindManyArgs];
+      return args;
+    }
+
+    beforeEach(() => {
+      prisma.listing.findMany.mockResolvedValue([]);
+      prisma.listing.count.mockResolvedValue(0);
+    });
+
+    it('sem filtros usa where só com status ACTIVE', async () => {
+      await service.findAll(query());
+
+      expect(findManyArgs().where).toEqual({ status: 'ACTIVE' });
+    });
+
+    it('mantém status ACTIVE no where mesmo com todos os filtros', async () => {
+      await service.findAll(
+        query({
+          brand: 'vw',
+          city: 'boituva',
+          state: 'sp',
+          minPriceCents: 1,
+          maxPriceCents: 2,
+          minYear: 2010,
+          maxYear: 2020,
+        }),
+      );
+
+      expect(findManyArgs().where.status).toBe('ACTIVE');
+    });
+
+    it('filtra a marca do veículo com mode insensitive', async () => {
+      await service.findAll(query({ brand: 'volkswagen' }));
+
+      expect(findManyArgs().where).toEqual({
+        status: 'ACTIVE',
+        vehicle: {
+          is: { brand: { equals: 'volkswagen', mode: 'insensitive' } },
+        },
+      });
+    });
+
+    it('filtra a cidade com mode insensitive', async () => {
+      await service.findAll(query({ city: 'boituva' }));
+
+      expect(findManyArgs().where).toEqual({
+        status: 'ACTIVE',
+        city: { equals: 'boituva', mode: 'insensitive' },
+      });
+    });
+
+    it('converte o estado para maiúsculas', async () => {
+      await service.findAll(query({ state: 'sp' }));
+
+      expect(findManyArgs().where).toEqual({ status: 'ACTIVE', state: 'SP' });
+    });
+
+    it('filtra a faixa de preço com gte e lte', async () => {
+      await service.findAll(
+        query({ minPriceCents: 1000000, maxPriceCents: 5000000 }),
+      );
+
+      expect(findManyArgs().where).toEqual({
+        status: 'ACTIVE',
+        priceCents: { gte: 1000000, lte: 5000000 },
+      });
+    });
+
+    it('aceita só o preço mínimo (lte fica undefined)', async () => {
+      await service.findAll(query({ minPriceCents: 1000000 }));
+
+      expect(findManyArgs().where.priceCents).toEqual({
+        gte: 1000000,
+        lte: undefined,
+      });
+    });
+
+    it('trata preço mínimo 0 como filtro (não como ausente)', async () => {
+      await service.findAll(query({ minPriceCents: 0 }));
+
+      expect(findManyArgs().where).toHaveProperty('priceCents.gte', 0);
+    });
+
+    it('filtra a faixa de ano do veículo com gte e lte', async () => {
+      await service.findAll(query({ minYear: 2015, maxYear: 2022 }));
+
+      expect(findManyArgs().where).toEqual({
+        status: 'ACTIVE',
+        vehicle: { is: { year: { gte: 2015, lte: 2022 } } },
+      });
+    });
+
+    it('combina marca e ano no mesmo filtro de veículo', async () => {
+      await service.findAll(query({ brand: 'gm', minYear: 2015 }));
+
+      expect(findManyArgs().where.vehicle).toEqual({
+        is: {
+          brand: { equals: 'gm', mode: 'insensitive' },
+          year: { gte: 2015, lte: undefined },
+        },
+      });
+    });
+
+    it('usa skip = (page - 1) * limit e take = limit', async () => {
+      await service.findAll(query({ page: 3, limit: 10 }));
+
+      expect(findManyArgs()).toEqual(
+        expect.objectContaining({ skip: 20, take: 10 }),
+      );
+    });
+
+    it('com os defaults do DTO usa skip 0 e take 20', async () => {
+      await service.findAll(query());
+
+      expect(findManyArgs()).toEqual(
+        expect.objectContaining({ skip: 0, take: 20 }),
+      );
+    });
+
+    it('ordena por createdAt desc e inclui seller e vehicle', async () => {
+      await service.findAll(query());
+
+      expect(findManyArgs()).toEqual(
+        expect.objectContaining({
+          orderBy: { createdAt: 'desc' },
+          include: { seller: true, vehicle: true },
+        }),
+      );
+    });
+
+    it('conta com o mesmo where do findMany', async () => {
+      await service.findAll(query({ city: 'boituva', state: 'sp' }));
+
+      expect(prisma.listing.count).toHaveBeenCalledWith({
+        where: findManyArgs().where,
+      });
+    });
+
+    it('executa findMany e count em um único $transaction', async () => {
+      await service.findAll(query());
+
+      expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+      expect(prisma.$transaction.mock.calls[0][0]).toHaveLength(2);
+    });
+
+    it('devolve { items, total, page, limit } com os itens como ListingResponseDto', async () => {
+      prisma.listing.findMany.mockResolvedValue([
+        listingEntity(),
+        listingEntity({ id: 'l2' }),
+      ]);
+      prisma.listing.count.mockResolvedValue(42);
+
+      const result = await service.findAll(query({ page: 2, limit: 2 }));
+
+      expect(result).toEqual({
+        items: [expect.any(ListingResponseDto), expect.any(ListingResponseDto)],
+        total: 42,
+        page: 2,
+        limit: 2,
+      });
+      expect(result.items.map((item) => item.id)).toEqual(['l1', 'l2']);
+      expect(JSON.stringify(result)).not.toContain('passwordHash');
+    });
+  });
+
+  describe('findOnePublic', () => {
+    it('busca pelo id com status ACTIVE no where', async () => {
+      prisma.listing.findFirst.mockResolvedValue(listingEntity());
+
+      await service.findOnePublic('l1');
+
+      expect(prisma.listing.findFirst).toHaveBeenCalledWith({
+        where: { id: 'l1', status: 'ACTIVE' },
+        include: { seller: true, vehicle: true },
+      });
+    });
+
+    it('devolve o anúncio como ListingResponseDto', async () => {
+      prisma.listing.findFirst.mockResolvedValue(listingEntity());
+
+      const result = await service.findOnePublic('l1');
+
+      expect(result).toBeInstanceOf(ListingResponseDto);
+      expect(result.id).toBe('l1');
+      expect(JSON.stringify(result)).not.toContain('passwordHash');
+    });
+
+    it('lança NotFoundException quando o anúncio não existe ou não está ACTIVE', async () => {
+      prisma.listing.findFirst.mockResolvedValue(null);
+
+      const promise = service.findOnePublic('l1');
+
+      await expect(promise).rejects.toBeInstanceOf(NotFoundException);
+      await expect(promise).rejects.toThrow('Anúncio não encontrado');
+    });
+  });
+
+  describe('findMine', () => {
+    it('busca os anúncios pelo sellerId, sem filtrar status', async () => {
+      prisma.listing.findMany.mockResolvedValue([]);
+
+      await service.findMine('u1');
+
+      expect(prisma.listing.findMany).toHaveBeenCalledWith({
+        where: { sellerId: 'u1' },
+        include: { seller: true, vehicle: true },
+        orderBy: { createdAt: 'desc' },
+      });
+    });
+
+    it('mapeia cada anúncio para ListingResponseDto', async () => {
+      prisma.listing.findMany.mockResolvedValue([
+        listingEntity(),
+        listingEntity({ id: 'l2', status: 'PAUSED' }),
+      ]);
+
+      const result = await service.findMine('u1');
+
+      expect(result).toEqual([
+        expect.any(ListingResponseDto),
+        expect.any(ListingResponseDto),
+      ]);
+      expect(result.map((item) => item.id)).toEqual(['l1', 'l2']);
+    });
+  });
+
+  describe('remove', () => {
+    it('lança NotFoundException e não chama delete quando o anúncio não existe', async () => {
+      prisma.listing.findUnique.mockResolvedValue(null);
+
+      const promise = service.remove('l1', 'u1');
+
+      await expect(promise).rejects.toBeInstanceOf(NotFoundException);
+      await expect(promise).rejects.toThrow('Anúncio não encontrado');
+      expect(prisma.listing.delete).not.toHaveBeenCalled();
+    });
+
+    it('lança ForbiddenException e não chama delete quando o anúncio é de outro usuário', async () => {
+      prisma.listing.findUnique.mockResolvedValue({ sellerId: 'outro' });
+
+      const promise = service.remove('l1', 'u1');
+
+      await expect(promise).rejects.toBeInstanceOf(ForbiddenException);
+      await expect(promise).rejects.toThrow('Este anúncio não pertence a você');
+      expect(prisma.listing.delete).not.toHaveBeenCalled();
+    });
+
+    it('apaga o anúncio pelo id quando o usuário é o dono', async () => {
+      prisma.listing.findUnique.mockResolvedValue({ sellerId: 'u1' });
+      prisma.listing.delete.mockResolvedValue(listingEntity());
+
+      await expect(service.remove('l1', 'u1')).resolves.toBeUndefined();
+      expect(prisma.listing.delete).toHaveBeenCalledWith({
+        where: { id: 'l1' },
+      });
     });
   });
 });

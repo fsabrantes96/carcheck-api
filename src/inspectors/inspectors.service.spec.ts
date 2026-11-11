@@ -26,6 +26,7 @@ const dto = {
 type PrismaMock = {
   inspectorProfile: {
     findUnique: ReturnType<typeof vi.fn>;
+    findMany: ReturnType<typeof vi.fn>;
     create: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
   };
@@ -41,6 +42,7 @@ describe('InspectorsService', () => {
     prisma = {
       inspectorProfile: {
         findUnique: vi.fn(),
+        findMany: vi.fn(),
         create: vi.fn(),
         update: vi.fn(),
       },
@@ -276,6 +278,112 @@ describe('InspectorsService', () => {
         'Perfil de avaliador não encontrado',
       );
       expect(prisma.inspectorProfile.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('findMine', () => {
+    const profile = {
+      id: 'p1',
+      userId: 'u1',
+      ...dto,
+      verified: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      user: {
+        id: 'u1',
+        name: 'João',
+        email: 'joao@x.com',
+        passwordHash: 'hash',
+      },
+    };
+
+    it('busca o perfil pelo userId incluindo o usuário', async () => {
+      prisma.inspectorProfile.findUnique.mockResolvedValue(profile);
+
+      await service.findMine('u1');
+
+      expect(prisma.inspectorProfile.findUnique).toHaveBeenCalledWith({
+        where: { userId: 'u1' },
+        include: { user: true },
+      });
+    });
+
+    it('devolve o perfil como InspectorResponseDto sem dados sensíveis', async () => {
+      prisma.inspectorProfile.findUnique.mockResolvedValue(profile);
+
+      const result = await service.findMine('u1');
+
+      expect(result).toBeInstanceOf(InspectorResponseDto);
+      expect(result).toEqual({
+        id: 'p1',
+        name: 'João',
+        ...dto,
+        verified: true,
+      });
+      expect(JSON.stringify(result)).not.toContain('passwordHash');
+      expect(result).not.toHaveProperty('userId');
+    });
+
+    it('lança NotFoundException quando o usuário não tem perfil', async () => {
+      prisma.inspectorProfile.findUnique.mockResolvedValue(null);
+
+      const promise = service.findMine('u1');
+
+      await expect(promise).rejects.toBeInstanceOf(NotFoundException);
+      await expect(promise).rejects.toThrow(
+        'Perfil de avaliador não encontrado',
+      );
+    });
+  });
+
+  describe('findAllVerified', () => {
+    function verifiedProfile(id: string, name: string) {
+      return {
+        id,
+        userId: `u-${id}`,
+        ...dto,
+        verified: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        user: { id: `u-${id}`, name, passwordHash: 'hash' },
+      };
+    }
+
+    it('filtra por verified: true no where do findMany', async () => {
+      prisma.inspectorProfile.findMany.mockResolvedValue([]);
+
+      await service.findAllVerified();
+
+      expect(prisma.inspectorProfile.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { verified: true },
+          include: { user: true },
+        }),
+      );
+    });
+
+    it('mapeia cada perfil para InspectorResponseDto', async () => {
+      prisma.inspectorProfile.findMany.mockResolvedValue([
+        verifiedProfile('p1', 'João'),
+        verifiedProfile('p2', 'Ana'),
+      ]);
+
+      const result = await service.findAllVerified();
+
+      expect(result).toHaveLength(2);
+      expect(result[0]).toBeInstanceOf(InspectorResponseDto);
+      expect(result[1]).toBeInstanceOf(InspectorResponseDto);
+      expect(result).toEqual([
+        { id: 'p1', name: 'João', ...dto, verified: true },
+        { id: 'p2', name: 'Ana', ...dto, verified: true },
+      ]);
+      expect(JSON.stringify(result)).not.toContain('passwordHash');
+    });
+
+    it('devolve lista vazia quando não há perfis verificados', async () => {
+      prisma.inspectorProfile.findMany.mockResolvedValue([]);
+
+      await expect(service.findAllVerified()).resolves.toEqual([]);
     });
   });
 });

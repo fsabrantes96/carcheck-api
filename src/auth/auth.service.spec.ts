@@ -1,4 +1,8 @@
-import { ConflictException, UnauthorizedException } from '@nestjs/common';
+import {
+  ConflictException,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import type { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { Prisma } from '../generated/prisma/client.js';
@@ -217,6 +221,43 @@ describe('AuthService', () => {
         expect.any(String),
       );
       expect(jwt.signAsync).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('me', () => {
+    it('devolve o UserResponseDto sem passwordHash', async () => {
+      const createdAt = new Date('2026-11-10T12:00:00.000Z');
+      prisma.user.findUnique.mockResolvedValue({
+        id: 'u1',
+        name: 'Maria Silva',
+        email: 'maria@x.com',
+        passwordHash: 'hash-do-usuario',
+        roles: ['USER'],
+        createdAt,
+      });
+
+      const result = await service.me('u1');
+
+      expect(result).toBeInstanceOf(UserResponseDto);
+      expect(result).toEqual({
+        id: 'u1',
+        name: 'Maria Silva',
+        email: 'maria@x.com',
+        createdAt,
+      });
+      expect(result).not.toHaveProperty('passwordHash');
+      expect(prisma.user.findUnique).toHaveBeenCalledWith({
+        where: { id: 'u1' },
+      });
+    });
+
+    it('lança NotFoundException quando o usuário não existe', async () => {
+      prisma.user.findUnique.mockResolvedValue(null);
+
+      const promise = service.me('u1');
+
+      await expect(promise).rejects.toBeInstanceOf(NotFoundException);
+      await expect(promise).rejects.toThrow('Usuário não encontrado');
     });
   });
 });

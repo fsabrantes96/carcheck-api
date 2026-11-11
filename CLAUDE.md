@@ -24,7 +24,7 @@ npm run format                # prettier
 npm test                      # vitest unit tests (**/*.spec.ts)
 npx vitest run src/listings/listings.service.spec.ts   # single file
 npx vitest run -t "name of test"                        # single test by name
-npm run test:e2e              # vitest with vitest.config.e2e.ts (**/*.e2e-spec.ts), boots the full AppModule
+npm run test:e2e              # vitest with vitest.config.e2e.ts (test/**/*.e2e-spec.ts) against the carcheck_test database
 ```
 
 **Windows gotcha (port 3000):** stopping the task that ran `npm run start:dev` can leave the child Node process (`node --enable-source-maps ...\dist\main`) still listening on port 3000. If the port stays busy, find the owner with `Get-NetTCPConnection -LocalPort 3000 -State Listen` (the `OwningProcess` column), confirm it is the process you started (e.g. `Get-CimInstance Win32_Process -Filter "ProcessId=<pid>"` for its command line and start time), and stop only that PID. Never kill every `node.exe`: the user may have their own `start:dev` running.
@@ -70,7 +70,11 @@ CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs on PRs to `main`:
 - **Vitest with globals** (`describe`, `it`, `expect`, `vi` without imports). Use `vi.fn()`/`vi.spyOn`, never `jest`. Test files follow the ESM rules above (`.js` imports, `import type`).
 - **Unit tests** live next to the code as `src/**/*.spec.ts` and run with `npm test`. They must not need a database (CI has none): mock `PrismaService` with `vi.fn()` only for the methods used; for `$transaction(callback)`, make the mock call the callback with the mock itself.
 - **Windows gotcha:** `vi.mock('bcrypt')` does not take effect when the terminal's current directory is spelled with a lowercase drive (`c:\dev\carcheck-api`); it works with `C:\dev\carcheck-api`. If a bcrypt mock seems ignored, check the drive letter before debugging the test.
-- **E2E tests** live in `test/**/*.e2e-spec.ts` and run with `npm run test:e2e`. They boot the full `AppModule`, need the Docker database, and must clean up the data they create.
+- **E2E tests** live in `test/**/*.e2e-spec.ts` and run with `npm run test:e2e`. They boot the full `AppModule` against a **separate database, `carcheck_test`**, never the dev database `carcheck`:
+  - Create it once: `docker compose exec -T db psql -U app -d carcheck -c "CREATE DATABASE carcheck_test"`. The global setup (`test/support/global-setup.ts`) refuses any URL whose database is `carcheck` or does not end in `_test`, then runs `prisma migrate deploy` on it.
+  - `vitest.config.e2e.ts` sets `DATABASE_URL` (override with `E2E_DATABASE_URL`) and a test-only `JWT_SECRET`, and runs one file at a time because the files share the database.
+  - Create the app with `createTestApp()` from `test/support/test-app.ts` (same adapter and `configureApp()` as `src/main.ts`; throttler limits raised 1000x unless `realThrottler: true`). Call `resetDatabase(app)` in `beforeEach` and `closeTestApp(app)` in `afterAll`. Shared helpers live in `test/support/fixtures.ts`.
+  - CI runs them against a Postgres service container, after the unit tests.
 - Test names are in pt-BR and describe behavior (`it('retorna 403 quando o anúncio é de outro usuário')`). One behavior per `it`; assert the exception type and message, not just "it threw".
 - **Tests are the specification.** When a test fails, fix the production code. Never edit, comment out, skip (`it.skip`/`it.todo`/`it.fails`) or loosen an existing test just to make it pass; if a test looks wrong, stop and explain why.
 - Before adding a case, look in the module's existing spec file and extend it instead of duplicating cases.
