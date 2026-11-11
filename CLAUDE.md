@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 CarCheck API: NestJS backend for a vehicle marketplace where a buyer can book an **inspector** (mechanic/specialist) to evaluate a car before buying. It's a personal study project focused on clean backend↔frontend contracts (DTOs + generated OpenAPI). Code comments, error messages, commit messages, and PR descriptions are written in **Portuguese (pt-BR)**.
 
-Roadmap (README): auth, inspector profiles, and listings are done. Next up: appointment scheduling (current branch `feat/appointments`), then inspection reports/reviews, then proximity search (PostGIS). [docs/ai-tooling-plan.md](docs/ai-tooling-plan.md) sketches planned domain concepts such as an appointment state machine, escrowed payments with commission in cents, and role-specific response DTOs.
+Roadmap (README): auth, inspector profiles, and listings are done. Next up: appointment scheduling, then inspection reports/reviews, then proximity search (PostGIS). [docs/ai-tooling-plan.md](docs/ai-tooling-plan.md) lists the planned AI agents and skills, and in doing so mentions future domain concepts such as an appointment state machine, escrowed payments with commission in cents, and role-specific response DTOs.
 
 Known risks and their status (open, accepted, resolved) live in [docs/audit.md](docs/audit.md). Read it before designing, reviewing, or testing, and update it when a change resolves or introduces a risk.
 
@@ -45,7 +45,10 @@ CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs on PRs to `main`:
 - **Request DTOs** use `class-validator` plus `@ApiProperty`. Update DTOs extend `PartialType` from `@nestjs/swagger`, not `@nestjs/mapped-types`.
 - **Response DTOs** never expose Prisma entities. Each one has a `static from(entity)` mapper, and services return these DTOs. Controllers declare return types and `@ApiOkResponse`/`@ApiCreatedResponse` plus error responses (`@ApiNotFoundResponse`, `@ApiForbiddenResponse`, etc.), because the OpenAPI contract is generated from code, never written by hand.
 - **Pagination** returns `{ items, total, page, limit }`, with `limit` capped (max 50), using `$transaction([findMany, count])`.
-- **Ownership**: services use a private `assertOwner(id, userId)` that throws 404 when the record is missing and 403 when it isn't owned. Public reads filter by visibility (e.g. `status: 'ACTIVE'`).
+- **Ownership (404 vs 403)** depends on whether the resource is public or private (see the `ownership-check` skill):
+  - **Public resource** (anyone may know it exists, e.g. listings): 404 when it doesn't exist; **403** when it exists but the caller isn't the owner. Services use a private `assertOwner(id, userId)`.
+  - **Private resource** (only participants may know it exists, e.g. appointments, payments): **404** both when it doesn't exist and when the caller isn't a participant, so existence isn't leaked. A participant whose role can't perform an action gets 403.
+  - Public reads filter by visibility in the `where` (e.g. `status: 'ACTIVE'`), never after fetching.
 
 ### Auth ([src/auth/](src/auth/))
 
@@ -59,4 +62,13 @@ CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs on PRs to `main`:
 
 - Branches are `feat/<name>`. Commits use Conventional Commits in Portuguese with a scope, e.g. `feat(listings): adiciona CRUD de anúncios`.
 - PRs follow [.github/pull_request_template.md](.github/pull_request_template.md): "O que mudou", "Como testar", and a checklist that includes updating the README roadmap.
-- Only placeholder tests exist so far (`src/app.controller.spec.ts`, `test/app.e2e-spec.ts`). Vitest globals are enabled.
+
+## Testing
+
+- **Vitest with globals** (`describe`, `it`, `expect`, `vi` without imports). Use `vi.fn()`/`vi.spyOn`, never `jest`. Test files follow the ESM rules above (`.js` imports, `import type`).
+- **Unit tests** live next to the code as `src/**/*.spec.ts` and run with `npm test`. They must not need a database (CI has none): mock `PrismaService` with `vi.fn()` only for the methods used; for `$transaction(callback)`, make the mock call the callback with the mock itself.
+- **E2E tests** live in `test/**/*.e2e-spec.ts` and run with `npm run test:e2e`. They boot the full `AppModule`, need the Docker database, and must clean up the data they create.
+- Test names are in pt-BR and describe behavior (`it('retorna 403 quando o anúncio é de outro usuário')`). One behavior per `it`; assert the exception type and message, not just "it threw".
+- **Tests are the specification.** When a test fails, fix the production code. Never edit, comment out, skip (`it.skip`/`it.todo`/`it.fails`) or loosen an existing test just to make it pass; if a test looks wrong, stop and explain why.
+- Before adding a case, look in the module's existing spec file and extend it instead of duplicating cases.
+- Bug fixes go in two commits: `test(<scope>): ...` with the failing test, then `fix(<scope>): ...` with the fix.
