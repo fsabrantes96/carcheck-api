@@ -56,6 +56,61 @@ describe('Appointments (e2e)', () => {
       .send({ listingId, inspectorProfileId: inspector.profileId, startsAt });
   }
 
+  describe('PAID com expiresAt vencido (ex.: herdado ao avançar o estado pelo prisma studio)', () => {
+    async function paidWithStaleDeadline(): Promise<string> {
+      const listingId = await createListing();
+      const created = await requestAppointment(listingId).expect(201);
+      await prisma.appointment.update({
+        where: { id: created.body.id },
+        data: {
+          status: 'PAID',
+          meetingAddress: 'Rua A, 10',
+          expiresAt: new Date(Date.now() - 3_600_000),
+        },
+      });
+      return created.body.id as string;
+    }
+
+    it('continua ocupando o horário: outro pedido no mesmo horário recebe 409', async () => {
+      await paidWithStaleDeadline();
+      const otherBuyer = await registerAndLogin(app, 'outro.comprador@x.com', 'Olga');
+      const otherListing = await createListing();
+
+      const res = await request(app.getHttpServer())
+        .post('/appointments')
+        .set(auth(otherBuyer))
+        .send({
+          listingId: otherListing,
+          inspectorProfileId: inspector.profileId,
+          startsAt: hoursFromNow(48),
+        })
+        .expect(409);
+
+      expect(res.body.message).toBe('O avaliador não está disponível nesse horário');
+    });
+
+    it('não é expirado pela limpeza do aceite de outro agendamento do mesmo avaliador', async () => {
+      const paidId = await paidWithStaleDeadline();
+      const otherBuyer = await registerAndLogin(app, 'outro.comprador@x.com', 'Olga');
+      const otherListing = await createListing();
+      // Horário que não se sobrepõe: o aceite passa e roda a limpeza dos vencidos.
+      const other = await request(app.getHttpServer())
+        .post('/appointments')
+        .set(auth(otherBuyer))
+        .send({ listingId: otherListing, inspectorProfileId: inspector.profileId, startsAt: hoursFromNow(72) })
+        .expect(201);
+
+      await request(app.getHttpServer())
+        .post(`/appointments/${other.body.id}/accept`)
+        .set(auth(inspector))
+        .expect(200);
+
+      const paid = await prisma.appointment.findUniqueOrThrow({ where: { id: paidId } });
+      expect(paid.status).toBe('PAID');
+      expect(paid.endedBy).toBeNull();
+    });
+  });
+
   describe('anúncio saindo de ACTIVE', () => {
     it.each(['pause', 'mark-sold'])(
       '%s cancela os agendamentos em aberto do anúncio (CANCELLED, endedBy SYSTEM)',

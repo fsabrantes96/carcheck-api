@@ -313,16 +313,18 @@ describe('AppointmentsService.create', () => {
       expect(prisma.appointment.create).not.toHaveBeenCalled();
     });
 
-    it('a checagem branda considera só estados que ocupam horário, sobreposição e quem não venceu', async () => {
+    it('a checagem branda considera PAID sempre ocupado e ACCEPTED/AWAITING_PAYMENT só se ainda não venceram', async () => {
       await service.create('buyer', dto());
 
       expect(prisma.appointment.findFirst).toHaveBeenCalledWith({
         where: {
           inspectorUserId: 'inspector',
-          status: { in: ['ACCEPTED', 'AWAITING_PAYMENT', 'PAID'] },
           startsAt: { lt: new Date('2030-01-03T13:00:00.000Z') },
           endsAt: { gt: new Date('2030-01-03T12:00:00.000Z') },
-          OR: [{ expiresAt: null }, { expiresAt: { gt: new Date(NOW) } }],
+          OR: [
+            { status: 'PAID' },
+            { status: { in: ['ACCEPTED', 'AWAITING_PAYMENT'] }, expiresAt: { gt: new Date(NOW) } },
+          ],
         },
         select: { id: true },
       });
@@ -646,7 +648,7 @@ describe('AppointmentsService: ações (accept, decline, confirm, cancel)', () =
       expect(prisma.appointment.updateMany).not.toHaveBeenCalled();
     });
 
-    it('na mesma transação, expira antes os agendamentos vencidos do mesmo avaliador que ocupam horário', async () => {
+    it('na mesma transação, expira antes os ACCEPTED e AWAITING_PAYMENT vencidos do mesmo avaliador (nunca PAID)', async () => {
       await service.accept('a1', 'inspector');
 
       expect(prisma.$transaction).toHaveBeenCalledTimes(1);
@@ -654,7 +656,7 @@ describe('AppointmentsService: ações (accept, decline, confirm, cancel)', () =
       expect(prisma.appointment.updateMany.mock.calls[0][0]).toEqual({
         where: {
           inspectorUserId: 'inspector',
-          status: { in: ['ACCEPTED', 'AWAITING_PAYMENT', 'PAID'] },
+          status: { in: ['ACCEPTED', 'AWAITING_PAYMENT'] },
           expiresAt: { lte: new Date(NOW) },
         },
         data: { status: 'EXPIRED', endedBy: 'SYSTEM', endedAt: new Date(NOW) },
