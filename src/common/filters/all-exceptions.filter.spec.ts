@@ -17,6 +17,21 @@ function prismaError(code: string, message = 'erro do prisma', meta = {}) {
   });
 }
 
+/** Imita o erro do body-parser do Express (http-errors com status e type). */
+function bodyParserError(
+  type: string,
+  status: number,
+  message: string,
+  base: Error = new Error(message),
+) {
+  return Object.assign(base, {
+    type,
+    status,
+    statusCode: status,
+    expose: status < 500,
+  });
+}
+
 function createHost(url = '/listings/123', method = 'GET') {
   const request = { url, method };
   const response = {
@@ -212,6 +227,92 @@ describe('AllExceptionsFilter', () => {
       const { body } = run(exception);
 
       expect(body).not.toHaveProperty('errors');
+    });
+  });
+
+  describe('erros do body-parser do Express', () => {
+    it('traduz entity.too.large em 413 com mensagem em português', () => {
+      const { response, body } = run(
+        bodyParserError('entity.too.large', 413, 'request entity too large'),
+        '/auth/login',
+      );
+
+      expect(response.status).toHaveBeenCalledWith(
+        HttpStatus.PAYLOAD_TOO_LARGE,
+      );
+      expect(body.statusCode).toBe(413);
+      expect(body.error).toBe('Payload Too Large');
+      expect(body.message).toBe('Corpo da requisição muito grande');
+      expect(body.path).toBe('/auth/login');
+    });
+
+    it('traduz entity.parse.failed em 400 sem vazar a mensagem nem o corpo', () => {
+      const exception = Object.assign(
+        bodyParserError(
+          'entity.parse.failed',
+          400,
+          'Unexpected end of JSON input',
+          new SyntaxError('Unexpected end of JSON input'),
+        ),
+        { body: '{"senha":"segredo' },
+      );
+
+      const { response, body } = run(exception);
+      const serialized = JSON.stringify(body);
+
+      expect(response.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
+      expect(body.error).toBe('Bad Request');
+      expect(body.message).toBe('Corpo da requisição inválido');
+      expect(serialized).not.toContain('Unexpected');
+      expect(serialized).not.toContain('segredo');
+    });
+
+    it('repassa outro 4xx do parser com o status original e mensagem genérica', () => {
+      const { response, body } = run(
+        bodyParserError(
+          'encoding.unsupported',
+          415,
+          'unsupported content encoding "br"',
+        ),
+      );
+
+      expect(response.status).toHaveBeenCalledWith(
+        HttpStatus.UNSUPPORTED_MEDIA_TYPE,
+      );
+      expect(body.error).toBe('Unsupported Media Type');
+      expect(body.message).toBe('Requisição inválida');
+      expect(JSON.stringify(body)).not.toContain('encoding');
+    });
+
+    it('não registra no Logger.error os 4xx do parser', () => {
+      run(bodyParserError('entity.too.large', 413, 'request entity too large'));
+
+      expect(loggerError).not.toHaveBeenCalled();
+    });
+
+    it('mantém 500 genérico e registra no Logger quando o parser falha com 5xx', () => {
+      const { response, body } = run(
+        bodyParserError('stream.not.readable', 500, 'stream is not readable'),
+      );
+
+      expect(response.status).toHaveBeenCalledWith(
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+      expect(body.message).toBe('Erro interno do servidor');
+      expect(loggerError).toHaveBeenCalled();
+    });
+
+    it('não repassa o status de um erro com status 4xx que não veio do parser', () => {
+      const exception = Object.assign(new Error('não encontrado no cache'), {
+        status: 404,
+      });
+
+      const { response, body } = run(exception);
+
+      expect(response.status).toHaveBeenCalledWith(
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+      expect(body.message).toBe('Erro interno do servidor');
     });
   });
 
