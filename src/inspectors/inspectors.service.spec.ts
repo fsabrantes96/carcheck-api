@@ -13,14 +13,14 @@ function prismaError(code: string) {
   });
 }
 
-const dto: CreateInspectorProfileDto = {
+const dto = {
   bio: 'Mecânico há 15 anos, especialista em câmbio.',
   specialties: ['ENGINE', 'BRAKES'],
   city: 'Barretos',
   state: 'SP',
   serviceRadiusKm: 30,
   basePriceCents: 15000,
-};
+} satisfies CreateInspectorProfileDto;
 
 type PrismaMock = {
   inspectorProfile: {
