@@ -13,6 +13,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { CreateListingDto } from './dto/create-listing.dto.js';
 import { ListListingsQueryDto } from './dto/list-listings-query.dto.js';
 import { ListingResponseDto } from './dto/listing-response.dto.js';
+import { MyListingResponseDto } from './dto/my-listing-response.dto.js';
 import { PaginatedListingsResponseDto } from './dto/paginated-listings-response.dto.js';
 import { UpdateListingDto } from './dto/update-listing.dto.js';
 import type { VehicleDto } from './dto/vehicle.dto.js';
@@ -36,7 +37,7 @@ function toVehicleData(vehicle: VehicleDto) {
 export class ListingsService {
     constructor(private readonly prisma: PrismaService) { }
 
-    async create(sellerId: string, dto: CreateListingDto): Promise<ListingResponseDto> {
+    async create(sellerId: string, dto: CreateListingDto): Promise<MyListingResponseDto> {
         const listing = await this.prisma.listing.create({
             data: {
                 title: dto.title,
@@ -49,7 +50,7 @@ export class ListingsService {
             },
             include,
         });
-        return ListingResponseDto.from(listing);
+        return MyListingResponseDto.from(listing);
     }
 
     async findAll(query: ListListingsQueryDto): Promise<PaginatedListingsResponseDto> {
@@ -102,20 +103,20 @@ export class ListingsService {
         return ListingResponseDto.from(listing);
     }
 
-    async findMine(sellerId: string): Promise<ListingResponseDto[]> {
+    async findMine(sellerId: string): Promise<MyListingResponseDto[]> {
         const listings = await this.prisma.listing.findMany({
             where: { sellerId, status: { not: 'ARCHIVED' } },
             include,
             orderBy: { createdAt: 'desc' },
         });
-        return listings.map((l) => ListingResponseDto.from(l));
+        return listings.map((l) => MyListingResponseDto.from(l));
     }
 
     async update(
         id: string,
         userId: string,
         dto: UpdateListingDto,
-    ): Promise<ListingResponseDto> {
+    ): Promise<MyListingResponseDto> {
         await this.assertOwner(id, userId);
 
         try {
@@ -134,7 +135,7 @@ export class ListingsService {
                 },
                 include,
             });
-            return ListingResponseDto.from(listing);
+            return MyListingResponseDto.from(listing);
         } catch (error) {
             if (isPrismaError(error, PRISMA_RECORD_NOT_FOUND)) {
                 // Consulta de apoio: só decide se o motivo foi o anúncio arquivado.
@@ -151,15 +152,15 @@ export class ListingsService {
         }
     }
 
-    pause(id: string, userId: string): Promise<ListingResponseDto> {
+    pause(id: string, userId: string): Promise<MyListingResponseDto> {
         return this.transitionAndLoad(id, userId, 'PAUSE');
     }
 
-    activate(id: string, userId: string): Promise<ListingResponseDto> {
+    activate(id: string, userId: string): Promise<MyListingResponseDto> {
         return this.transitionAndLoad(id, userId, 'ACTIVATE');
     }
 
-    markSold(id: string, userId: string): Promise<ListingResponseDto> {
+    markSold(id: string, userId: string): Promise<MyListingResponseDto> {
         return this.transitionAndLoad(id, userId, 'MARK_SOLD');
     }
 
@@ -172,13 +173,13 @@ export class ListingsService {
         id: string,
         userId: string,
         action: ListingAction,
-    ): Promise<ListingResponseDto> {
+    ): Promise<MyListingResponseDto> {
         await this.transition(id, userId, action);
         const listing = await this.prisma.listing.findUniqueOrThrow({
             where: { id },
             include,
         });
-        return ListingResponseDto.from(listing);
+        return MyListingResponseDto.from(listing);
     }
 
     /**

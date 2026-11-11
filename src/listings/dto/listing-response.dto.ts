@@ -5,7 +5,7 @@ import {
     Transmission,
 } from '../../generated/prisma/client.js';
 
-type ListingWithRelations = {
+export type ListingWithRelations = {
     id: string;
     sellerId: string;
     title: string;
@@ -35,31 +35,40 @@ export class VehicleResponseDto {
     @ApiProperty({ enum: Transmission }) transmission: Transmission;
 }
 
+/**
+ * Resposta pública do anúncio (GET /listings, GET /listings/:id). Não traz
+ * sellerId nem status: a lista pública só mostra anúncios ACTIVE, e ids de
+ * usuário não saem em respostas públicas. As rotas do dono usam
+ * MyListingResponseDto.
+ */
 export class ListingResponseDto {
     @ApiProperty() id: string;
-    @ApiProperty() sellerId: string;
     @ApiProperty() sellerName: string;
     @ApiProperty() title: string;
     @ApiProperty() description: string;
     @ApiProperty() priceCents: number;
     @ApiProperty() city: string;
     @ApiProperty() state: string;
-    @ApiProperty({ enum: ListingStatus }) status: ListingStatus;
     @ApiProperty({ type: VehicleResponseDto, nullable: true })
     vehicle: VehicleResponseDto | null;
     @ApiProperty() createdAt: Date;
 
     static from(listing: ListingWithRelations): ListingResponseDto {
-        const dto = new ListingResponseDto();
+        return ListingResponseDto.fillPublicFields(new ListingResponseDto(), listing);
+    }
+
+    /** Copia campo a campo os dados públicos para o DTO informado. */
+    protected static fillPublicFields<T extends ListingResponseDto>(
+        dto: T,
+        listing: ListingWithRelations,
+    ): T {
         dto.id = listing.id;
-        dto.sellerId = listing.sellerId;
         dto.sellerName = listing.seller.name;
         dto.title = listing.title;
         dto.description = listing.description;
         dto.priceCents = listing.priceCents;
         dto.city = listing.city;
         dto.state = listing.state;
-        dto.status = listing.status;
         dto.createdAt = listing.createdAt;
         dto.vehicle = listing.vehicle
             ? {
