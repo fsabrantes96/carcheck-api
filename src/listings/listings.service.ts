@@ -238,10 +238,11 @@ export class ListingsService {
                 );
             }
 
-            // 3) Cancela os agendamentos ainda não pagos do anúncio.
+            // 3) Cancela os agendamentos ainda não pagos do anúncio. Quem cancelou
+            // foi o vendedor (ação dele), não o sistema: fica visível em endedBy.
             await tx.appointment.updateMany({
                 where: { listingId: id, status: { in: ['REQUESTED', 'ACCEPTED', 'AWAITING_PAYMENT'] } },
-                data: { status: 'CANCELLED', endedBy: 'SYSTEM', endedAt: this.clock.now() },
+                data: { status: 'CANCELLED', endedBy: 'SELLER', endedAt: this.clock.now() },
             });
         });
     }
