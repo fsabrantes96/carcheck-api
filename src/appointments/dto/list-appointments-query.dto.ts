@@ -17,11 +17,14 @@ export class ListAppointmentsQueryDto {
     @IsEnum(AppointmentStatus)
     status?: AppointmentStatus;
 
-    @ApiPropertyOptional({ default: 1 })
+    // Teto evita skip fora da faixa (page=1e20 virava 500). 10000 × 50 itens
+    // cobre de sobra a lista de um usuário.
+    @ApiPropertyOptional({ default: 1, maximum: 10000 })
     @IsOptional()
     @Type(() => Number)
     @IsInt()
     @Min(1)
+    @Max(10000)
     page: number = 1;
 
     @ApiPropertyOptional({ default: 20, maximum: 50 })
