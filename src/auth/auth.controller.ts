@@ -5,8 +5,15 @@ import {
   ApiCreatedResponse,
   ApiOkResponse,
   ApiTags,
+  ApiTooManyRequestsResponse,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
+import { ErrorResponseDto } from '../common/dto/error-response.dto.js';
+import {
+  AUTH_THROTTLE,
+  THROTTLE_ERROR_MESSAGE,
+} from '../common/throttler/throttler.config.js';
 import { AuthService } from './auth.service.js';
 import { CurrentUser } from './current-user.decorator.js';
 import { LoginDto } from './dto/login.dto.js';
@@ -22,16 +29,26 @@ export class AuthController {
   constructor(private readonly auth: AuthService) { }
 
   @Post('register')
+  @Throttle(AUTH_THROTTLE)
+  @ApiTooManyRequestsResponse({
+    type: ErrorResponseDto,
+    description: THROTTLE_ERROR_MESSAGE,
+  })
   @ApiCreatedResponse({ type: UserResponseDto })
-  @ApiConflictResponse({ description: 'E-mail já cadastrado' })
+  @ApiConflictResponse({ type: ErrorResponseDto, description: 'E-mail já cadastrado' })
   register(@Body() dto: RegisterDto): Promise<UserResponseDto> {
     return this.auth.register(dto);
   }
 
   @Post('login')
+  @Throttle(AUTH_THROTTLE)
+  @ApiTooManyRequestsResponse({
+    type: ErrorResponseDto,
+    description: THROTTLE_ERROR_MESSAGE,
+  })
   @HttpCode(200)
   @ApiOkResponse({ type: LoginResponseDto })
-  @ApiUnauthorizedResponse({ description: 'E-mail ou senha inválidos' })
+  @ApiUnauthorizedResponse({ type: ErrorResponseDto, description: 'E-mail ou senha inválidos' })
   login(@Body() dto: LoginDto): Promise<LoginResponseDto> {
     return this.auth.login(dto);
   }
@@ -40,7 +57,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOkResponse({ type: UserResponseDto })
-  @ApiUnauthorizedResponse({ description: 'Token ausente, inválido ou expirado' })
+  @ApiUnauthorizedResponse({ type: ErrorResponseDto, description: 'Token ausente, inválido ou expirado' })
   me(@CurrentUser() user: JwtPayload): Promise<UserResponseDto> {
     return this.auth.me(user.sub);
   }

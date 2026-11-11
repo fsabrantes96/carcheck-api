@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { AuthService } from './auth.service.js';
 import { AuthController } from './auth.controller.js';
+import { parseJwtExpiresInSeconds } from './jwt-config.js';
 import { JwtAuthGuard } from './jwt-auth.guard.js';
 import { RolesGuard } from './roles.guard.js';
 
@@ -13,7 +14,9 @@ import { RolesGuard } from './roles.guard.js';
       useFactory: (config: ConfigService) => ({
         secret: config.getOrThrow<string>('JWT_SECRET'),
         signOptions: {
-          expiresIn: Number(config.get('JWT_EXPIRES_IN_SECONDS') ?? 3600),
+          expiresIn: parseJwtExpiresInSeconds(
+            config.get<unknown>('JWT_EXPIRES_IN_SECONDS'),
+          ),
         },
       }),
     }),

@@ -67,6 +67,7 @@ CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs on PRs to `main`:
 
 - **Vitest with globals** (`describe`, `it`, `expect`, `vi` without imports). Use `vi.fn()`/`vi.spyOn`, never `jest`. Test files follow the ESM rules above (`.js` imports, `import type`).
 - **Unit tests** live next to the code as `src/**/*.spec.ts` and run with `npm test`. They must not need a database (CI has none): mock `PrismaService` with `vi.fn()` only for the methods used; for `$transaction(callback)`, make the mock call the callback with the mock itself.
+- **Windows gotcha:** `vi.mock('bcrypt')` does not take effect when the terminal's current directory is spelled with a lowercase drive (`c:\dev\carcheck-api`); it works with `C:\dev\carcheck-api`. If a bcrypt mock seems ignored, check the drive letter before debugging the test.
 - **E2E tests** live in `test/**/*.e2e-spec.ts` and run with `npm run test:e2e`. They boot the full `AppModule`, need the Docker database, and must clean up the data they create.
 - Test names are in pt-BR and describe behavior (`it('retorna 403 quando o anúncio é de outro usuário')`). One behavior per `it`; assert the exception type and message, not just "it threw".
 - **Tests are the specification.** When a test fails, fix the production code. Never edit, comment out, skip (`it.skip`/`it.todo`/`it.fails`) or loosen an existing test just to make it pass; if a test looks wrong, stop and explain why.
