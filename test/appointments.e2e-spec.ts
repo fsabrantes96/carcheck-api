@@ -453,6 +453,27 @@ describe('Appointments (e2e)', () => {
         expect(Object.keys(res.body).sort()).toEqual(VALIDATION_ERROR_KEYS);
         expect(res.body.errors).toEqual(['limit must not be greater than 50']);
       });
+
+      it.each(['1e20', '10001'])('responde 400 (não 500) com page=%s, acima do teto de 10000', async (page) => {
+        const res = await request(app.getHttpServer())
+          .get('/appointments')
+          .query({ page })
+          .set(auth(buyer))
+          .expect(400);
+
+        expect(res.body.message).toBe('Dados inválidos');
+        expect(res.body.errors).toEqual(['page must not be greater than 10000']);
+      });
+
+      it('aceita page=10000 (o teto) e devolve página vazia', async () => {
+        const res = await request(app.getHttpServer())
+          .get('/appointments')
+          .query({ page: 10000 })
+          .set(auth(buyer))
+          .expect(200);
+
+        expect(res.body).toMatchObject({ items: [], page: 10000 });
+      });
     });
   });
 
