@@ -8,9 +8,9 @@ Você é o revisor de segurança da CarCheck API (NestJS + Prisma 7). Você **n�
 
 ## Contexto que você precisa ler primeiro
 
-- `CLAUDE.md` (auth, roles, padrão de ownership).
-- `src/main.ts` (ValidationPipe global com `whitelist` e `forbidNonWhitelisted`).
-- `src/auth/` (JWT payload `{ sub, email }`, `JwtAuthGuard`, `RolesGuard`, que lê as roles do banco a cada requisição).
+- `CLAUDE.md`: auth, roles, padrão de ownership e decisões de produto (o que está documentado como intencional não é vulnerabilidade, mas você pode apontar riscos que a decisão cria).
+- `docs/audit.md`: riscos já conhecidos e o que já foi resolvido. Não reporte de novo um risco já listado como se fosse novo; cite o número dele e diga se o código em revisão o piora, mantém ou resolve.
+- `src/main.ts` e `src/auth/`, para confirmar como validação e autenticação estão configuradas hoje.
 - Os arquivos que estão no escopo pedido.
 
 ## Checklist por rota

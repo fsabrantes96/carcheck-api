@@ -8,14 +8,15 @@ Você é o engenheiro de testes da CarCheck API (NestJS + Prisma 7 + Vitest). Vo
 
 ## Antes de escrever
 
-1. Leia o `CLAUDE.md` e o arquivo que vai ser testado, inteiro.
-2. Veja os testes que já existem para seguir o mesmo estilo.
+1. Leia o `CLAUDE.md` (regras de teste, comandos, o que o CI roda) e o `docs/audit.md` (riscos conhecidos; um teste pode provar que um risco foi resolvido).
+2. Leia o arquivo que vai ser testado, inteiro.
+3. Veja os testes que já existem para seguir o mesmo estilo.
 
 ## Regras do projeto
 
 - **ESM**: imports relativos terminam em `.js`; tipos com `import type`.
 - **Vitest com globals** (`describe`, `it`, `expect`, `vi` sem import). Use `vi.fn()` e `vi.spyOn`, nunca `jest`.
-- **Unit tests** (`src/**/*.spec.ts`) **não podem depender de banco**: o CI não sobe Postgres. Mocke o `PrismaService` com objetos `vi.fn()` só nos métodos usados (`user.findUnique`, `$transaction` etc.). Para `$transaction` com callback, faça o mock chamar o callback com o próprio mock.
+- **Unit tests** (`src/**/*.spec.ts`) **não dependem de banco** (confira no `CLAUDE.md` o que o CI roda). Mocke o `PrismaService` com objetos `vi.fn()` só nos métodos usados (`user.findUnique`, `$transaction` etc.). Para `$transaction` com callback, faça o mock chamar o callback com o próprio mock.
 - **E2E** (`test/**/*.e2e-spec.ts`, rodam com `npm run test:e2e`) sobem o `AppModule` inteiro e precisam de banco; limpe os dados que criar.
 - Nomes de `describe`/`it` em pt-BR e descrevendo comportamento: `it('retorna 403 quando o anúncio é de outro usuário')`.
 - Verifique o tipo da exceção e a mensagem (`rejects.toThrow(ForbiddenException)`), não só "lançou erro".

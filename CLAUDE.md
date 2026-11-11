@@ -8,6 +8,8 @@ CarCheck API: NestJS backend for a vehicle marketplace where a buyer can book an
 
 Roadmap (README): auth, inspector profiles, and listings are done. Next up: appointment scheduling (current branch `feat/appointments`), then inspection reports/reviews, then proximity search (PostGIS). [docs/ai-tooling-plan.md](docs/ai-tooling-plan.md) sketches planned domain concepts such as an appointment state machine, escrowed payments with commission in cents, and role-specific response DTOs.
 
+Known risks and their status (open, accepted, resolved) live in [docs/audit.md](docs/audit.md). Read it before designing, reviewing, or testing, and update it when a change resolves or introduces a risk.
+
 ## Commands
 
 ```bash
