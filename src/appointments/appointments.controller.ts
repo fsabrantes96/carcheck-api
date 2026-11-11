@@ -74,6 +74,7 @@ export class AppointmentsController {
 
     @Get(':id')
     @ApiOkResponse({ schema: appointmentResponseSchema(), description: 'Formato conforme o seu papel (myRole)' })
+    @ApiBadRequestResponse({ type: ErrorResponseDto, description: 'Id inválido: precisa ser uuid' })
     @ApiNotFoundResponse({ type: ErrorResponseDto, description: 'Agendamento não encontrado (ou você não participa dele)' })
     findOne(
         @Param('id', ParseUUIDPipe) id: string,
@@ -85,6 +86,7 @@ export class AppointmentsController {
     @Post(':id/accept')
     @HttpCode(200)
     @ApiOkResponse({ type: InspectorAppointmentResponseDto, description: 'Aceito (REQUESTED → ACCEPTED); ocupa o horário do avaliador' })
+    @ApiBadRequestResponse({ type: ErrorResponseDto, description: 'Id inválido: precisa ser uuid' })
     @ApiForbiddenResponse({ type: ErrorResponseDto, description: 'Você não pode aceitar este agendamento (só o avaliador)' })
     @ApiNotFoundResponse({ type: ErrorResponseDto, description: 'Agendamento não encontrado (ou você não participa dele)' })
     @ApiConflictResponse({ type: ErrorResponseDto, description: 'Estado não permite, prazo expirado, perfil não verificado, estado mudou ou horário não está mais disponível' })
@@ -98,6 +100,7 @@ export class AppointmentsController {
     @Post(':id/decline')
     @HttpCode(200)
     @ApiOkResponse({ type: InspectorAppointmentResponseDto, description: 'Recusado (REQUESTED → DECLINED)' })
+    @ApiBadRequestResponse({ type: ErrorResponseDto, description: 'Id inválido: precisa ser uuid' })
     @ApiForbiddenResponse({ type: ErrorResponseDto, description: 'Você não pode recusar este agendamento (só o avaliador)' })
     @ApiNotFoundResponse({ type: ErrorResponseDto, description: 'Agendamento não encontrado (ou você não participa dele)' })
     @ApiConflictResponse({ type: ErrorResponseDto, description: 'Estado não permite, prazo expirado ou estado mudou' })
@@ -111,7 +114,7 @@ export class AppointmentsController {
     @Post(':id/confirm')
     @HttpCode(200)
     @ApiOkResponse({ type: SellerAppointmentResponseDto, description: 'Confirmado (ACCEPTED → AWAITING_PAYMENT); abre a janela de 30 min para pagar' })
-    @ApiBadRequestResponse({ type: ErrorResponseDto, description: 'meetingAddress ausente ou fora de 5 a 300 caracteres' })
+    @ApiBadRequestResponse({ type: ErrorResponseDto, description: 'Id inválido (precisa ser uuid), ou meetingAddress ausente ou fora de 5 a 300 caracteres' })
     @ApiForbiddenResponse({ type: ErrorResponseDto, description: 'Você não pode confirmar este agendamento (só o vendedor)' })
     @ApiNotFoundResponse({ type: ErrorResponseDto, description: 'Agendamento não encontrado (ou você não participa dele)' })
     @ApiConflictResponse({ type: ErrorResponseDto, description: 'Estado não permite, prazo expirado ou estado mudou' })
@@ -126,6 +129,7 @@ export class AppointmentsController {
     @Post(':id/cancel')
     @HttpCode(200)
     @ApiOkResponse({ schema: appointmentResponseSchema(), description: 'Cancelado (antes do pagamento); formato conforme o seu papel' })
+    @ApiBadRequestResponse({ type: ErrorResponseDto, description: 'Id inválido: precisa ser uuid' })
     @ApiNotFoundResponse({ type: ErrorResponseDto, description: 'Agendamento não encontrado (ou você não participa dele)' })
     @ApiConflictResponse({ type: ErrorResponseDto, description: 'Estado não permite (ex.: já pago ou encerrado), prazo expirado ou estado mudou' })
     cancel(
