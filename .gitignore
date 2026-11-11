@@ -73,3 +73,8 @@ desktop.ini
 
 # Dados locais do Docker (caso use bind mount no futuro)
 /pgdata
+
+# Cópias de skills para outras ferramentas de IA (usamos só o Claude Code)
+/.windsurf/
+/.cursor/
+/.devin/
