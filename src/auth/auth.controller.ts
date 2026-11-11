@@ -5,9 +5,15 @@ import {
   ApiCreatedResponse,
   ApiOkResponse,
   ApiTags,
+  ApiTooManyRequestsResponse,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { ErrorResponseDto } from '../common/dto/error-response.dto.js';
+import {
+  AUTH_THROTTLE,
+  THROTTLE_ERROR_MESSAGE,
+} from '../common/throttler/throttler.config.js';
 import { AuthService } from './auth.service.js';
 import { CurrentUser } from './current-user.decorator.js';
 import { LoginDto } from './dto/login.dto.js';
@@ -23,6 +29,11 @@ export class AuthController {
   constructor(private readonly auth: AuthService) { }
 
   @Post('register')
+  @Throttle(AUTH_THROTTLE)
+  @ApiTooManyRequestsResponse({
+    type: ErrorResponseDto,
+    description: THROTTLE_ERROR_MESSAGE,
+  })
   @ApiCreatedResponse({ type: UserResponseDto })
   @ApiConflictResponse({ type: ErrorResponseDto, description: 'E-mail já cadastrado' })
   register(@Body() dto: RegisterDto): Promise<UserResponseDto> {
@@ -30,6 +41,11 @@ export class AuthController {
   }
 
   @Post('login')
+  @Throttle(AUTH_THROTTLE)
+  @ApiTooManyRequestsResponse({
+    type: ErrorResponseDto,
+    description: THROTTLE_ERROR_MESSAGE,
+  })
   @HttpCode(200)
   @ApiOkResponse({ type: LoginResponseDto })
   @ApiUnauthorizedResponse({ type: ErrorResponseDto, description: 'E-mail ou senha inválidos' })
