@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import type { ArgumentsHost } from '@nestjs/common';
+import { ThrottlerException } from '@nestjs/throttler';
 import { Prisma } from '../../generated/prisma/client.js';
 import { AllExceptionsFilter } from './all-exceptions.filter.js';
 
@@ -157,6 +158,31 @@ describe('AllExceptionsFilter', () => {
 
     it('não chama o Logger.error', () => {
       run(new NotFoundException('Anúncio não encontrado'));
+
+      expect(loggerError).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('ThrottlerException (rate limit)', () => {
+    it('sai como 429 Too Many Requests com a mensagem informada', () => {
+      const { response, body } = run(
+        new ThrottlerException(
+          'Muitas requisições. Tente novamente em instantes.',
+        ),
+      );
+
+      expect(response.status).toHaveBeenCalledWith(
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+      expect(body.statusCode).toBe(429);
+      expect(body.error).toBe('Too Many Requests');
+      expect(body.message).toBe(
+        'Muitas requisições. Tente novamente em instantes.',
+      );
+    });
+
+    it('não registra no Logger.error', () => {
+      run(new ThrottlerException('Muitas requisições.'));
 
       expect(loggerError).not.toHaveBeenCalled();
     });
