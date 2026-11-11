@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, getSchemaPath } from '@nestjs/swagger';
 import { AppointmentActor, AppointmentStatus } from '../../generated/prisma/client.js';
 import { availableActions, ROUTE_ACTIONS } from '../appointments.state-machine.js';
 import type { AppointmentAction, Participant } from '../appointments.state-machine.js';
@@ -103,4 +103,77 @@ export class BuyerAppointmentResponseDto extends AppointmentBaseResponseDto {
         dto.priceCents = appointment.priceCents;
         return dto;
     }
+}
+
+/** Resposta para o vendedor: só a base, sem nenhum valor. */
+export class SellerAppointmentResponseDto extends AppointmentBaseResponseDto {
+    @ApiProperty({ enum: ['SELLER'] }) myRole: 'SELLER';
+
+    static from(appointment: AppointmentWithRelations): SellerAppointmentResponseDto {
+        const dto = AppointmentBaseResponseDto.fillBase(new SellerAppointmentResponseDto(), appointment, 'SELLER');
+        dto.myRole = 'SELLER';
+        return dto;
+    }
+}
+
+/** Resposta para o avaliador: base + preço, comissão e repasse congelados. */
+export class InspectorAppointmentResponseDto extends AppointmentBaseResponseDto {
+    @ApiProperty({ enum: ['INSPECTOR'] }) myRole: 'INSPECTOR';
+    @ApiProperty({ description: 'Preço pago pelo comprador, em centavos' }) priceCents: number;
+    @ApiProperty({ description: 'Comissão da plataforma em pontos-base, congelada na criação' }) platformFeeBps: number;
+    @ApiProperty({ description: 'Comissão da plataforma em centavos' }) platformFeeCents: number;
+    @ApiProperty({ description: 'Repasse ao avaliador em centavos (preço - comissão)' }) inspectorPayoutCents: number;
+
+    static from(appointment: AppointmentWithRelations): InspectorAppointmentResponseDto {
+        const dto = AppointmentBaseResponseDto.fillBase(new InspectorAppointmentResponseDto(), appointment, 'INSPECTOR');
+        dto.myRole = 'INSPECTOR';
+        dto.priceCents = appointment.priceCents;
+        dto.platformFeeBps = appointment.platformFeeBps;
+        dto.platformFeeCents = appointment.platformFeeCents;
+        dto.inspectorPayoutCents = appointment.inspectorPayoutCents;
+        return dto;
+    }
+}
+
+/** União das respostas por perfil; o discriminador é `myRole`. */
+export type AppointmentResponseDto =
+    | BuyerAppointmentResponseDto
+    | SellerAppointmentResponseDto
+    | InspectorAppointmentResponseDto;
+
+/** Monta a resposta do perfil de quem chama. O campo proibido não existe na resposta. */
+export function appointmentResponseFor(
+    role: Participant,
+    appointment: AppointmentWithRelations,
+): AppointmentResponseDto {
+    switch (role) {
+        case 'BUYER':
+            return BuyerAppointmentResponseDto.from(appointment);
+        case 'SELLER':
+            return SellerAppointmentResponseDto.from(appointment);
+        case 'INSPECTOR':
+            return InspectorAppointmentResponseDto.from(appointment);
+    }
+}
+
+/** Modelos que precisam de @ApiExtraModels para o oneOf aparecer no OpenAPI. */
+export const APPOINTMENT_RESPONSE_MODELS = [
+    BuyerAppointmentResponseDto,
+    SellerAppointmentResponseDto,
+    InspectorAppointmentResponseDto,
+] as const;
+
+/** Schema OpenAPI da resposta por perfil: oneOf com discriminador em myRole. */
+export function appointmentResponseSchema() {
+    return {
+        oneOf: APPOINTMENT_RESPONSE_MODELS.map((model) => ({ $ref: getSchemaPath(model) })),
+        discriminator: {
+            propertyName: 'myRole',
+            mapping: {
+                BUYER: getSchemaPath(BuyerAppointmentResponseDto),
+                SELLER: getSchemaPath(SellerAppointmentResponseDto),
+                INSPECTOR: getSchemaPath(InspectorAppointmentResponseDto),
+            },
+        },
+    };
 }
