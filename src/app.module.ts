@@ -10,9 +10,11 @@ import { validateEnv } from './config/env.validation.js';
 import { ClockModule } from './common/clock/clock.js';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter.js';
 import { throttlerOptions } from './common/throttler/throttler.config.js';
+import { AppointmentExpiryModule } from './appointments/appointment-expiry.module.js';
 import { AppointmentsModule } from './appointments/appointments.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { InspectorsModule } from './inspectors/inspectors.module.js';
+import { jobsModuleWhenEnabled } from './jobs/jobs.module.js';
 import { ListingsModule } from './listings/listings.module.js';
 
 @Module({
@@ -26,6 +28,9 @@ import { ListingsModule } from './listings/listings.module.js';
     InspectorsModule,
     ListingsModule,
     AppointmentsModule,
+    AppointmentExpiryModule,
+    // Depois do ConfigModule: só entra com JOBS_ENABLED=true (padrão).
+    jobsModuleWhenEnabled(),
   ],
   controllers: [AppController],
   providers: [
