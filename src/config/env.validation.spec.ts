@@ -1,4 +1,4 @@
-import { validateEnv } from './env.validation.js';
+import { isJobsEnabled, validateEnv } from './env.validation.js';
 
 const valid = { PLATFORM_FEE_BPS: '1000', DATABASE_URL: 'postgresql://x' };
 
@@ -86,5 +86,54 @@ describe('validateEnv', () => {
     expect(message).toContain('Configuração inválida. Corrija as variáveis de ambiente (veja o .env.example):');
     expect(message).toContain('PLATFORM_FEE_BPS é obrigatória');
     expect(message).toContain('APPOINTMENT_DURATION_MINUTES inválida');
+  });
+});
+
+describe('JOBS_ENABLED', () => {
+  it('ausente vale true', () => {
+    expect(validateEnv(valid).JOBS_ENABLED).toBe(true);
+  });
+
+  it('vazia é tratada como ausente (true)', () => {
+    expect(validateEnv({ ...valid, JOBS_ENABLED: '  ' }).JOBS_ENABLED).toBe(true);
+  });
+
+  it.each([
+    ['true', true],
+    ['false', false],
+    ['TRUE', true],
+    [' False ', false],
+  ])('aceita %j como %s', (raw, expected) => {
+    expect(validateEnv({ ...valid, JOBS_ENABLED: raw }).JOBS_ENABLED).toBe(expected);
+  });
+
+  it('aceita boolean já convertido', () => {
+    expect(validateEnv({ ...valid, JOBS_ENABLED: false }).JOBS_ENABLED).toBe(false);
+  });
+
+  it.each(['sim', 'yes', '1', '0', 'off'])('rejeita JOBS_ENABLED = %s mostrando o valor recebido', (raw) => {
+    expect(messageOf({ ...valid, JOBS_ENABLED: raw })).toContain(
+      `JOBS_ENABLED inválida (recebido: "${raw}"): liga os jobs agendados, true ou false (padrão true).`,
+    );
+  });
+});
+
+describe('isJobsEnabled (condição do módulo de jobs, lida do process.env)', () => {
+  it('ausente vale true, como no validateEnv', () => {
+    expect(isJobsEnabled({})).toBe(true);
+  });
+
+  it.each([
+    ['true', true],
+    ['false', false],
+    [' FALSE ', false],
+    ['', true],
+  ])('%j vale %s, como no validateEnv', (raw, expected) => {
+    expect(isJobsEnabled({ JOBS_ENABLED: raw })).toBe(expected);
+    expect(validateEnv({ ...valid, JOBS_ENABLED: raw }).JOBS_ENABLED).toBe(expected);
+  });
+
+  it('valor inválido não liga os jobs (o boot já falhou no validateEnv)', () => {
+    expect(isJobsEnabled({ JOBS_ENABLED: 'sim' })).toBe(false);
   });
 });
