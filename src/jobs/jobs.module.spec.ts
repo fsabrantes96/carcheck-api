@@ -1,6 +1,6 @@
 import { Global, Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { SchedulerRegistry } from '@nestjs/schedule';
+import { CronExpression, SchedulerRegistry } from '@nestjs/schedule';
 import { Test } from '@nestjs/testing';
 import type { TestingModule } from '@nestjs/testing';
 import { AppointmentExpiryCron, APPOINTMENT_EXPIRY_CRON } from '../appointments/appointment-expiry.cron.js';
@@ -11,10 +11,13 @@ import { validateEnv } from '../config/env.validation.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { jobsModuleWhenEnabled } from './jobs.module.js';
 
-/** PrismaService falso e global: o teste não abre conexão com o banco. */
+/**
+ * PrismaService falso e global: o teste não abre conexão com o banco. Se o
+ * cron real disparar durante o teste (virada do minuto), expira 0.
+ */
 @Global()
 @Module({
-  providers: [{ provide: PrismaService, useValue: { appointment: { updateMany: vi.fn() } } }],
+  providers: [{ provide: PrismaService, useValue: { appointment: { updateMany: vi.fn().mockResolvedValue({ count: 0 }) } } }],
   exports: [PrismaService],
 })
 class FakePrismaModule {}
@@ -62,7 +65,7 @@ describe('JobsModule (liga/desliga com JOBS_ENABLED)', () => {
     const registry = moduleRef.get(SchedulerRegistry, { strict: false });
     expect(moduleRef.get(AppointmentExpiryCron, { strict: false })).toBeInstanceOf(AppointmentExpiryCron);
     expect(registry.doesExist('cron', APPOINTMENT_EXPIRY_CRON)).toBe(true);
-    expect(registry.getCronJob(APPOINTMENT_EXPIRY_CRON).cronTime.source).toBe('*/1 * * * *');
+    expect(registry.getCronJob(APPOINTMENT_EXPIRY_CRON).cronTime.source).toBe(CronExpression.EVERY_MINUTE);
   });
 
   it('com JOBS_ENABLED ausente, o cron é registrado (padrão true)', async () => {

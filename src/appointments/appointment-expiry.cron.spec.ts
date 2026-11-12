@@ -81,7 +81,7 @@ describe('AppointmentExpiryCron', () => {
     await expect(cron.run()).resolves.toBeUndefined();
 
     expect(errorSpy).toHaveBeenCalledTimes(1);
-    expect(errorSpy.mock.calls[0]).toContain(failure.stack);
+    expect(errorSpy.mock.calls[0]).toEqual(['Falha ao expirar agendamentos vencidos', failure.stack]);
   });
 
   it('volta a executar depois de uma falha (a flag é liberada)', async () => {
@@ -99,7 +99,7 @@ describe('AppointmentExpiryCron', () => {
     await cron.run();
 
     expect(logSpy).toHaveBeenCalledTimes(1);
-    expect(String(logSpy.mock.calls[0][0])).toContain('2');
+    expect(logSpy).toHaveBeenCalledWith('2 agendamento(s) expirado(s)');
   });
 
   it('não registra nada no log quando nenhum agendamento expirou', async () => {

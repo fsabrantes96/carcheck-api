@@ -33,8 +33,8 @@ describe('Appointments: job de expiração (e2e com FakeClock)', () => {
   let expiry: AppointmentExpiryService;
   let clock: FakeClock;
   let seller: TestUser;
-  let buyer: TestUser;
   let inspector: TestInspector;
+  let buyerCount: number;
   let listingId: string;
 
   beforeAll(async () => {
@@ -48,7 +48,7 @@ describe('Appointments: job de expiração (e2e com FakeClock)', () => {
     clock.set(START);
     await resetDatabase(app);
     seller = await registerAndLogin(app, 'vendedor@x.com', 'Vera Vendedora');
-    buyer = await registerAndLogin(app, 'comprador@x.com', 'Bruno Comprador');
+    buyerCount = 0;
     inspector = await verifiedInspector(app, 'avaliador@x.com', 'Ivo Avaliador');
     const listing = await request(app.getHttpServer())
       .post('/listings')
@@ -74,14 +74,13 @@ describe('Appointments: job de expiração (e2e com FakeClock)', () => {
 
   /**
    * Agendamento no estado pedido, criado pelas rotas. `hoursAhead` separa os
-   * horários (a exclusion constraint barra ACCEPTED sobrepostos); cada
-   * chamada usa um comprador novo, por causa do índice do trio em aberto.
+   * horários (a exclusion constraint barra ACCEPTED sobrepostos). Cada
+   * chamada cadastra um comprador novo (índice do trio em aberto) e o
+   * devolve: use sempre o `buyer` retornado.
    */
   async function appointmentIn(state: OpenState, hoursAhead = 72): Promise<{ id: string; buyer: TestUser }> {
-    const owner =
-      state === 'REQUESTED' && hoursAhead === 72
-        ? buyer
-        : await registerAndLogin(app, `comprador-${state.toLowerCase()}-${hoursAhead}@x.com`, 'Outro Comprador');
+    buyerCount += 1;
+    const owner = await registerAndLogin(app, `comprador-${buyerCount}@x.com`, 'Bruno Comprador');
     const res = await request(app.getHttpServer())
       .post('/appointments')
       .set(auth(owner))
@@ -246,7 +245,7 @@ describe('Appointments: job de expiração (e2e com FakeClock)', () => {
       ['seller', 'SELLER'],
       ['inspector', 'INSPECTOR'],
     ] as const)('o detalhe mostra EXPIRED para o %s, sem ações disponíveis', async (who, role) => {
-      const { id } = await appointmentIn('REQUESTED');
+      const { id, buyer } = await appointmentIn('REQUESTED');
       clock.advanceMinutes(AFTER_ALL_DEADLINES_MINUTES);
       await expiry.expireDue(clock.now());
       const actor = { buyer, seller, inspector }[who];
@@ -257,7 +256,7 @@ describe('Appointments: job de expiração (e2e com FakeClock)', () => {
     });
 
     it('a listagem filtrada por EXPIRED traz o agendamento expirado pelo job', async () => {
-      const { id } = await appointmentIn('REQUESTED');
+      const { id, buyer } = await appointmentIn('REQUESTED');
       clock.advanceMinutes(AFTER_ALL_DEADLINES_MINUTES);
       await expiry.expireDue(clock.now());
 
