@@ -1,6 +1,6 @@
 # Desenho: agendamento de avaliações (`appointments`)
 
-Desenho aprovado em 2026-11-11, feito com o agente `api-architect` e revisado pelo dono do projeto. As decisões da seção 9 já estão incorporadas ao texto. Riscos ligados a este desenho estão no [`docs/audit.md`](audit.md) (riscos 26 a 49). Atualizado em 2026-11-11 depois da implementação e da revisão do PR B: onde o texto original divergiu do código, vale o que está aqui.
+Desenho aprovado em 2026-11-11, feito com o agente `api-architect` e revisado pelo dono do projeto. As decisões da seção 9 já estão incorporadas ao texto. Riscos ligados a este desenho estão no [`docs/audit.md`](audit.md) (riscos 26 a 49). Atualizado em 2026-11-11 depois da implementação e da revisão do PR B, e em 2026-11-12 com o job de expiração do PR C (seção 4): onde o texto original divergiu do código, vale o que está aqui.
 
 ## Resumo
 
@@ -148,7 +148,7 @@ ALTER TABLE "Appointment"
     CHECK ("status" NOT IN ('AWAITING_PAYMENT', 'PAID') OR "meetingAddress" IS NOT NULL);
 ```
 
-**Estados que ocupam o horário:** `ACCEPTED`, `AWAITING_PAYMENT` e `PAID`. `REQUESTED` não ocupa (senão qualquer comprador travaria a agenda do avaliador só pedindo). Depois do laudo o horário já passou; a branch do laudo deve exigir `agora >= startsAt`. Na criação há só uma checagem branda (409); a garantia é a constraint, aplicada no aceite. `PAID` ocupa o horário **sem prazo**: nunca é expirado nem tratado como livre, mesmo com `expiresAt` preenchido (só `ACCEPTED` e `AWAITING_PAYMENT` podem vencer; constante `EXPIRING_SLOT_STATUSES`).
+**Estados que ocupam o horário:** `ACCEPTED`, `AWAITING_PAYMENT` e `PAID`. `REQUESTED` não ocupa (senão qualquer comprador travaria a agenda do avaliador só pedindo). Depois do laudo o horário já passou; a branch do laudo deve exigir `agora >= startsAt`. Na criação há só uma checagem branda (409); a garantia é a constraint, aplicada no aceite. `PAID` ocupa o horário **sem prazo**: nunca é expirado nem tratado como livre, mesmo com `expiresAt` preenchido. Dos estados que ocupam o horário, só `ACCEPTED` e `AWAITING_PAYMENT` podem vencer (constante `EXPIRING_SLOT_STATUSES`). `REQUESTED` também vence, mas não ocupa horário; a lista completa dos que vencem é `EXPIRABLE_STATUSES` (seção 4).
 
 ### Verificado no PR B (2026-11-11, Prisma 7.10.1 com `@prisma/adapter-pg`)
 
@@ -217,11 +217,24 @@ Horários vêm de um relógio injetável (`CLOCK`), nunca do `now()` do banco.
 | `REPORT_SUBMITTED` | `submittedAt + 48h` (depois) |
 
 - **Antecedência mínima:** `APPOINTMENT_MIN_NOTICE_HOURS`, padrão **24h** (substitui a regra de 1h). Horizonte máximo de 60 dias.
-- **Estratégia:** preguiçosa nas ações (PR B) + job a cada minuto com um único `updateMany` condicional e idempotente (PR C). O job só faz faxina; a correção vem do `where` com `expiresAt > agora`.
-- **Horário ocupado por vencido:** dentro da transação do `ACCEPT`, antes do `updateMany`, expirar os agendamentos `ACCEPTED`/`AWAITING_PAYMENT` daquele avaliador que já venceram (nunca `PAID`). A checagem branda da criação considera `PAID` sempre ocupado e ignora `ACCEPTED`/`AWAITING_PAYMENT` com `expiresAt <= agora`.
+- **Estratégia:** preguiçosa nas ações (PR B) + job a cada minuto com um único `updateMany` condicional e idempotente (PR C, abaixo). O job só faz faxina; a correção vem do `where` com `expiresAt > agora`.
+- **Regra única de vencimento:** estado em `EXPIRABLE_STATUSES` (`REQUESTED`, `ACCEPTED`, `AWAITING_PAYMENT`, os mesmos de onde o `EXPIRE` sai na máquina de estados) **e** `expiresAt <= agora`. Fica nas funções puras de `src/appointments/appointment-deadlines.ts`: `isDue` (registro já lido), `dueWhere` (filtro do Prisma) e `expiredData` (`status: EXPIRED`, `endedBy: SYSTEM`, `endedAt: agora`). As ações, a limpeza do `ACCEPT` e o job usam essas funções; não reescreva a comparação.
+- **Horário ocupado por vencido:** dentro da transação do `ACCEPT`, antes do `updateMany`, expirar os agendamentos `ACCEPTED`/`AWAITING_PAYMENT` daquele avaliador que já venceram (nunca `PAID`). Aqui a lista é passada explicitamente (`dueWhere(agora, EXPIRING_SLOT_STATUSES)`): só importa quem ocupa o horário, e `REQUESTED` de outros compradores não pode ser expirado por esse aceite. A checagem branda da criação considera `PAID` sempre ocupado e ignora `ACCEPTED`/`AWAITING_PAYMENT` com `expiresAt <= agora`.
 - **Prazos** são calculados por `deadlineFor(status, entradaNoEstado, startsAt)` (`src/appointments/appointment-deadlines.ts`).
-- **Leitura:** `GET` não aplica a expiração preguiçosa; até o job do PR C, um agendamento vencido aparece no estado antigo (risco 37).
+- **Leitura:** `GET` não aplica a expiração preguiçosa. Com o job ligado, um agendamento vencido aparece no estado antigo por no máximo cerca de um minuto (até a próxima execução); com `JOBS_ENABLED=false`, até alguém agir sobre ele (risco 37).
 - **Pedidos concorrentes no mesmo horário:** quando o avaliador aceita um, os outros dão 409 se ele tentar aceitá-los e expiram sozinhos (sem recusa automática por enquanto).
+
+### Job de expiração (PR C)
+
+- **O que faz:** `AppointmentExpiryService.expireDue(agora)` (`src/appointments/appointment-expiry.service.ts`) grava `EXPIRED` em todos os agendamentos vencidos pela regra única (`REQUESTED`, `ACCEPTED`, `AWAITING_PAYMENT` com `expiresAt <= agora`), com `endedBy = SYSTEM` e `endedAt = agora`, e devolve quantos expirou. Nunca toca em `PAID` nem em estados posteriores (mesmo com `expiresAt` preenchido, risco 47), em agendamentos sem prazo ou com prazo no futuro, nem nos já encerrados.
+- **Frequência:** `AppointmentExpiryCron` (`src/appointments/appointment-expiry.cron.ts`), `@Cron` a cada minuto (nome `appointments.expire-due`). A classe só chama o serviço com a hora do `CLOCK`.
+- **Atomicidade:** um único `updateMany` com a condição completa no `where`, sem ler antes. Se alguém agir no mesmo instante, as duas gravações filtram pelo estado e o Postgres serializa as duas na mesma linha: a segunda não encontra mais a condição e não grava (a ação responde 409; o job não conta aquela linha). O job nunca sobrescreve um estado que já mudou. Rodar de novo devolve 0 (idempotente).
+- **Horário liberado:** `EXPIRED` está fora do filtro da exclusion constraint (`ACCEPTED`, `AWAITING_PAYMENT`, `PAID`), então expirar libera o horário sem mexer na constraint.
+- **Depois do job:** as ações respondem `409 "Ação não permitida no estado atual"` (o estado já é `EXPIRED`); o `409 "O prazo para esta ação expirou"` só aparece quando a ação chega antes do job.
+- **Sem execuções sobrepostas na mesma instância:** uma flag em memória pula a execução se a anterior ainda estiver rodando.
+- **Erros:** capturados e registrados com o `Logger` do Nest; a aplicação não cai e o job tenta de novo no minuto seguinte. A contagem só vai para o log quando é maior que zero.
+- **Liga/desliga:** `JOBS_ENABLED` (boolean `true`/`false`, padrão `true`, validada no `validateEnv`). O `JobsModule` (`src/jobs/jobs.module.ts`, com o `ScheduleModule` e as classes com `@Cron`) entra pelo `ConditionalModule.registerWhen`, que espera o `ConfigModule` carregar e validar o `.env` e lê a variável com a mesma função do `validateEnv` (`isJobsEnabled`). Com `false`, nem o agendador nem o cron entram na aplicação; o `AppointmentExpiryService` continua disponível (`AppointmentExpiryModule`). Os e2e rodam com `false` e chamam `expireDue` direto com o `FakeClock`.
+- **Limitação: várias instâncias.** A flag vale só para a própria instância: com várias instâncias da API, cada uma roda o job a cada minuto. É seguro por causa do `updateMany` condicional e idempotente (no máximo, gravações que encontram 0 linhas), mas gasta consultas repetidas. Se isso pesar, eleger uma instância (ex.: `pg_try_advisory_lock`) ou ligar `JOBS_ENABLED` só em uma.
 
 ## 5. Rotas e contrato
 
@@ -294,7 +307,7 @@ Base (sem dinheiro e **sem ids de usuário**): `id`, `status`, `myRole`, `listin
 
 **PR B, `feat/appointments`:** comissão pura → `PLATFORM_FEE_BPS`/`MIN_INSPECTION_PRICE_CENTS` no boot → comissão em `/inspectors/me` e preço mínimo no perfil → model e migration (com a conferência de drift) → `test`/`fix` do 23P01 → máquina de estados → relógio injetável → criação → leitura → ações → gancho do anúncio → e2e de concorrência e prazos → documentação.
 
-**PR C, `feat/appointment-expiry-job`:** dependência → job → testes do job.
+**PR C, `feat/appointment-expiry-job`:** dependência → regra única de vencimento (refatoração sem mudança de comportamento) → testes do job (falhando) → job → documentação.
 
 ## 9. Decisões tomadas
 

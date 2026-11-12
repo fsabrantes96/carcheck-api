@@ -109,8 +109,9 @@ Fluxo desta versão (desenho completo em [docs/appointments-design.md](docs/appo
 - O horário do avaliador fica ocupado a partir do aceite, com garantia no banco (exclusion constraint).
 - Quem não participa recebe 404; o comprador vê só o preço, o avaliador vê preço, comissão e repasse, o vendedor não vê valores.
 - `PAID`, `REPORT_SUBMITTED`, `DISPUTED` e `COMPLETED` já existem no banco, mas nenhuma rota chega neles ainda.
+- Um job roda a cada minuto e marca como `EXPIRED` os agendamentos com prazo vencido, liberando o horário do avaliador. Desligue com `JOBS_ENABLED=false`.
 
-Variáveis novas (ver `.env.example`): `PLATFORM_FEE_BPS` (obrigatória), `MIN_INSPECTION_PRICE_CENTS`, `APPOINTMENT_DURATION_MINUTES` e `APPOINTMENT_MIN_NOTICE_HOURS`.
+Variáveis novas (ver `.env.example`): `PLATFORM_FEE_BPS` (obrigatória), `MIN_INSPECTION_PRICE_CENTS`, `APPOINTMENT_DURATION_MINUTES`, `APPOINTMENT_MIN_NOTICE_HOURS` e `JOBS_ENABLED`.
 
 ## Roadmap
 
@@ -121,6 +122,7 @@ Variáveis novas (ver `.env.example`): `PLATFORM_FEE_BPS` (obrigatória), `MIN_I
 - [x] Anúncios de veículos (CRUD + filtros)
 - [x] Ciclo de vida do anúncio (pausar, reativar, vender, arquivar)
 - [x] Agendamento de avaliação (pedido, aceite, recusa, confirmação e cancelamento; termina em "aguardando pagamento")
-- [ ] Pagamento retido e expiração automática dos prazos
+- [x] Expiração automática dos prazos (job a cada minuto)
+- [ ] Pagamento retido
 - [ ] Laudo e avaliações
 - [ ] Busca por proximidade
