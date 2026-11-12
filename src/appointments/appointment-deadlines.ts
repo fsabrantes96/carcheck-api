@@ -37,13 +37,17 @@ export function isDue(status: AppointmentStatus, expiresAt: Date | null, now: Da
 
 /**
  * Filtro do Prisma para os vencidos. `status` restringe os estados (um só ou
- * uma lista); o padrão são todos os que têm prazo. Passe só estados de
- * `EXPIRABLE_STATUSES`: nunca PAID nem posteriores.
+ * uma lista); o padrão são todos os que têm prazo. Só aceita estados de
+ * `EXPIRABLE_STATUSES`: qualquer outro (PAID, posteriores, finais) lança
+ * RangeError, para nenhuma chamada expirar dinheiro retido por engano.
  */
 export function dueWhere(
   now: Date,
   status: AppointmentStatus | readonly AppointmentStatus[] = EXPIRABLE_STATUSES,
 ): Prisma.AppointmentWhereInput {
+  for (const each of typeof status === 'string' ? [status] : status) {
+    if (!EXPIRABLE_STATUSES.includes(each)) throw new RangeError(`dueWhere: o estado ${each} não expira`);
+  }
   return {
     status: typeof status === 'string' ? status : { in: [...status] },
     expiresAt: { lte: now },

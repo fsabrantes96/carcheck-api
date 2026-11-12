@@ -27,7 +27,11 @@ export class AppointmentExpiryCron {
 
   @Cron(CronExpression.EVERY_MINUTE, { name: APPOINTMENT_EXPIRY_CRON })
   async run(): Promise<void> {
-    if (this.running) return;
+    if (this.running) {
+      // Avisa: uma execução presa (ex.: consulta travada) não pode parar o job em silêncio.
+      this.logger.warn('Execução anterior da expiração ainda em andamento; esta foi pulada');
+      return;
+    }
     this.running = true;
     try {
       const count = await this.expiry.expireDue(this.clock.now());
