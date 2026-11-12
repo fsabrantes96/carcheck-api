@@ -10,6 +10,7 @@ import type { Request, Response } from 'express';
 import { Prisma } from '../../generated/prisma/client.js';
 import type { ErrorResponseDto } from '../dto/error-response.dto.js';
 import { isBodyParserError } from '../http/body-parser-error.js';
+import { isPgError, PG_EXCLUSION_VIOLATION } from '../prisma/prisma-errors.js';
 
 /** Erros conhecidos do Prisma que viram respostas HTTP previsíveis. */
 const PRISMA_ERROR_MAP: Record<
@@ -30,6 +31,13 @@ const BODY_PARSER_MESSAGES: Record<string, string> = {
   'entity.parse.failed': 'Corpo da requisição inválido',
 };
 const BODY_PARSER_DEFAULT_MESSAGE = 'Requisição inválida';
+
+/**
+ * Violação de exclusion constraint (23P01). Hoje a única é a do horário do
+ * avaliador no agendamento: duas reservas sobrepostas, ou o estado mudou no
+ * meio do caminho.
+ */
+const EXCLUSION_VIOLATION_MESSAGE = 'O agendamento mudou ou o horário não está mais disponível';
 
 const INTERNAL_ERROR_MESSAGE = 'Erro interno do servidor';
 const VALIDATION_MESSAGE = 'Dados inválidos';
@@ -79,6 +87,12 @@ export class AllExceptionsFilter implements ExceptionFilter {
         message:
           BODY_PARSER_MESSAGES[exception.type] ?? BODY_PARSER_DEFAULT_MESSAGE,
       };
+    }
+
+    // Vem antes do mapa por código: o código do Prisma (P2039/P2010) é
+    // genérico; o que identifica o caso é o SQLSTATE do Postgres.
+    if (isPgError(exception, PG_EXCLUSION_VIOLATION)) {
+      return { statusCode: HttpStatus.CONFLICT, message: EXCLUSION_VIOLATION_MESSAGE };
     }
 
     if (exception instanceof Prisma.PrismaClientKnownRequestError) {

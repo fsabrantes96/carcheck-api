@@ -114,4 +114,52 @@ describe('Inspectors (e2e)', () => {
     });
     expect(saved.roles).toEqual(['USER', 'INSPECTOR']);
   });
+
+  describe('comissão por perfil', () => {
+    it('GET /inspectors/me traz platformFeeBps 1000 e estimatedPayoutCents 13500', async () => {
+      await createProfile().expect(201);
+
+      const res = await request(app.getHttpServer())
+        .get('/inspectors/me')
+        .set('Authorization', `Bearer ${user.token}`)
+        .expect(200);
+
+      expect(res.body).toMatchObject({
+        basePriceCents: 15000,
+        platformFeeBps: 1000,
+        estimatedPayoutCents: 13500,
+      });
+    });
+
+    it('GET /inspectors (lista pública) não traz platformFeeBps nem estimatedPayoutCents', async () => {
+      const created = await createProfile().expect(201);
+      await prisma.inspectorProfile.update({
+        where: { id: created.body.id },
+        data: { verified: true },
+      });
+
+      const res = await request(app.getHttpServer())
+        .get('/inspectors')
+        .expect(200);
+
+      expect(res.body).toHaveLength(1);
+      expect(res.body[0]).not.toHaveProperty('platformFeeBps');
+      expect(res.body[0]).not.toHaveProperty('estimatedPayoutCents');
+    });
+
+    it('POST /inspectors/me com basePriceCents 4999 responde 400 e não cria o perfil', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/inspectors/me')
+        .set('Authorization', `Bearer ${user.token}`)
+        .send({ ...inspectorProfilePayload, basePriceCents: 4999 })
+        .expect(400);
+
+      expect(res.body.message).toBe(
+        'O preço base precisa ser de pelo menos 5000 centavos (R$ 50,00)',
+      );
+      expect(
+        await prisma.inspectorProfile.count({ where: { userId: user.id } }),
+      ).toBe(0);
+    });
+  });
 });

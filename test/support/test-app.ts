@@ -74,5 +74,5 @@ export async function closeTestApp(app: INestApplication): Promise<void> {
 export async function resetDatabase(app: INestApplication): Promise<void> {
   assertTestDatabaseUrl(process.env.DATABASE_URL);
   await app.get(PrismaService)
-    .$executeRaw`TRUNCATE TABLE "VehicleDetails", "Listing", "InspectorProfile", "User" RESTART IDENTITY CASCADE`;
+    .$executeRaw`TRUNCATE TABLE "Appointment", "VehicleDetails", "Listing", "InspectorProfile", "User" RESTART IDENTITY CASCADE`;
 }

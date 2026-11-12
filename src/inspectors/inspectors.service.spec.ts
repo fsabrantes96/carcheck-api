@@ -1,7 +1,13 @@
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
+import type { BusinessRules } from '../config/business-rules.js';
 import { Prisma } from '../generated/prisma/client.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import { InspectorResponseDto } from './dto/inspector-response.dto.js';
+import { MyInspectorProfileResponseDto } from './dto/my-inspector-profile-response.dto.js';
 import type { CreateInspectorProfileDto } from './dto/create-inspector-profile.dto.js';
 import type { UpdateInspectorProfileDto } from './dto/update-inspector-profile.dto.js';
 import { InspectorsService } from './inspectors.service.js';
@@ -22,6 +28,13 @@ const dto = {
   serviceRadiusKm: 30,
   basePriceCents: 15000,
 } satisfies CreateInspectorProfileDto;
+
+const rules: BusinessRules = {
+  platformFeeBps: 1000,
+  minInspectionPriceCents: 5000,
+  appointmentDurationMinutes: 60,
+  appointmentMinNoticeHours: 24,
+};
 
 type PrismaMock = {
   inspectorProfile: {
@@ -52,7 +65,7 @@ describe('InspectorsService', () => {
     prisma.$transaction.mockImplementation(
       (callback: (tx: PrismaMock) => Promise<unknown>) => callback(prisma),
     );
-    service = new InspectorsService(prisma as unknown as PrismaService);
+    service = new InspectorsService(prisma as unknown as PrismaService, rules);
   });
 
   describe('create', () => {
@@ -158,6 +171,71 @@ describe('InspectorsService', () => {
       prisma.inspectorProfile.create.mockRejectedValue(error);
 
       await expect(service.create('u1', dto)).rejects.toBe(error);
+    });
+  });
+
+  describe('preço mínimo no create', () => {
+    it('lança BadRequestException quando basePriceCents está abaixo do mínimo e não cria o perfil', async () => {
+      const promise = service.create('u1', { ...dto, basePriceCents: 4999 });
+
+      await expect(promise).rejects.toBeInstanceOf(BadRequestException);
+      await expect(promise).rejects.toThrow(
+        'O preço base precisa ser de pelo menos 5000 centavos (R$ 50,00)',
+      );
+      expect(prisma.inspectorProfile.create).not.toHaveBeenCalled();
+    });
+
+    it('aceita basePriceCents igual ao mínimo', async () => {
+      prisma.inspectorProfile.findUnique.mockResolvedValue(null);
+      prisma.inspectorProfile.create.mockResolvedValue({
+        id: 'p1',
+        userId: 'u1',
+        ...dto,
+        basePriceCents: 5000,
+        verified: false,
+        user: { id: 'u1', name: 'João' },
+      });
+
+      await expect(service.create('u1', { ...dto, basePriceCents: 5000 })).resolves.toBeInstanceOf(
+        InspectorResponseDto,
+      );
+    });
+  });
+
+  describe('preço mínimo no update', () => {
+    const stored = {
+      id: 'p1',
+      userId: 'u1',
+      ...dto,
+      verified: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    it('lança BadRequestException quando basePriceCents vem no corpo abaixo do mínimo e não atualiza', async () => {
+      prisma.inspectorProfile.findUnique.mockResolvedValue(stored);
+
+      const promise = service.update('u1', { basePriceCents: 100 });
+
+      await expect(promise).rejects.toBeInstanceOf(BadRequestException);
+      await expect(promise).rejects.toThrow(
+        'O preço base precisa ser de pelo menos 5000 centavos (R$ 50,00)',
+      );
+      expect(prisma.inspectorProfile.update).not.toHaveBeenCalled();
+    });
+
+    it('não confere o preço quando basePriceCents não vem no corpo (perfil antigo abaixo do mínimo continua editável)', async () => {
+      prisma.inspectorProfile.findUnique.mockResolvedValue({ ...stored, basePriceCents: 1000 });
+      prisma.inspectorProfile.update.mockResolvedValue({
+        ...stored,
+        basePriceCents: 1000,
+        bio: 'Bio nova com mais de vinte caracteres.',
+        user: { id: 'u1', name: 'João' },
+      });
+
+      await expect(
+        service.update('u1', { bio: 'Bio nova com mais de vinte caracteres.' }),
+      ).resolves.toBeInstanceOf(InspectorResponseDto);
     });
   });
 
@@ -319,9 +397,24 @@ describe('InspectorsService', () => {
         name: 'João',
         ...dto,
         verified: true,
+        platformFeeBps: 1000,
+        estimatedPayoutCents: 13500,
       });
       expect(JSON.stringify(result)).not.toContain('passwordHash');
       expect(result).not.toHaveProperty('userId');
+    });
+
+    it('devolve MyInspectorProfileResponseDto com a comissão atual e o repasse estimado do preço base', async () => {
+      prisma.inspectorProfile.findUnique.mockResolvedValue({
+        ...profile,
+        basePriceCents: 12345,
+      });
+
+      const result = await service.findMine('u1');
+
+      expect(result).toBeInstanceOf(MyInspectorProfileResponseDto);
+      // 12345 com 1000 bps: comissão floor((12345*1000 + 5000)/10000) = 1235
+      expect(result).toMatchObject({ platformFeeBps: 1000, estimatedPayoutCents: 11110 });
     });
 
     it('lança NotFoundException quando o usuário não tem perfil', async () => {
@@ -378,6 +471,18 @@ describe('InspectorsService', () => {
         { id: 'p2', name: 'Ana', ...dto, verified: true },
       ]);
       expect(JSON.stringify(result)).not.toContain('passwordHash');
+    });
+
+    it('a lista pública não traz platformFeeBps nem estimatedPayoutCents', async () => {
+      prisma.inspectorProfile.findMany.mockResolvedValue([
+        { id: 'p1', userId: 'u1', ...dto, verified: true, user: { id: 'u1', name: 'João' } },
+      ]);
+
+      const [item] = await service.findAllVerified();
+
+      expect(item).not.toBeInstanceOf(MyInspectorProfileResponseDto);
+      expect(item).not.toHaveProperty('platformFeeBps');
+      expect(item).not.toHaveProperty('estimatedPayoutCents');
     });
 
     it('devolve lista vazia quando não há perfis verificados', async () => {

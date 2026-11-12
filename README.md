@@ -65,6 +65,7 @@ prisma/          schema e migrations
 src/
 ├── auth/        cadastro, login, guards e roles
 ├── inspectors/  perfil de avaliador
+├── appointments/ agendamento de avaliações (máquina de estados, respostas por perfil)
 ├── listings/    anúncios de veículos (CRUD, filtros e ciclo de vida)
 ├── prisma/      PrismaService e PrismaModule
 └── generated/   Prisma Client gerado (não versionado)
@@ -91,6 +92,26 @@ src/
 
 O desenho completo do agendamento, que depende destas regras, está em [docs/appointments-design.md](docs/appointments-design.md).
 
+## Agendamento de avaliação
+
+Fluxo desta versão (desenho completo em [docs/appointments-design.md](docs/appointments-design.md)):
+
+| De | Ação | Para | Quem |
+|---|---|---|---|
+| — | `POST /appointments` | `REQUESTED` | comprador (qualquer usuário logado) |
+| `REQUESTED` | `POST /appointments/:id/accept` | `ACCEPTED` | avaliador |
+| `REQUESTED` | `POST /appointments/:id/decline` | `DECLINED` | avaliador |
+| `ACCEPTED` | `POST /appointments/:id/confirm` (com `meetingAddress`) | `AWAITING_PAYMENT` | vendedor |
+| `REQUESTED`, `ACCEPTED`, `AWAITING_PAYMENT` | `POST /appointments/:id/cancel` | `CANCELLED` | qualquer participante |
+
+- Só sobre anúncio ACTIVE e com avaliador verificado; comprador, vendedor e avaliador são pessoas diferentes.
+- Antecedência mínima de 24h e máxima de 60 dias; cada etapa tem prazo (24h para o avaliador, 24h para o vendedor, 30 min para pagar).
+- O horário do avaliador fica ocupado a partir do aceite, com garantia no banco (exclusion constraint).
+- Quem não participa recebe 404; o comprador vê só o preço, o avaliador vê preço, comissão e repasse, o vendedor não vê valores.
+- `PAID`, `REPORT_SUBMITTED`, `DISPUTED` e `COMPLETED` já existem no banco, mas nenhuma rota chega neles ainda.
+
+Variáveis novas (ver `.env.example`): `PLATFORM_FEE_BPS` (obrigatória), `MIN_INSPECTION_PRICE_CENTS`, `APPOINTMENT_DURATION_MINUTES` e `APPOINTMENT_MIN_NOTICE_HOURS`.
+
 ## Roadmap
 
 - [x] Setup (NestJS + Prisma + Docker)
@@ -99,6 +120,7 @@ O desenho completo do agendamento, que depende destas regras, está em [docs/app
 - [x] Perfil de avaliador
 - [x] Anúncios de veículos (CRUD + filtros)
 - [x] Ciclo de vida do anúncio (pausar, reativar, vender, arquivar)
-- [ ] Agendamento de avaliação
+- [x] Agendamento de avaliação (pedido, aceite, recusa, confirmação e cancelamento; termina em "aguardando pagamento")
+- [ ] Pagamento retido e expiração automática dos prazos
 - [ ] Laudo e avaliações
 - [ ] Busca por proximidade
