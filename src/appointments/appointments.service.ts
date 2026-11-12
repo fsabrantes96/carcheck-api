@@ -14,7 +14,7 @@ import { BUSINESS_RULES } from '../config/business-rules.js';
 import type { BusinessRules } from '../config/business-rules.js';
 import type { AppointmentStatus, ListingStatus, Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { deadlineFor } from './appointment-deadlines.js';
+import { deadlineFor, dueWhere, expiredData, isDue } from './appointment-deadlines.js';
 import { APPOINTMENT_INCLUDE } from './appointment.include.js';
 import {
   APPOINTMENT_OPEN_TRIPLET_INDEX,
@@ -254,12 +254,12 @@ export class AppointmentsService {
       // venceram e o job ainda não varreu; senão a constraint daria um falso 409.
       // Nunca toca em PAID (EXPIRE não sai de PAID).
       await tx.appointment.updateMany({
+        // Só os que ocupam horário: REQUESTED de outros compradores não entra.
         where: {
           inspectorUserId: snapshot.inspectorUserId,
-          status: { in: EXPIRING_SLOT_STATUSES },
-          expiresAt: { lte: now },
+          ...dueWhere(now, EXPIRING_SLOT_STATUSES),
         },
-        data: { status: 'EXPIRED', endedBy: 'SYSTEM', endedAt: now },
+        data: expiredData(now),
       });
 
       // Uma violação 23P01 aqui sobe até o filtro global (409).
@@ -337,14 +337,10 @@ export class AppointmentsService {
         : new ConflictException('Ação não permitida no estado atual');
     }
 
-    if (
-      EXPIRABLE_STATUSES.includes(snapshot.status) &&
-      snapshot.expiresAt &&
-      snapshot.expiresAt.getTime() <= now.getTime()
-    ) {
+    if (isDue(snapshot.status, snapshot.expiresAt, now)) {
       await this.prisma.appointment.updateMany({
-        where: { id, status: snapshot.status, expiresAt: { lte: now } },
-        data: { status: 'EXPIRED', endedBy: 'SYSTEM', endedAt: now },
+        where: { id, ...dueWhere(now, snapshot.status) },
+        data: expiredData(now),
       });
       throw new ConflictException('O prazo para esta ação expirou');
     }

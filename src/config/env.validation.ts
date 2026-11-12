@@ -1,5 +1,5 @@
 /**
- * Validação das variáveis de ambiente das regras de negócio, feita no boot
+ * Validação das variáveis de ambiente das regras de negócio e dos jobs, feita no boot
  * pelo ConfigModule (opção `validate`). Se algo estiver errado, a aplicação
  * não sobe e a mensagem diz exatamente o que configurar.
  */
@@ -54,6 +54,40 @@ const RULES: Record<keyof BusinessEnv, IntRule> = {
   },
 };
 
+/** Variáveis dos jobs agendados, já convertidas. */
+export interface JobsEnv {
+  /** Liga os jobs agendados (cron). Padrão true; os e2e usam false. */
+  JOBS_ENABLED: boolean;
+}
+
+const JOBS_ENABLED_DEFAULT = true;
+const JOBS_ENABLED_HINT = 'liga os jobs agendados, true ou false (padrão true)';
+
+/**
+ * Lê um boolean do ambiente: ausente ou vazio → `fallback`; "true"/"false"
+ * sem diferenciar maiúsculas e com espaços em volta; boolean já convertido
+ * passa direto. Qualquer outro valor → undefined (inválido).
+ */
+function parseBoolean(raw: unknown, fallback: boolean): boolean | undefined {
+  if (typeof raw === 'boolean') return raw;
+  if (raw === undefined) return fallback;
+  if (typeof raw !== 'string') return undefined;
+  const text = raw.trim().toLowerCase();
+  if (text === '') return fallback;
+  if (text === 'true') return true;
+  if (text === 'false') return false;
+  return undefined;
+}
+
+/**
+ * Os jobs agendados estão ligados? Mesma leitura do validateEnv; é a condição
+ * do ConditionalModule (lida do process.env). Valor inválido não liga nada,
+ * mas nem chega aqui: o validateEnv já derrubou o boot.
+ */
+export function isJobsEnabled(env: Record<string, unknown>): boolean {
+  return parseBoolean(env.JOBS_ENABLED, JOBS_ENABLED_DEFAULT) === true;
+}
+
 function parseInteger(raw: unknown): number | undefined {
   if (typeof raw === 'number') return Number.isSafeInteger(raw) ? raw : undefined;
   if (typeof raw !== 'string') return undefined;
@@ -70,9 +104,9 @@ function parseInteger(raw: unknown): number | undefined {
  */
 export function validateEnv(
   config: Record<string, unknown>,
-): Record<string, unknown> & BusinessEnv {
+): Record<string, unknown> & BusinessEnv & JobsEnv {
   const problems: string[] = [];
-  const parsed = {} as BusinessEnv;
+  const parsed = {} as BusinessEnv & JobsEnv;
 
   for (const [name, rule] of Object.entries(RULES) as [keyof BusinessEnv, IntRule][]) {
     const raw = config[name];
@@ -93,6 +127,13 @@ export function validateEnv(
       continue;
     }
     parsed[name] = value;
+  }
+
+  const jobsEnabled = parseBoolean(config.JOBS_ENABLED, JOBS_ENABLED_DEFAULT);
+  if (jobsEnabled === undefined) {
+    problems.push(`JOBS_ENABLED inválida (recebido: ${JSON.stringify(config.JOBS_ENABLED)}): ${JOBS_ENABLED_HINT}.`);
+  } else {
+    parsed.JOBS_ENABLED = jobsEnabled;
   }
 
   if (problems.length > 0) {

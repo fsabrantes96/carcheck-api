@@ -14,6 +14,8 @@ export default defineConfig({
       JWT_SECRET: 'segredo-apenas-para-e2e',
       JWT_EXPIRES_IN_SECONDS: '3600',
       PLATFORM_FEE_BPS: '1000',
+      // Sem cron nos e2e: os testes chamam AppointmentExpiryService.expireDue direto.
+      JOBS_ENABLED: 'false',
     },
     // Os arquivos dividem o mesmo banco e limpam as tabelas: um por vez.
     fileParallelism: false,
