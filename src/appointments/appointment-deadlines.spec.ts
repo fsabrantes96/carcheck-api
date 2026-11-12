@@ -100,6 +100,18 @@ describe('dueWhere', () => {
     expect(dueWhere(now, 'ACCEPTED')).toEqual({ status: 'ACCEPTED', expiresAt: { lte: now } });
   });
 
+  it.each(['PAID', 'REPORT_SUBMITTED', 'DISPUTED', 'COMPLETED', 'DECLINED', 'CANCELLED', 'EXPIRED'] as const)(
+    'lança RangeError quando recebe %s, que não expira (nunca expirar dinheiro retido)',
+    (status) => {
+      expect(() => dueWhere(now, status)).toThrow(RangeError);
+      expect(() => dueWhere(now, status)).toThrow(`dueWhere: o estado ${status} não expira`);
+    },
+  );
+
+  it('lança RangeError quando a lista tem um estado que não expira', () => {
+    expect(() => dueWhere(now, ['ACCEPTED', 'PAID'])).toThrow('dueWhere: o estado PAID não expira');
+  });
+
   it('não reaproveita a lista recebida (cópia no filtro)', () => {
     const statuses: AppointmentStatus[] = ['ACCEPTED'];
 

@@ -62,6 +62,20 @@ describe('AppointmentExpiryCron', () => {
     await first;
   });
 
+  it('registra um aviso no log quando pula a execução (execução anterior presa não fica em silêncio)', async () => {
+    const warnSpy = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+    const pending = deferred<number>();
+    expiry.expireDue.mockReturnValueOnce(pending.promise);
+
+    const first = cron.run();
+    await cron.run();
+
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    expect(warnSpy).toHaveBeenCalledWith('Execução anterior da expiração ainda em andamento; esta foi pulada');
+    pending.resolve(0);
+    await first;
+  });
+
   it('volta a executar depois que a anterior termina', async () => {
     const pending = deferred<number>();
     expiry.expireDue.mockReturnValueOnce(pending.promise);
