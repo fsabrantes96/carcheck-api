@@ -60,5 +60,11 @@
     "typescript": "^6.0.2",
     "vite": "^8.0.0",
     "vitest": "^4.1.2"
+  },
+  "allowScripts": {
+    "bcrypt": false,
+    "prisma": false,
+    "@prisma/engines": false,
+    "@scarf/scarf": false
   }
 }
