@@ -7,6 +7,9 @@ import {
     LISTINGS_PAGE_MAX,
     PAGE_LIMIT_DEFAULT,
     PAGE_LIMIT_MAX,
+    PAGE_LIMIT_MIN,
+    PAGE_MIN,
+    PRICE_FILTER_MIN_CENTS,
     STATE_LENGTH,
     VEHICLE_BRAND_MAX_LENGTH,
     VEHICLE_YEAR_MAX,
@@ -32,19 +35,27 @@ export class ListListingsQueryDto {
     @Length(STATE_LENGTH, STATE_LENGTH)
     state?: string;
 
-    @ApiPropertyOptional({ description: 'Preço mínimo em centavos', minimum: 0, maximum: LISTING_PRICE_MAX_CENTS })
+    @ApiPropertyOptional({
+        description: 'Preço mínimo em centavos',
+        minimum: PRICE_FILTER_MIN_CENTS,
+        maximum: LISTING_PRICE_MAX_CENTS,
+    })
     @IsOptional()
     @Type(() => Number)
     @IsInt()
-    @Min(0)
+    @Min(PRICE_FILTER_MIN_CENTS)
     @Max(LISTING_PRICE_MAX_CENTS)
     minPriceCents?: number;
 
-    @ApiPropertyOptional({ description: 'Preço máximo em centavos', minimum: 0, maximum: LISTING_PRICE_MAX_CENTS })
+    @ApiPropertyOptional({
+        description: 'Preço máximo em centavos',
+        minimum: PRICE_FILTER_MIN_CENTS,
+        maximum: LISTING_PRICE_MAX_CENTS,
+    })
     @IsOptional()
     @Type(() => Number)
     @IsInt()
-    @Min(0)
+    @Min(PRICE_FILTER_MIN_CENTS)
     @Max(LISTING_PRICE_MAX_CENTS)
     maxPriceCents?: number;
 
@@ -66,19 +77,19 @@ export class ListListingsQueryDto {
 
     // Teto evita skip fora da faixa (page=1e20 virava 500) e varreduras
     // profundas: page × limit nunca passa de 10.000 registros pulados.
-    @ApiPropertyOptional({ default: 1, minimum: 1, maximum: LISTINGS_PAGE_MAX })
+    @ApiPropertyOptional({ default: PAGE_MIN, minimum: PAGE_MIN, maximum: LISTINGS_PAGE_MAX })
     @IsOptional()
     @Type(() => Number)
     @IsInt()
-    @Min(1)
+    @Min(PAGE_MIN)
     @Max(LISTINGS_PAGE_MAX)
-    page: number = 1;
+    page: number = PAGE_MIN;
 
-    @ApiPropertyOptional({ default: PAGE_LIMIT_DEFAULT, minimum: 1, maximum: PAGE_LIMIT_MAX })
+    @ApiPropertyOptional({ default: PAGE_LIMIT_DEFAULT, minimum: PAGE_LIMIT_MIN, maximum: PAGE_LIMIT_MAX })
     @IsOptional()
     @Type(() => Number)
     @IsInt()
-    @Min(1)
+    @Min(PAGE_LIMIT_MIN)
     @Max(PAGE_LIMIT_MAX)
     limit: number = PAGE_LIMIT_DEFAULT;
 }

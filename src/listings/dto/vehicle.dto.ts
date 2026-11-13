@@ -4,6 +4,7 @@ import {
     VEHICLE_BRAND_MAX_LENGTH,
     VEHICLE_BRAND_MIN_LENGTH,
     VEHICLE_MILEAGE_MAX_KM,
+    VEHICLE_MILEAGE_MIN_KM,
     VEHICLE_MODEL_MAX_LENGTH,
     VEHICLE_MODEL_MIN_LENGTH,
     VEHICLE_YEAR_MAX,
@@ -41,11 +42,11 @@ export class VehicleDto {
     @ApiProperty({
         example: 68000,
         description: 'Quilometragem',
-        minimum: 0,
+        minimum: VEHICLE_MILEAGE_MIN_KM,
         maximum: VEHICLE_MILEAGE_MAX_KM,
     })
     @IsInt()
-    @Min(0)
+    @Min(VEHICLE_MILEAGE_MIN_KM)
     @Max(VEHICLE_MILEAGE_MAX_KM)
     mileageKm: number;
 

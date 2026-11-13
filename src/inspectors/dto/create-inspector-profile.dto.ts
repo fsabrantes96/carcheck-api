@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
+    ArrayMaxSize,
     ArrayMinSize,
-    ArrayUnique,
     IsArray,
     IsEnum,
     IsInt,
@@ -21,8 +21,11 @@ import {
     INSPECTOR_BIO_MIN_LENGTH,
     SERVICE_RADIUS_MAX_KM,
     SERVICE_RADIUS_MIN_KM,
+    SPECIALTIES_MAX_ITEMS,
+    SPECIALTIES_MIN_ITEMS,
     STATE_LENGTH,
 } from '../../common/limits.js';
+import { UniqueArray } from '../../common/validation/unique-array.js';
 import { Specialty } from '../../generated/prisma/client.js';
 
 export class CreateInspectorProfileDto {
@@ -36,10 +39,18 @@ export class CreateInspectorProfileDto {
     @MaxLength(INSPECTOR_BIO_MAX_LENGTH)
     bio: string;
 
-    @ApiProperty({ enum: Specialty, isArray: true, example: ['ENGINE', 'BRAKES'] })
+    @ApiProperty({
+        enum: Specialty,
+        isArray: true,
+        example: ['ENGINE', 'BRAKES'],
+        minItems: SPECIALTIES_MIN_ITEMS,
+        maxItems: SPECIALTIES_MAX_ITEMS,
+        uniqueItems: true,
+    })
     @IsArray()
-    @ArrayMinSize(1)
-    @ArrayUnique()
+    @ArrayMinSize(SPECIALTIES_MIN_ITEMS)
+    @ArrayMaxSize(SPECIALTIES_MAX_ITEMS)
+    @UniqueArray()
     @IsEnum(Specialty, { each: true })
     specialties: Specialty[];
 
@@ -73,7 +84,7 @@ export class CreateInspectorProfileDto {
     @ApiProperty({
         example: 15000,
         description:
-            'Preço base em centavos (R$ 150,00 = 15000). Abaixo do mínimo da plataforma, o avaliador não recebe pedidos',
+            'Preço base em centavos (R$ 150,00 = 15000). Abaixo do mínimo da plataforma (MIN_INSPECTION_PRICE_CENTS, padrão R$ 50,00) responde 400',
         minimum: INSPECTION_PRICE_MIN_CENTS,
         maximum: INSPECTION_PRICE_MAX_CENTS,
     })
