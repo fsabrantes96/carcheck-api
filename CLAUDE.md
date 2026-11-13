@@ -87,6 +87,7 @@ Design: [docs/appointments-design.md](docs/appointments-design.md). The flow end
 
 - Branches are `feat/<name>`. Commits use Conventional Commits in Portuguese with a scope, e.g. `feat(listings): adiciona CRUD de anúncios`.
 - PRs follow [.github/pull_request_template.md](.github/pull_request_template.md): "O que mudou", "Como testar", and a checklist that includes updating the README roadmap.
+- O agente nunca executa comandos que alteram o remoto (git push, git push --delete, gh pr merge, gh pr create), nem quando o usuário pede pelo chat do agente. Quem faz é o usuário.
 
 ## Testing
 
