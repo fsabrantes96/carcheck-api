@@ -33,7 +33,24 @@ const PRISMA_ERROR_MAP: Record<
 const BODY_PARSER_MESSAGES: Record<string, string> = {
   'entity.too.large': 'Corpo da requisição muito grande',
   'entity.parse.failed': 'Corpo da requisição inválido',
+  'querystring.parse.rangeError': 'Corpo da requisição inválido',
 };
+
+/**
+ * Cabeçalhos que descrevem um arquivo estático. O send (assets do /docs)
+ * grava esses cabeçalhos antes de emitir o 412/416; sem removê-los, o JSON de
+ * erro sairia como text/css, com o ETag e o Last-Modified do arquivo. O
+ * Content-Range fica (o 416 o exige) e o res.json recalcula Content-Type e
+ * Content-Length.
+ */
+const FILE_HEADERS = [
+  'Content-Type',
+  'Content-Length',
+  'ETag',
+  'Last-Modified',
+  'Cache-Control',
+  'Accept-Ranges',
+];
 const BODY_PARSER_DEFAULT_MESSAGE = 'Requisição inválida';
 
 /**
@@ -41,7 +58,8 @@ const BODY_PARSER_DEFAULT_MESSAGE = 'Requisição inválida';
  * avaliador no agendamento: duas reservas sobrepostas, ou o estado mudou no
  * meio do caminho.
  */
-const EXCLUSION_VIOLATION_MESSAGE = 'O agendamento mudou ou o horário não está mais disponível';
+const EXCLUSION_VIOLATION_MESSAGE =
+  'O agendamento mudou ou o horário não está mais disponível';
 
 /** Deadlock (40P01) ou falha de serialização (40001): o cliente pode repetir. */
 const TRANSACTION_CONFLICT_MESSAGE = 'Conflito ao processar, tente novamente';
@@ -75,6 +93,9 @@ export class AllExceptionsFilter implements ExceptionFilter {
       timestamp: new Date().toISOString(),
     };
 
+    if (!response.headersSent) {
+      for (const header of FILE_HEADERS) response.removeHeader(header);
+    }
     response.status(body.statusCode).json(payload);
   }
 
@@ -99,7 +120,10 @@ export class AllExceptionsFilter implements ExceptionFilter {
     // Vem antes do mapa por código: o código do Prisma (P2039/P2010) é
     // genérico; o que identifica o caso é o SQLSTATE do Postgres.
     if (isPgError(exception, PG_EXCLUSION_VIOLATION)) {
-      return { statusCode: HttpStatus.CONFLICT, message: EXCLUSION_VIOLATION_MESSAGE };
+      return {
+        statusCode: HttpStatus.CONFLICT,
+        message: EXCLUSION_VIOLATION_MESSAGE,
+      };
     }
 
     // Deadlock/serialização: o Postgres abortou a transação e repetir pode dar
