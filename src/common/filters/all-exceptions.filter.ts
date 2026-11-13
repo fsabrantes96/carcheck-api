@@ -35,13 +35,15 @@ const BODY_PARSER_MESSAGES: Record<string, string> = {
   'entity.parse.failed': 'Corpo da requisição inválido',
   'querystring.parse.rangeError': 'Corpo da requisição inválido',
 };
+const BODY_PARSER_DEFAULT_MESSAGE = 'Requisição inválida';
 
 /**
  * Cabeçalhos que descrevem um arquivo estático. O send (assets do /docs)
  * grava esses cabeçalhos antes de emitir o 412/416; sem removê-los, o JSON de
  * erro sairia como text/css, com o ETag e o Last-Modified do arquivo. O
  * Content-Range fica (o 416 o exige) e o res.json recalcula Content-Type e
- * Content-Length.
+ * Content-Length. Vale para todo erro: um Cache-Control definido antes da
+ * exceção (ex.: no-store por um interceptor) também sai da resposta de erro.
  */
 const FILE_HEADERS = [
   'Content-Type',
@@ -51,7 +53,6 @@ const FILE_HEADERS = [
   'Cache-Control',
   'Accept-Ranges',
 ];
-const BODY_PARSER_DEFAULT_MESSAGE = 'Requisição inválida';
 
 /**
  * Violação de exclusion constraint (23P01). Hoje a única é a do horário do

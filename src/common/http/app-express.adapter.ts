@@ -64,6 +64,10 @@ export class AppExpressAdapter extends ExpressAdapter {
     if (!(mapped instanceof HttpException) || mapped === error) return mapped;
 
     const status = mapped.getStatus();
+    // Falha do servidor: segue intacta para o filtro responder 500 genérico e
+    // registrar no log (o Nest 12.5 não converte 5xx; isto protege upgrades).
+    if (status >= 500) return error;
+
     const message = messageFor(error, status);
     // Mantém o tipo que o Nest usa no 400 (BadRequestException).
     return status === 400
