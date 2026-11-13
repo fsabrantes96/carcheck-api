@@ -21,7 +21,10 @@ async function openBackends(): Promise<number> {
 }
 
 /** O fim da conexão no servidor pode chegar um pouco depois do client.end(). */
-async function waitForBackends(expected: number, timeoutMs = 3000): Promise<number> {
+async function waitForBackends(
+  expected: number,
+  timeoutMs = 3000,
+): Promise<number> {
   const deadline = Date.now() + timeoutMs;
   let current = await openBackends();
   while (current !== expected && Date.now() < deadline) {

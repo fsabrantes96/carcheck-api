@@ -89,7 +89,9 @@ describe('Cabeçalhos de segurança (e2e)', () => {
     });
 
     it('GET /docs-json responde 200 com o documento OpenAPI', async () => {
-      const res = await request(app.getHttpServer()).get('/docs-json').expect(200);
+      const res = await request(app.getHttpServer())
+        .get('/docs-json')
+        .expect(200);
 
       expect(res.body.openapi).toMatch(/^3\./);
     });

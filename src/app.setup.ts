@@ -40,7 +40,10 @@ export function configureApp(app: INestApplication): void {
   // registra os parsers padrão que ainda não foram registrados. Acima do
   // limite, o AllExceptionsFilter responde 413.
   expressApp.useBodyParser('json', { limit: BODY_SIZE_LIMIT });
-  expressApp.useBodyParser('urlencoded', { limit: BODY_SIZE_LIMIT, extended: true });
+  expressApp.useBodyParser('urlencoded', {
+    limit: BODY_SIZE_LIMIT,
+    extended: true,
+  });
 
   app.useGlobalPipes(
     new ValidationPipe({

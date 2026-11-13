@@ -16,7 +16,9 @@ describe('PrismaService', () => {
 
   it('fecha as conexões (e o pool do adapter-pg) no onApplicationShutdown', async () => {
     const service = new PrismaService();
-    const disconnect = vi.spyOn(service, '$disconnect').mockResolvedValue(undefined);
+    const disconnect = vi
+      .spyOn(service, '$disconnect')
+      .mockResolvedValue(undefined);
 
     await service.onApplicationShutdown();
 
