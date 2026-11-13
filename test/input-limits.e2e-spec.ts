@@ -244,8 +244,8 @@ describe('Limites de entrada (e2e)', () => {
   });
 
   describe('arrays', () => {
-    it('POST /inspectors/me com ~20 mil especialidades responde 400 com o teto de itens', async () => {
-      const specialties = Array.from({ length: 20_000 }, (_, i) => i);
+    it('POST /inspectors/me com 15 mil especialidades (dentro dos 100kb) responde 400 com o teto de itens', async () => {
+      const specialties = Array.from({ length: 15_000 }, (_, i) => i);
 
       const res = await request(app.getHttpServer())
         .post('/inspectors/me')
