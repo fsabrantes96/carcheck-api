@@ -86,7 +86,7 @@ Design: [docs/appointments-design.md](docs/appointments-design.md). The flow end
 
 ## Conventions
 
-- Branches are `feat/<name>`. Commits use Conventional Commits in Portuguese with a scope, e.g. `feat(listings): adiciona CRUD de anúncios`.
+- Branches are `<type>/<name>`, with `<type>` one of `feat`, `fix`, `chore`, `test` or `docs`. Commits use Conventional Commits in Portuguese with a scope, e.g. `feat(listings): adiciona CRUD de anúncios`.
 - PRs follow [.github/pull_request_template.md](.github/pull_request_template.md): "O que mudou", "Como testar", and a checklist that includes updating the README roadmap.
 - O agente nunca executa comandos que alteram o remoto, com uma única exceção: a skill /ship-pr, quando o usuário a aciona explicitamente. Merge, force push e remoção de branch remota são sempre do usuário.
 

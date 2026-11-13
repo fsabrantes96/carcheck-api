@@ -125,7 +125,7 @@ Leia `git log --oneline main..HEAD`, o diff e o `docs/audit.md`, e proponha:
 
 - **Título** em Conventional Commits pt-BR com escopo (`feat(appointments): ...`), porque ele vira a mensagem do commit do squash.
 - **Descrição** seguindo `.github/pull_request_template.md` ("O que mudou", "Como testar", "Checklist"), contendo também:
-  - **Testes antes x depois**: quantidade de `it(` em `*.spec.ts` e `*.e2e-spec.ts` na `main` e na branch (`git grep -c "it(" main -- "*.spec.ts" "*.e2e-spec.ts"` e o mesmo sem `main`), mais os números do passo 3;
+  - **Testes**: o número principal é o resultado real do passo 3 (testes que passaram, falharam e foram pulados, nos unitários e nos e2e). Como comparação secundária, mostre a quantidade de `it(` na `main` e na branch (`git grep -c "it(" main -- "*.spec.ts" "*.e2e-spec.ts"` e o mesmo sem `main`), com o rótulo **"contagem de it( (aproximada)"**: ela não pega `it.each`, `test(` nem os testes pulados, e pode contar texto que não é teste. Nunca apresente essa contagem como o número de testes;
   - **Riscos do audit**: quais itens do `docs/audit.md` a PR resolve, introduz ou altera (ou "nenhum");
   - a linha final de atribuição exigida pelo system-reminder da sessão, se houver.
 
