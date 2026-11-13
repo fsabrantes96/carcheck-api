@@ -9,8 +9,10 @@ import { ThrottlerException } from '@nestjs/throttler';
 import { Prisma } from '../../generated/prisma/client.js';
 import {
   databaseErrorWithPgCode,
+  deadlockFromRawQuery,
   exclusionViolationFromModelQuery,
   exclusionViolationFromRawQuery,
+  transactionConflictFromModelQuery,
 } from '../../../test/support/prisma-error-fixtures.js';
 import { AllExceptionsFilter } from './all-exceptions.filter.js';
 
@@ -163,6 +165,137 @@ describe('AllExceptionsFilter', () => {
       expect(response.status).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
       expect(body.message).toBe('Erro interno do servidor');
       expect(loggerError).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('conflito de transação: deadlock (40P01) e serialização (40001)', () => {
+    let loggerWarn: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(() => {
+      loggerWarn = vi
+        .spyOn(Logger.prototype, 'warn')
+        .mockImplementation(() => undefined);
+    });
+
+    /** Como o Express entrega a requisição depois de casar a rota do controller. */
+    function runOnRoute(
+      exception: unknown,
+      url: string,
+      method: string,
+      routePath?: string,
+    ) {
+      const request = {
+        url,
+        method,
+        ...(routePath && { route: { path: routePath } }),
+      };
+      const response = { status: vi.fn().mockReturnThis(), json: vi.fn() };
+      const host = {
+        switchToHttp: () => ({
+          getRequest: () => request,
+          getResponse: () => response,
+        }),
+      } as unknown as ArgumentsHost;
+      new AllExceptionsFilter().catch(exception, host);
+      const body = response.json.mock.calls[0][0] as Record<string, unknown>;
+      return { response, body };
+    }
+
+    const ACCEPT_URL =
+      '/appointments/0b9f6a52-3f43-4d0e-9c55-6a1f7a0e2b11/accept';
+    const ACCEPT_ROUTE = '/appointments/:id/accept';
+
+    it.each([
+      [
+        'deadlock numa query de model (P2034 + 40P01)',
+        transactionConflictFromModelQuery('40P01'),
+      ],
+      [
+        'falha de serialização (P2034 + 40001)',
+        transactionConflictFromModelQuery('40001'),
+      ],
+      ['deadlock num $executeRaw (P2010 + 40P01)', deadlockFromRawQuery()],
+      ['P2034 sem o SQLSTATE no meta', prismaError('P2034')],
+    ])(
+      'responde 409 "Conflito ao processar, tente novamente": %s',
+      (_caso, exception) => {
+        const { response, body } = runOnRoute(
+          exception,
+          ACCEPT_URL,
+          'POST',
+          ACCEPT_ROUTE,
+        );
+
+        expect(response.status).toHaveBeenCalledWith(HttpStatus.CONFLICT);
+        expect(body).toMatchObject({
+          statusCode: 409,
+          error: 'Conflict',
+          message: 'Conflito ao processar, tente novamente',
+          path: ACCEPT_URL,
+        });
+        expect(Object.keys(body).sort()).toEqual(
+          ['error', 'message', 'path', 'statusCode', 'timestamp'].sort(),
+        );
+      },
+    );
+
+    it.each([
+      ['40P01', transactionConflictFromModelQuery('40P01')],
+      ['40001', transactionConflictFromModelQuery('40001')],
+      ['P2034', prismaError('P2034')],
+    ])(
+      'registra no Logger.warn o código %s e a rota, e não chama o Logger.error',
+      (code, exception) => {
+        runOnRoute(exception, ACCEPT_URL, 'POST', ACCEPT_ROUTE);
+
+        expect(loggerWarn).toHaveBeenCalledTimes(1);
+        expect(loggerWarn).toHaveBeenCalledWith(
+          `Conflito de transação (${code}) em POST ${ACCEPT_ROUTE}`,
+        );
+        expect(loggerError).not.toHaveBeenCalled();
+      },
+    );
+
+    it('o log usa o padrão da rota, sem ids, query string nem detalhes do erro', () => {
+      runOnRoute(
+        transactionConflictFromModelQuery(),
+        `${ACCEPT_URL}?email=maria@x.com`,
+        'POST',
+        ACCEPT_ROUTE,
+      );
+
+      const logged = JSON.stringify(loggerWarn.mock.calls);
+      expect(logged).not.toContain('0b9f6a52');
+      expect(logged).not.toContain('maria@x.com');
+      expect(logged).not.toContain('deadlock detected');
+      expect(logged).not.toContain('Appointment');
+    });
+
+    it('sem rota casada, registra a URL sem a query string', () => {
+      runOnRoute(
+        transactionConflictFromModelQuery(),
+        '/qualquer/coisa?email=maria@x.com',
+        'GET',
+      );
+
+      expect(loggerWarn).toHaveBeenCalledWith(
+        'Conflito de transação (40P01) em GET /qualquer/coisa',
+      );
+    });
+
+    it('não vaza o SQLSTATE, a mensagem do banco nem o meta na resposta', () => {
+      const { body } = runOnRoute(
+        transactionConflictFromModelQuery(),
+        ACCEPT_URL,
+        'POST',
+        ACCEPT_ROUTE,
+      );
+      const serialized = JSON.stringify(body);
+
+      expect(serialized).not.toContain('40P01');
+      expect(serialized).not.toContain('deadlock');
+      expect(serialized).not.toContain('P2034');
+      expect(serialized).not.toContain('meta');
     });
   });
 
