@@ -18,6 +18,13 @@ describe('UpdateListingDto', () => {
     });
   });
 
+  it('herda os limites do CreateListingDto (título com 121 caracteres)', async () => {
+    const errors = await errorsFor({ title: 'a'.repeat(121) });
+
+    expect(errors.map((e) => e.property)).toEqual(['title']);
+    expect(errors[0].constraints).toHaveProperty('maxLength');
+  });
+
   it('aceita um update parcial só com o título', async () => {
     const errors = await errorsFor({ title: 'Novo título do anúncio' });
 

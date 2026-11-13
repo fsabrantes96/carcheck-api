@@ -4,6 +4,8 @@
  * não sobe e a mensagem diz exatamente o que configurar.
  */
 
+import { INSPECTION_PRICE_MAX_CENTS } from '../common/limits.js';
+
 /** Variáveis de regra de negócio já convertidas para número. */
 export interface BusinessEnv {
   /** Comissão da plataforma em pontos-base (1000 = 10%). Obrigatória. */
@@ -36,9 +38,11 @@ const RULES: Record<keyof BusinessEnv, IntRule> = {
   },
   MIN_INSPECTION_PRICE_CENTS: {
     min: 1,
-    max: 100_000_000,
+    // Acima do teto do basePriceCents nenhum avaliador seria agendável: a
+    // configuração impossível derruba o boot em vez de falhar em silêncio.
+    max: INSPECTION_PRICE_MAX_CENTS,
     default: 5000,
-    hint: 'preço mínimo da avaliação em centavos, inteiro a partir de 1 (5000 = R$ 50,00)',
+    hint: `preço mínimo da avaliação em centavos, inteiro entre 1 e ${INSPECTION_PRICE_MAX_CENTS} (5000 = R$ 50,00)`,
   },
   APPOINTMENT_DURATION_MINUTES: {
     min: 1,

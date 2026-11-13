@@ -292,7 +292,7 @@ Base (sem dinheiro e **sem ids de usuário**): `id`, `status`, `myRole`, `listin
 - Função pura `splitPlatformFee(priceCents, feeBps)` em `src/common/money/platform-fee.ts`, sem Nest. `RangeError` se os valores não forem inteiros seguros, `priceCents < 0` ou `feeBps` fora de 0..10000.
 - Meio para cima, só com inteiros: `fee = Math.floor((priceCents * feeBps + 5000) / 10000)`; `payout = priceCents - fee`. A invariante `fee + payout = price` vale por construção.
 - `PLATFORM_FEE_BPS` validado no boot (inteiro 0..10000), documentado no `.env.example`, congelado na criação.
-- **Preço mínimo:** `MIN_INSPECTION_PRICE_CENTS`, padrão **5000** (R$ 50,00). Validado ao criar o perfil e, ao editar, só quando `basePriceCents` vem no corpo (`400 "O preço base precisa ser de pelo menos 5000 centavos (R$ 50,00)"`), e na criação do agendamento (409 "Este avaliador está indisponível no momento").
+- **Preço mínimo:** `MIN_INSPECTION_PRICE_CENTS`, padrão **5000** (R$ 50,00). Aceita no máximo 500000, o teto do `basePriceCents` (`INSPECTION_PRICE_MAX_CENTS` em `src/common/limits.ts`); acima disso a aplicação não sobe. Validado ao criar o perfil e, ao editar, só quando `basePriceCents` vem no corpo (`400 "O preço base precisa ser de pelo menos 5000 centavos (R$ 50,00)"`), e na criação do agendamento (409 "Este avaliador está indisponível no momento").
 - Testes: casos de borda (`price` 0 e 1, `bps` 0 e 10000, empates `(1, 5000)` → 1 e `(3, 5000)` → 2) e 1.000 casos de um PRNG com seed fixa (`mulberry32` no teste, seed na mensagem de falha), conferindo invariante, limites e igualdade com uma referência em `BigInt`.
 
 ## 7. Plano de testes

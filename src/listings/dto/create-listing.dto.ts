@@ -4,36 +4,66 @@ import {
     IsInt,
     IsString,
     Length,
+    Max,
+    MaxLength,
     Min,
     MinLength,
     ValidateNested,
 } from 'class-validator';
+import {
+    CITY_MAX_LENGTH,
+    CITY_MIN_LENGTH,
+    LISTING_DESCRIPTION_MAX_LENGTH,
+    LISTING_DESCRIPTION_MIN_LENGTH,
+    LISTING_PRICE_MAX_CENTS,
+    LISTING_PRICE_MIN_CENTS,
+    LISTING_TITLE_MAX_LENGTH,
+    LISTING_TITLE_MIN_LENGTH,
+    STATE_LENGTH,
+} from '../../common/limits.js';
 import { VehicleDto } from './vehicle.dto.js';
 
 export class CreateListingDto {
-    @ApiProperty({ example: 'Gol 1.0 2018 completo' })
+    @ApiProperty({
+        example: 'Gol 1.0 2018 completo',
+        minLength: LISTING_TITLE_MIN_LENGTH,
+        maxLength: LISTING_TITLE_MAX_LENGTH,
+    })
     @IsString()
-    @MinLength(5)
+    @MinLength(LISTING_TITLE_MIN_LENGTH)
+    @MaxLength(LISTING_TITLE_MAX_LENGTH)
     title: string;
 
-    @ApiProperty({ example: 'Único dono, revisões em dia, pneus novos.' })
+    @ApiProperty({
+        example: 'Único dono, revisões em dia, pneus novos.',
+        minLength: LISTING_DESCRIPTION_MIN_LENGTH,
+        maxLength: LISTING_DESCRIPTION_MAX_LENGTH,
+    })
     @IsString()
-    @MinLength(20)
+    @MinLength(LISTING_DESCRIPTION_MIN_LENGTH)
+    @MaxLength(LISTING_DESCRIPTION_MAX_LENGTH)
     description: string;
 
-    @ApiProperty({ example: 4500000, description: 'Preço em centavos (R$ 45.000,00)' })
+    @ApiProperty({
+        example: 4500000,
+        description: 'Preço em centavos (R$ 45.000,00)',
+        minimum: LISTING_PRICE_MIN_CENTS,
+        maximum: LISTING_PRICE_MAX_CENTS,
+    })
     @IsInt()
-    @Min(1)
+    @Min(LISTING_PRICE_MIN_CENTS)
+    @Max(LISTING_PRICE_MAX_CENTS)
     priceCents: number;
 
-    @ApiProperty({ example: 'Boituva' })
+    @ApiProperty({ example: 'Boituva', minLength: CITY_MIN_LENGTH, maxLength: CITY_MAX_LENGTH })
     @IsString()
-    @MinLength(2)
+    @MinLength(CITY_MIN_LENGTH)
+    @MaxLength(CITY_MAX_LENGTH)
     city: string;
 
-    @ApiProperty({ example: 'SP' })
+    @ApiProperty({ example: 'SP', minLength: STATE_LENGTH, maxLength: STATE_LENGTH })
     @IsString()
-    @Length(2, 2)
+    @Length(STATE_LENGTH, STATE_LENGTH)
     state: string;
 
     @ApiProperty({ type: VehicleDto })

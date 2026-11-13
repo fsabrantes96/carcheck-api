@@ -80,6 +80,16 @@ describe('validateEnv', () => {
     expect(messageOf({ ...valid, [name]: raw })).toContain(`${name} inválida (recebido: "${raw}")`);
   });
 
+  it('aceita MIN_INSPECTION_PRICE_CENTS igual ao teto do preço da avaliação (500000)', () => {
+    expect(validateEnv({ ...valid, MIN_INSPECTION_PRICE_CENTS: '500000' }).MIN_INSPECTION_PRICE_CENTS).toBe(500000);
+  });
+
+  it('rejeita MIN_INSPECTION_PRICE_CENTS acima do teto do preço da avaliação: nenhum avaliador seria agendável', () => {
+    expect(messageOf({ ...valid, MIN_INSPECTION_PRICE_CENTS: '500001' })).toContain(
+      'MIN_INSPECTION_PRICE_CENTS inválida (recebido: "500001"): preço mínimo da avaliação em centavos, inteiro entre 1 e 500000',
+    );
+  });
+
   it('lista todos os problemas de uma vez e aponta o .env.example', () => {
     const message = messageOf({ APPOINTMENT_DURATION_MINUTES: 'x' });
 
