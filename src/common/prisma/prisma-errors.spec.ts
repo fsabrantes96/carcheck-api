@@ -1,14 +1,17 @@
 import {
   databaseErrorWithPgCode,
+  deadlockFromRawQuery,
   exclusionViolationFromModelQuery,
   exclusionViolationFromRawQuery,
   knownErrorWithMeta,
   partialUniqueViolation,
+  transactionConflictFromModelQuery,
 } from '../../../test/support/prisma-error-fixtures.js';
 import {
   isPgError,
   isUniqueViolationOn,
   PG_EXCLUSION_VIOLATION,
+  transactionConflictCode,
 } from './prisma-errors.js';
 
 describe('isPgError', () => {
@@ -86,4 +89,55 @@ describe('isUniqueViolationOn', () => {
   it('devolve false para erro que não é P2002', () => {
     expect(isUniqueViolationOn(exclusionViolationFromModelQuery(), 'Appointment_open_triplet_key')).toBe(false);
   });
+});
+
+describe('transactionConflictCode', () => {
+  it('devolve 40P01 para o deadlock de uma query de model (formato real, P2034)', () => {
+    expect(
+      transactionConflictCode(transactionConflictFromModelQuery('40P01')),
+    ).toBe('40P01');
+  });
+
+  it('devolve 40001 para a falha de serialização (mesmo kind no adapter-pg, P2034)', () => {
+    expect(
+      transactionConflictCode(transactionConflictFromModelQuery('40001')),
+    ).toBe('40001');
+  });
+
+  it('devolve 40P01 para o deadlock de um $executeRaw (formato real, P2010)', () => {
+    expect(transactionConflictCode(deadlockFromRawQuery())).toBe('40P01');
+  });
+
+  it.each(['40P01', '40001'])(
+    'reconhece %s em cause.code quando originalCode não existe',
+    (pgCode) => {
+      const error = knownErrorWithMeta({
+        driverAdapterError: { cause: { code: pgCode } },
+      });
+
+      expect(transactionConflictCode(error)).toBe(pgCode);
+    },
+  );
+
+  it('devolve P2034 para um P2034 sem o SQLSTATE no meta', () => {
+    const error = transactionConflictFromModelQuery();
+    error.meta = undefined;
+
+    expect(transactionConflictCode(error)).toBe('P2034');
+  });
+
+  it.each([
+    ['23P01 (exclusion constraint)', exclusionViolationFromModelQuery()],
+    ['23514 (CHECK)', databaseErrorWithPgCode('23514')],
+    ['P2002 (unicidade)', partialUniqueViolation('x')],
+    ['P2039 sem SQLSTATE', knownErrorWithMeta({})],
+    ['Error comum', new Error('deadlock detected')],
+    ['objeto parecido que não é erro do Prisma', { code: 'P2034' }],
+    ['null', null],
+  ])(
+    'devolve undefined para o que não é conflito de transação: %s',
+    (_label, value) => {
+      expect(transactionConflictCode(value)).toBeUndefined();
+    },
+  );
 });

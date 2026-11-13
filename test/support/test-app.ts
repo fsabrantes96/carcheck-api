@@ -63,11 +63,14 @@ export async function createTestApp(
   return app;
 }
 
-/** Fecha a app e as conexões do Prisma com o banco. */
+/**
+ * Fecha a app. As conexões do Prisma com o banco fecham junto, no
+ * onApplicationShutdown do PrismaService (test/shutdown.e2e-spec.ts). Um
+ * substituto do PrismaService passado em `configure` que não tenha esse hook
+ * (ex.: um PrismaClient puro) precisa ser desconectado pelo próprio teste.
+ */
 export async function closeTestApp(app: INestApplication): Promise<void> {
-  const prisma = app.get(PrismaService);
   await app.close();
-  await prisma.$disconnect();
 }
 
 /** Apaga os dados de todas as tabelas do banco de teste. */
