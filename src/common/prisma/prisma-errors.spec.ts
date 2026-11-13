@@ -108,13 +108,16 @@ describe('transactionConflictCode', () => {
     expect(transactionConflictCode(deadlockFromRawQuery())).toBe('40P01');
   });
 
-  it('reconhece 40P01 e 40001 em cause.code quando originalCode não existe', () => {
-    const error = knownErrorWithMeta({
-      driverAdapterError: { cause: { code: '40001' } },
-    });
+  it.each(['40P01', '40001'])(
+    'reconhece %s em cause.code quando originalCode não existe',
+    (pgCode) => {
+      const error = knownErrorWithMeta({
+        driverAdapterError: { cause: { code: pgCode } },
+      });
 
-    expect(transactionConflictCode(error)).toBe('40001');
-  });
+      expect(transactionConflictCode(error)).toBe(pgCode);
+    },
+  );
 
   it('devolve P2034 para um P2034 sem o SQLSTATE no meta', () => {
     const error = transactionConflictFromModelQuery();

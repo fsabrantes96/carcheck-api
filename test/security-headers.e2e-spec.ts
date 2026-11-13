@@ -41,6 +41,17 @@ describe('Cabeçalhos de segurança (e2e)', () => {
     expectHelmetHeaders(res.headers);
   });
 
+  it('envia os cabeçalhos do helmet no 413 do body-parser (o helmet vem antes do parser)', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/auth/login')
+      .set('Content-Type', 'application/json')
+      .send(JSON.stringify({ padding: 'x'.repeat(200 * 1024) }))
+      .expect(413);
+
+    expectHelmetHeaders(res.headers);
+    expect(res.headers['x-powered-by']).toBeUndefined();
+  });
+
   it.each([
     ['uma rota da API', '/listings'],
     ['uma resposta de erro', '/rota-que-nao-existe'],
@@ -77,6 +88,12 @@ describe('Cabeçalhos de segurança (e2e)', () => {
       for (const tag of scripts) {
         expect(tag).toMatch(/\bsrc="\.\//);
       }
+    });
+
+    it('a página não tem atributos de evento inline (a CSP padrão bloqueia com script-src-attr none)', async () => {
+      const res = await request(app.getHttpServer()).get('/docs/').expect(200);
+
+      expect(res.text).not.toMatch(/<[^>]+\son[a-z]+\s*=/i);
     });
 
     it.each([

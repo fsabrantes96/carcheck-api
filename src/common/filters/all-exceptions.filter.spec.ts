@@ -264,6 +264,7 @@ describe('AllExceptionsFilter', () => {
         ACCEPT_ROUTE,
       );
 
+      expect(loggerWarn).toHaveBeenCalledTimes(1);
       const logged = JSON.stringify(loggerWarn.mock.calls);
       expect(logged).not.toContain('0b9f6a52');
       expect(logged).not.toContain('maria@x.com');

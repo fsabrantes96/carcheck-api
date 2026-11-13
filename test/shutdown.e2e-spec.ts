@@ -1,18 +1,22 @@
+import type { INestApplication } from '@nestjs/common';
 import pg from 'pg';
 import request from 'supertest';
 import { createTestApp } from './support/test-app.js';
 
 /**
- * Conexões do banco de teste abertas por outros processos/clientes, sem
- * contar a desta consulta. Fica num arquivo próprio: os arquivos e2e rodam um
- * por vez e cada um fecha a sua app, então só a app deste teste conta.
+ * Conexões de clientes abertas no banco de teste, sem contar a desta consulta
+ * nem os processos internos do Postgres (ex.: autovacuum). Fica num arquivo
+ * próprio: os arquivos e2e rodam um por vez e cada um fecha a sua app.
  */
 async function openBackends(): Promise<number> {
   const client = new pg.Client({ connectionString: process.env.DATABASE_URL });
   await client.connect();
   try {
     const result = await client.query<{ n: number }>(
-      'SELECT count(*)::int AS n FROM pg_stat_activity WHERE datname = current_database() AND pid <> pg_backend_pid()',
+      `SELECT count(*)::int AS n FROM pg_stat_activity
+       WHERE datname = current_database()
+         AND backend_type = 'client backend'
+         AND pid <> pg_backend_pid()`,
     );
     return result.rows[0].n;
   } finally {
@@ -35,14 +39,25 @@ async function waitForBackends(
 }
 
 describe('Encerramento da aplicação (e2e, risco 24)', () => {
-  it('app.close() sozinho fecha todas as conexões com o banco', async () => {
-    const app = await createTestApp();
+  let app: INestApplication | undefined;
+
+  afterEach(async () => {
+    // Só se uma asserção falhou antes do close do próprio teste.
+    await app?.close();
+  });
+
+  it('app.close() sozinho fecha todas as conexões da app com o banco', async () => {
+    // Sessões de fora (psql, Prisma Studio) entram na linha de base.
+    const baseline = await openBackends();
+    app = await createTestApp();
     // Uma rota que consulta o banco, para o pool ter conexões abertas.
     await request(app.getHttpServer()).get('/listings').expect(200);
-    expect(await openBackends()).toBeGreaterThan(0);
+    expect(await openBackends()).toBeGreaterThan(baseline);
 
-    await app.close();
+    const closing = app;
+    app = undefined;
+    await closing.close();
 
-    expect(await waitForBackends(0)).toBe(0);
+    expect(await waitForBackends(baseline)).toBe(baseline);
   });
 });
