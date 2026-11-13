@@ -10,6 +10,8 @@ const BODY_PARSER_ERROR_TYPES = new Set([
   'encoding.unsupported',
   'charset.unsupported',
   'parameters.too.many',
+  // urlencoded com `extended: true` acima de 32 níveis (strictDepth do qs).
+  'querystring.parse.rangeError',
   'request.aborted',
   'request.size.invalid',
   'stream.encoding.set',

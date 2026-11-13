@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  HttpException,
   HttpStatus,
   Logger,
   NotFoundException,
@@ -39,11 +40,17 @@ function bodyParserError(
   });
 }
 
-function createHost(url = '/listings/123', method = 'GET') {
+function createHost(
+  url = '/listings/123',
+  method = 'GET',
+  headersSent = false,
+) {
   const request = { url, method };
   const response = {
     status: vi.fn().mockReturnThis(),
     json: vi.fn(),
+    removeHeader: vi.fn(),
+    headersSent,
   };
   const host = {
     switchToHttp: () => ({
@@ -162,7 +169,9 @@ describe('AllExceptionsFilter', () => {
     it('mantém 500 e registra no Logger um erro do banco com outro SQLSTATE no mesmo formato (ex.: 23514, CHECK)', () => {
       const { response, body } = run(databaseErrorWithPgCode('23514'));
 
-      expect(response.status).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
+      expect(response.status).toHaveBeenCalledWith(
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
       expect(body.message).toBe('Erro interno do servidor');
       expect(loggerError).toHaveBeenCalledTimes(1);
     });
@@ -189,7 +198,12 @@ describe('AllExceptionsFilter', () => {
         method,
         ...(routePath && { route: { path: routePath } }),
       };
-      const response = { status: vi.fn().mockReturnThis(), json: vi.fn() };
+      const response = {
+        status: vi.fn().mockReturnThis(),
+        json: vi.fn(),
+        removeHeader: vi.fn(),
+        headersSent: false,
+      };
       const host = {
         switchToHttp: () => ({
           getRequest: () => request,
@@ -448,6 +462,22 @@ describe('AllExceptionsFilter', () => {
       expect(serialized).not.toContain('segredo');
     });
 
+    it('traduz querystring.parse.rangeError (urlencoded fundo demais) em 400 sem vazar a mensagem', () => {
+      const { response, body } = run(
+        bodyParserError(
+          'querystring.parse.rangeError',
+          400,
+          'The input exceeded the depth',
+          new RangeError('The input exceeded the depth'),
+        ),
+      );
+
+      expect(response.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
+      expect(body.error).toBe('Bad Request');
+      expect(body.message).toBe('Corpo da requisição inválido');
+      expect(JSON.stringify(body)).not.toContain('depth');
+    });
+
     it('repassa outro 4xx do parser com o status original e mensagem genérica', () => {
       const { response, body } = run(
         bodyParserError(
@@ -494,6 +524,54 @@ describe('AllExceptionsFilter', () => {
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
       expect(body.message).toBe('Erro interno do servidor');
+    });
+  });
+
+  describe('cabeçalhos herdados de um arquivo estático', () => {
+    // O send (assets do /docs) grava os cabeçalhos do arquivo antes de emitir
+    // o 412/416; sem limpar, o JSON de erro sairia como text/css com o ETag do
+    // arquivo.
+    const FILE_HEADERS = [
+      'Content-Type',
+      'Content-Length',
+      'ETag',
+      'Last-Modified',
+      'Cache-Control',
+      'Accept-Ranges',
+    ];
+
+    it('remove os cabeçalhos do arquivo antes de responder o JSON de erro', () => {
+      const { response } = run(new HttpException('x', 412));
+
+      for (const header of FILE_HEADERS) {
+        expect(response.removeHeader).toHaveBeenCalledWith(header);
+      }
+      expect(response.removeHeader).toHaveBeenCalledTimes(FILE_HEADERS.length);
+    });
+
+    it('mantém o Content-Range (exigido no 416)', () => {
+      const { response } = run(new HttpException('x', 416));
+
+      expect(response.removeHeader).not.toHaveBeenCalledWith('Content-Range');
+    });
+
+    it('remove os cabeçalhos antes do json', () => {
+      const { response } = run(new NotFoundException('x'));
+
+      const lastRemove = Math.max(
+        ...response.removeHeader.mock.invocationCallOrder,
+      );
+      expect(lastRemove).toBeLessThan(
+        response.json.mock.invocationCallOrder[0],
+      );
+    });
+
+    it('não mexe nos cabeçalhos quando eles já foram enviados', () => {
+      const { host, response } = createHost('/x', 'GET', true);
+
+      new AllExceptionsFilter().catch(new NotFoundException('x'), host);
+
+      expect(response.removeHeader).not.toHaveBeenCalled();
     });
   });
 
