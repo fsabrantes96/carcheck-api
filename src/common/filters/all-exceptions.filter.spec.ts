@@ -198,7 +198,12 @@ describe('AllExceptionsFilter', () => {
         method,
         ...(routePath && { route: { path: routePath } }),
       };
-      const response = { status: vi.fn().mockReturnThis(), json: vi.fn() };
+      const response = {
+        status: vi.fn().mockReturnThis(),
+        json: vi.fn(),
+        removeHeader: vi.fn(),
+        headersSent: false,
+      };
       const host = {
         switchToHttp: () => ({
           getRequest: () => request,

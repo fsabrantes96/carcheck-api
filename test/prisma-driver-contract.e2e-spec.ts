@@ -131,7 +131,12 @@ describe('Contrato do driver: deadlock (e2e)', () => {
     const logError = vi
       .spyOn(Logger.prototype, 'error')
       .mockImplementation(() => undefined);
-    const response = { status: vi.fn().mockReturnThis(), json: vi.fn() };
+    const response = {
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn(),
+      removeHeader: vi.fn(),
+      headersSent: false,
+    };
     const host = {
       switchToHttp: () => ({
         getRequest: () => ({
