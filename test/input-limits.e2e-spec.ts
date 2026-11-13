@@ -120,8 +120,12 @@ describe('Limites de entrada (e2e)', () => {
         .post('/auth/register')
         .send({ name: 'Maria Silva', email, password: DEFAULT_PASSWORD });
 
+      // O @IsEmail do validator.js já recusa mais de 254 caracteres; o
+      // @MaxLength deixa o limite explícito na mensagem e no Swagger.
       expectValidation400(res);
-      expect(res.body.errors).toEqual(['email must be shorter than or equal to 254 characters']);
+      expect(res.body.errors).toEqual(
+        expect.arrayContaining(['email must be shorter than or equal to 254 characters']),
+      );
     });
 
     it('POST /auth/register com senha acima de 72 bytes (37 "é" = 74 bytes)', async () => {
