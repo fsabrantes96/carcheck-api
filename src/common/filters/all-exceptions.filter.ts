@@ -10,7 +10,11 @@ import type { Request, Response } from 'express';
 import { Prisma } from '../../generated/prisma/client.js';
 import type { ErrorResponseDto } from '../dto/error-response.dto.js';
 import { isBodyParserError } from '../http/body-parser-error.js';
-import { isPgError, PG_EXCLUSION_VIOLATION } from '../prisma/prisma-errors.js';
+import {
+  isPgError,
+  PG_EXCLUSION_VIOLATION,
+  transactionConflictCode,
+} from '../prisma/prisma-errors.js';
 
 /** Erros conhecidos do Prisma que viram respostas HTTP previsíveis. */
 const PRISMA_ERROR_MAP: Record<
@@ -38,6 +42,9 @@ const BODY_PARSER_DEFAULT_MESSAGE = 'Requisição inválida';
  * meio do caminho.
  */
 const EXCLUSION_VIOLATION_MESSAGE = 'O agendamento mudou ou o horário não está mais disponível';
+
+/** Deadlock (40P01) ou falha de serialização (40001): o cliente pode repetir. */
+const TRANSACTION_CONFLICT_MESSAGE = 'Conflito ao processar, tente novamente';
 
 const INTERNAL_ERROR_MESSAGE = 'Erro interno do servidor';
 const VALIDATION_MESSAGE = 'Dados inválidos';
@@ -95,6 +102,20 @@ export class AllExceptionsFilter implements ExceptionFilter {
       return { statusCode: HttpStatus.CONFLICT, message: EXCLUSION_VIOLATION_MESSAGE };
     }
 
+    // Deadlock/serialização: o Postgres abortou a transação e repetir pode dar
+    // certo, então é 409 (como as outras corridas), não 500. Fica registrado
+    // com warn para medir se o risco 50 acontece de verdade.
+    const conflictCode = transactionConflictCode(exception);
+    if (conflictCode) {
+      this.logger.warn(
+        `Conflito de transação (${conflictCode}) em ${request.method} ${this.routeOf(request)}`,
+      );
+      return {
+        statusCode: HttpStatus.CONFLICT,
+        message: TRANSACTION_CONFLICT_MESSAGE,
+      };
+    }
+
     if (exception instanceof Prisma.PrismaClientKnownRequestError) {
       const mapped = PRISMA_ERROR_MAP[exception.code];
       if (mapped) {
@@ -134,6 +155,15 @@ export class AllExceptionsFilter implements ExceptionFilter {
       statusCode,
       message: typeof rawMessage === 'string' ? rawMessage : exception.message,
     };
+  }
+
+  /**
+   * Rota para log sem dados do usuário: o padrão casado pelo Express
+   * (ex.: /appointments/:id/accept), ou a URL sem a query string.
+   */
+  private routeOf(request: Request): string {
+    const pattern = (request.route as { path?: unknown } | undefined)?.path;
+    return typeof pattern === 'string' ? pattern : request.url.split('?')[0];
   }
 
   private statusName(statusCode: number): string {
