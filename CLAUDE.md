@@ -88,7 +88,13 @@ Design: [docs/appointments-design.md](docs/appointments-design.md). The flow end
 
 - Branches are `feat/<name>`. Commits use Conventional Commits in Portuguese with a scope, e.g. `feat(listings): adiciona CRUD de anúncios`.
 - PRs follow [.github/pull_request_template.md](.github/pull_request_template.md): "O que mudou", "Como testar", and a checklist that includes updating the README roadmap.
-- O agente nunca executa comandos que alteram o remoto (git push, git push --delete, gh pr merge, gh pr create), nem quando o usuário pede pelo chat do agente. Quem faz é o usuário.
+- O agente nunca executa comandos que alteram o remoto, com uma única exceção: a skill /ship-pr, quando o usuário a aciona explicitamente. Merge, force push e remoção de branch remota são sempre do usuário.
+
+## AI tooling
+
+- Project agents live in [.claude/agents/](.claude/agents/) and skills in [.claude/skills/](.claude/skills/). The planned list is in [docs/ai-tooling-plan.md](docs/ai-tooling-plan.md).
+- **`/ship-pr`** ([.claude/skills/ship-pr/SKILL.md](.claude/skills/ship-pr/SKILL.md)) is the only skill allowed to change the remote: it pushes the current branch and opens the PR with `gh`, after checking the branch name, a clean tree, lint, typecheck, unit and e2e tests, removed test lines and sensitive files, and after the user explicitly approves the title and description. It has `disable-model-invocation: true`: only the user starts it by typing `/ship-pr`. The agent never runs it on its own initiative and never suggests it in the middle of another task. Its `allowed-tools` lists only read/verification commands; `git push` and `gh pr create` are deliberately left out, so each one still triggers a permission prompt.
+- **[.claude/settings.json](.claude/settings.json)** (versioned) holds permission rules: `deny` for force push, push to `main`, deleting remote branches, `gh pr merge` and `gh repo edit`; `ask` for `git push` and `gh pr create`. Each rule exists as both `Bash(...)` and `PowerShell(...)`. These rules are an **extra lock, not a security boundary**: they match the command text, so other spellings (e.g. `git -C . push`, `git -c ... push`, a `+branch` refspec, `git push origin :branch`) are not caught. The rule above in Conventions is what governs; never rely on the settings alone, and never try to work around them.
 
 ## Testing
 

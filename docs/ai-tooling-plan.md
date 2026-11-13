@@ -82,6 +82,7 @@
 | Skill | Para que serve |
 |---|---|
 | **git-branch-pr-flow** | Documenta o fluxo desde `checkout -b` até o squash merge, seguindo os padrões de nomes e mensagens definidos no projeto. |
+| **ship-pr** ✅ criada | Acionada só pelo usuário (`/ship-pr`). Verifica branch, árvore limpa, lint, typecheck, unitários, e2e, linhas removidas de testes e arquivos sensíveis, mostra título e descrição para aprovação e então faz push da branch e abre a PR com o `gh`. É a única exceção à regra de que o agente não altera o remoto; merge, force push e remoção de branch continuam com o usuário. Diferente da `git-branch-pr-flow`, que só documenta o fluxo. |
 | **api-contract-sync** | Regenera os tipos do frontend a partir do OpenAPI e identifica possíveis incompatibilidades. |
 | **troubleshoot-esm-nest-prisma** | Reúne soluções para erros que já enfrentamos: extensão `.js`, `rootDir`, `import type`, Prisma Client desatualizado, scripts bloqueados do npm e `bcrypt`. |
 | **explain-simply** | Define o padrão de explicação solicitado: metáforas, exemplos práticos e resumo curto, sem aprofundamento desnecessário em versionamento. |
