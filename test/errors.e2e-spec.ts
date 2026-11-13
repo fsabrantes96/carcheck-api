@@ -83,7 +83,8 @@ describe('Parâmetro de rota com codificação inválida (e2e, risco 23)', () =>
 
   // O router do Express lança URIError com status 400 ao decodificar '%FF', e
   // o ExpressAdapter do Nest o converte em BadRequestException (desde a 12.5,
-  // só com status 400; antes, qualquer URIError).
+  // só com status 400; antes, qualquer URIError). O AppExpressAdapter troca a
+  // mensagem crua ("Failed to decode param '%FF'") por uma fixa (risco 65).
   it('responde 400 no formato global de erro a GET /listings/%FF', async () => {
     const res = await request(app.getHttpServer())
       .get('/listings/%FF')
@@ -95,6 +96,8 @@ describe('Parâmetro de rota com codificação inválida (e2e, risco 23)', () =>
       path: '/listings/%FF',
     });
     expect(typeof res.body.message).toBe('string');
+    expect(res.body.message).toBe('Parâmetro inválido na URL');
+    expect(res.headers['content-type']).toBe('application/json; charset=utf-8');
     expect(Object.keys(res.body).sort()).toEqual(ERROR_KEYS);
   });
 });
@@ -140,9 +143,10 @@ describe('Erros da camada do Express (e2e, riscos 65 e 67)', () => {
     expect(JSON.stringify(res.body)).not.toContain('depth');
   });
 
-  it('responde 400 "Parâmetro inválido na URL" a GET /listings/%FF', async () => {
+  // GET /listings/%FF está no bloco do risco 23, acima.
+  it('não repete o parâmetro cru na mensagem nem nos erros do %FF', async () => {
     const res = await request(app.getHttpServer())
-      .get('/listings/%FF')
+      .post('/appointments/%FF/accept')
       .expect(400);
 
     expectGlobalError(
@@ -150,15 +154,8 @@ describe('Erros da camada do Express (e2e, riscos 65 e 67)', () => {
       400,
       'Bad Request',
       'Parâmetro inválido na URL',
-      '/listings/%FF',
+      '/appointments/%FF/accept',
     );
-  });
-
-  it('não repete o parâmetro cru na mensagem nem nos erros do %FF', async () => {
-    const res = await request(app.getHttpServer())
-      .post('/appointments/%FF/accept')
-      .expect(400);
-
     expect(res.body.message).not.toContain('%FF');
     expect(res.body.message).not.toMatch(/decode/i);
     expect(res.body).not.toHaveProperty('errors');

@@ -1,4 +1,5 @@
 import { BadRequestException, HttpException } from '@nestjs/common';
+import { ExpressAdapter } from '@nestjs/platform-express';
 import { AppExpressAdapter } from './app-express.adapter.js';
 
 function parseFailed() {
@@ -27,14 +28,18 @@ function decompressionError(code: string, message: string) {
   });
 }
 
-function mapToHttpException(error: unknown): HttpException {
-  const mapped = new AppExpressAdapter().mapException(error);
-  expect(mapped).toBeInstanceOf(HttpException);
-  return mapped as HttpException;
-}
-
 describe('AppExpressAdapter.mapException', () => {
   const adapter = new AppExpressAdapter();
+
+  function mapToHttpException(error: unknown): HttpException {
+    const mapped = adapter.mapException(error);
+    expect(mapped).toBeInstanceOf(HttpException);
+    return mapped as HttpException;
+  }
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
 
   it('entrega o SyntaxError do body-parser intacto, sem virar BadRequestException', () => {
     const error = parseFailed();
@@ -197,6 +202,21 @@ describe('AppExpressAdapter.mapException', () => {
       const error = httpError(
         500,
         'EACCES: permission denied, open /srv/app/x',
+      );
+
+      expect(adapter.mapException(error)).toBe(error);
+    });
+
+    // Hoje o Nest não converte 5xx; se uma versão futura converter, o erro
+    // precisa seguir intacto para o filtro responder 500 genérico com log, em
+    // vez de um HttpException 500 com "Requisição inválida" e sem log.
+    it('devolve o erro original quando o framework o converte num HttpException 5xx', () => {
+      const error = httpError(
+        500,
+        'EACCES: permission denied, open /srv/app/x',
+      );
+      vi.spyOn(ExpressAdapter.prototype, 'mapException').mockReturnValue(
+        new HttpException(error.message, 500, { cause: error }),
       );
 
       expect(adapter.mapException(error)).toBe(error);
