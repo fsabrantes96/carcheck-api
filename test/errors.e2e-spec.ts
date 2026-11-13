@@ -99,6 +99,162 @@ describe('Parâmetro de rota com codificação inválida (e2e, risco 23)', () =>
   });
 });
 
+describe('Erros da camada do Express (e2e, riscos 65 e 67)', () => {
+  let app: INestApplication<App>;
+  const JSON_CONTENT_TYPE = 'application/json; charset=utf-8';
+
+  beforeAll(async () => {
+    app = await createTestApp();
+  });
+
+  afterAll(async () => {
+    await closeTestApp(app);
+  });
+
+  function expectGlobalError(
+    res: request.Response,
+    statusCode: number,
+    error: string,
+    message: string,
+    path: string,
+  ) {
+    expect(res.headers['content-type']).toBe(JSON_CONTENT_TYPE);
+    expect(res.body).toMatchObject({ statusCode, error, message, path });
+    expect(Object.keys(res.body).sort()).toEqual(ERROR_KEYS);
+  }
+
+  it('responde 400 "Corpo da requisição inválido" a um corpo urlencoded com mais de 32 níveis', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/auth/login')
+      .set('Content-Type', 'application/x-www-form-urlencoded')
+      .send('a' + '[b]'.repeat(40) + '=1')
+      .expect(400);
+
+    expectGlobalError(
+      res,
+      400,
+      'Bad Request',
+      'Corpo da requisição inválido',
+      '/auth/login',
+    );
+    expect(JSON.stringify(res.body)).not.toContain('depth');
+  });
+
+  it('responde 400 "Parâmetro inválido na URL" a GET /listings/%FF', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/listings/%FF')
+      .expect(400);
+
+    expectGlobalError(
+      res,
+      400,
+      'Bad Request',
+      'Parâmetro inválido na URL',
+      '/listings/%FF',
+    );
+  });
+
+  it('não repete o parâmetro cru na mensagem nem nos erros do %FF', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/appointments/%FF/accept')
+      .expect(400);
+
+    expect(res.body.message).not.toContain('%FF');
+    expect(res.body.message).not.toMatch(/decode/i);
+    expect(res.body).not.toHaveProperty('errors');
+  });
+
+  // O body-parser repassa o erro do zlib num http-error 400 sem `type`. Um
+  // e2e por formato, para um upgrade do Node ou do body-parser aparecer aqui.
+  it.each([
+    ['gzip', 'incorrect header check'],
+    ['deflate', 'incorrect header check'],
+    ['br', 'Decompression failed'],
+  ])(
+    'responde 400 "Corpo da requisição inválido" a um corpo %s corrompido',
+    async (encoding, rawMessage) => {
+      const res = await request(app.getHttpServer())
+        .post('/auth/login')
+        .set('Content-Type', 'application/json')
+        .set('Content-Encoding', encoding)
+        .send(Buffer.from('isto-nao-esta-comprimido'))
+        .expect(400);
+
+      expectGlobalError(
+        res,
+        400,
+        'Bad Request',
+        'Corpo da requisição inválido',
+        '/auth/login',
+      );
+      expect(JSON.stringify(res.body)).not.toContain(rawMessage);
+    },
+  );
+
+  describe('assets do /docs', () => {
+    const ASSET = '/docs/swagger-ui.css';
+    let assetEtag: string;
+
+    beforeAll(async () => {
+      const res = await request(app.getHttpServer()).get(ASSET).expect(200);
+      assetEtag = res.headers['etag'];
+      expect(assetEtag).toBeTruthy();
+    });
+
+    function expectNoFileHeaders(res: request.Response) {
+      expect(res.headers['etag']).not.toBe(assetEtag);
+      expect(res.headers).not.toHaveProperty('last-modified');
+      expect(res.headers).not.toHaveProperty('cache-control');
+      expect(res.headers).not.toHaveProperty('accept-ranges');
+      expect(Number(res.headers['content-length'])).toBe(
+        Buffer.byteLength(res.text),
+      );
+      // Os cabeçalhos do helmet continuam.
+      expect(res.headers['x-content-type-options']).toBe('nosniff');
+      expect(res.headers['content-security-policy']).toBeTruthy();
+    }
+
+    it.each([
+      ['If-Match', '"x"'],
+      ['If-Unmodified-Since', 'Mon, 01 Jan 1990 00:00:00 GMT'],
+    ])(
+      'responde 412 em JSON, sem os cabeçalhos do arquivo, a %s',
+      async (header, value) => {
+        const res = await request(app.getHttpServer())
+          .get(ASSET)
+          .set(header, value)
+          .expect(412);
+
+        expectGlobalError(
+          res,
+          412,
+          'Precondition Failed',
+          'Pré-condição da requisição não atendida',
+          ASSET,
+        );
+        expectNoFileHeaders(res);
+      },
+    );
+
+    it('responde 416 em JSON, sem os cabeçalhos do arquivo e mantendo o Content-Range, a um Range inválido', async () => {
+      const res = await request(app.getHttpServer())
+        .get(ASSET)
+        .set('Range', 'bytes=99999999-')
+        .expect(416);
+
+      expectGlobalError(
+        res,
+        416,
+        'Requested Range Not Satisfiable',
+        'Intervalo solicitado inválido',
+        ASSET,
+      );
+      expectNoFileHeaders(res);
+      expect(res.headers['content-range']).toMatch(/^bytes \*\/\d+$/);
+    });
+  });
+});
+
 describe('Banco indisponível (e2e)', () => {
   let app: INestApplication<App>;
   let loggerError: ReturnType<typeof vi.spyOn>;
