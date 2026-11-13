@@ -20,8 +20,8 @@ export class PrismaService
   }
 
   /**
-   * Fecha as conexões no app.close() (e no SIGTERM/SIGINT, com o
-   * enableShutdownHooks do main.ts). O pool é criado pelo próprio adapter-pg
+   * Fecha as conexões no app.close() (e nos sinais de encerramento, como
+   * SIGTERM e SIGINT, com o enableShutdownHooks do main.ts). O pool é criado pelo próprio adapter-pg
    * (recebe a configuração, não um pg.Pool), e é o $disconnect que o encerra.
    *
    * É o último hook do Nest: roda depois do beforeApplicationShutdown (que

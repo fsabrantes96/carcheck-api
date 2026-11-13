@@ -3,7 +3,7 @@ import { createApp } from './app.setup.js';
 
 async function bootstrap() {
   const app = await createApp();
-  // No SIGTERM/SIGINT o Nest roda o app.close(), e o PrismaService fecha as
+  // Nos sinais de encerramento (SIGTERM, SIGINT etc.) o Nest roda o app.close(), e o PrismaService fecha as
   // conexões do banco no onApplicationShutdown. Fica só aqui (não no
   // createApp): nos e2e cada app registraria listeners de sinal no processo.
   app.enableShutdownHooks();

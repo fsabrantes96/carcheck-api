@@ -50,13 +50,13 @@ function pgCodeOf(error: unknown): unknown {
 }
 
 /** SQLSTATE do Postgres para deadlock entre transações. */
-export const PG_DEADLOCK_DETECTED = '40P01';
+const PG_DEADLOCK_DETECTED = '40P01';
 
 /** SQLSTATE do Postgres para falha de serialização (isolamento REPEATABLE READ/SERIALIZABLE). */
-export const PG_SERIALIZATION_FAILURE = '40001';
+const PG_SERIALIZATION_FAILURE = '40001';
 
 /** Código do Prisma para conflito de escrita ou deadlock numa transação. */
-export const PRISMA_TRANSACTION_CONFLICT = 'P2034';
+const PRISMA_TRANSACTION_CONFLICT = 'P2034';
 
 const TRANSACTION_CONFLICT_PG_CODES: readonly string[] = [
   PG_DEADLOCK_DETECTED,
