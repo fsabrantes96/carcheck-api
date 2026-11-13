@@ -26,8 +26,20 @@ describe('AppExpressAdapter.mapException', () => {
     expect(adapter.mapException(error)).toBe(error);
   });
 
-  it('mantém o comportamento padrão para SyntaxError que não veio do parser', () => {
-    const mapped = adapter.mapException(new SyntaxError('outro erro'));
+  // Comportamento padrão do Nest (12.5+): só um SyntaxError/URIError com
+  // status 400 vira BadRequestException. Sem status, ele veio do código do
+  // servidor e pode carregar detalhes internos na mensagem, então segue
+  // intacto e o AllExceptionsFilter responde 500 genérico (e registra no log).
+  it('mantém intacto um SyntaxError sem status que não veio do parser', () => {
+    const error = new SyntaxError('outro erro');
+
+    expect(adapter.mapException(error)).toBe(error);
+  });
+
+  it('converte em BadRequestException um SyntaxError com status 400 que não veio do parser', () => {
+    const error = Object.assign(new SyntaxError('outro erro'), { status: 400 });
+
+    const mapped = adapter.mapException(error);
 
     expect(mapped).toBeInstanceOf(BadRequestException);
     expect((mapped as BadRequestException).message).toBe('outro erro');
