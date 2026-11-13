@@ -81,8 +81,9 @@ describe('Parâmetro de rota com codificação inválida (e2e, risco 23)', () =>
     await closeTestApp(app);
   });
 
-  // O router do Express lança URIError com status 400 ao decodificar '%FF';
-  // o ExpressAdapter do Nest (12.5+) o converte em BadRequestException.
+  // O router do Express lança URIError com status 400 ao decodificar '%FF', e
+  // o ExpressAdapter do Nest o converte em BadRequestException (desde a 12.5,
+  // só com status 400; antes, qualquer URIError).
   it('responde 400 no formato global de erro a GET /listings/%FF', async () => {
     const res = await request(app.getHttpServer())
       .get('/listings/%FF')
