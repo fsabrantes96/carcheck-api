@@ -30,8 +30,11 @@ describe('ListListingsQueryDto (limites de entrada)', () => {
     expect(await errorsFor({ [field]: '1000000001' })).toEqual([`${field}:max`]);
   });
 
-  it.each(['minYear', 'maxYear'])('aceita %s de 1950 até o ano que vem', async (field) => {
+  it.each(['minYear', 'maxYear'])('aceita %s = 1950', async (field) => {
     expect(await errorsFor({ [field]: '1950' })).toEqual([]);
+  });
+
+  it.each(['minYear', 'maxYear'])('aceita %s = ano que vem', async (field) => {
     expect(await errorsFor({ [field]: String(nextYear) })).toEqual([]);
   });
 

@@ -51,8 +51,29 @@ describe('CreateInspectorProfileDto (limites de entrada)', () => {
     ]);
   });
 
-  it('continua aceitando basePriceCents = 0 (o mínimo de negócio é aplicado no agendamento)', async () => {
+  it('o DTO aceita basePriceCents = 0 (o mínimo de negócio fica no service)', async () => {
     expect(await errorsFor(CreateInspectorProfileDto, { ...valid, basePriceCents: 0 })).toEqual([]);
+  });
+
+  it('aceita as 7 especialidades (todas as do enum)', async () => {
+    const all = ['ENGINE', 'TRANSMISSION', 'SUSPENSION', 'BRAKES', 'ELECTRICAL', 'BODYWORK', 'AIR_CONDITIONING'];
+
+    expect(await errorsFor(CreateInspectorProfileDto, { ...valid, specialties: all })).toEqual([]);
+  });
+
+  it('rejeita specialties com mais de 7 itens', async () => {
+    const errors = await errorsFor(CreateInspectorProfileDto, {
+      ...valid,
+      specialties: Array.from({ length: 8 }, () => 'ENGINE'),
+    });
+
+    expect(errors).toContain('specialties:arrayMaxSize');
+  });
+
+  it('continua rejeitando especialidades repetidas', async () => {
+    const errors = await errorsFor(CreateInspectorProfileDto, { ...valid, specialties: ['ENGINE', 'ENGINE'] });
+
+    expect(errors).toEqual(['specialties:arrayUnique']);
   });
 });
 

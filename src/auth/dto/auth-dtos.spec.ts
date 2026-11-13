@@ -116,11 +116,14 @@ describe('RegisterDto', () => {
   });
 });
 
-/** E-mail válido com exatamente `length` caracteres (rótulos de até 63). */
+/**
+ * E-mail válido com exatamente `length` caracteres: parte local de 64,
+ * rótulos de domínio de até 63 e o resto num rótulo variável antes do ".com".
+ */
 function emailOfLength(length: number): string {
-  const local = 'a'.repeat(64);
-  const fixed = `${local}@${'b'.repeat(63)}.${'c'.repeat(63)}..com`.length;
-  return `${local}@${'b'.repeat(63)}.${'c'.repeat(63)}.${'d'.repeat(length - fixed)}.com`;
+  // "a"×64 + "@" + "b"×63 + "." + "c"×63 + "." + <variável> + ".com"
+  const fixed = 64 + 1 + 63 + 1 + 63 + 1 + 4;
+  return `${'a'.repeat(64)}@${'b'.repeat(63)}.${'c'.repeat(63)}.${'d'.repeat(length - fixed)}.com`;
 }
 
 describe('LoginDto', () => {

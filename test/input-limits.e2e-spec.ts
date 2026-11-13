@@ -3,6 +3,7 @@ import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import {
   DEFAULT_PASSWORD,
+  ERROR_KEYS,
   hoursFromNow,
   inspectorProfilePayload,
   listingPayload,
@@ -113,6 +114,7 @@ describe('Limites de entrada (e2e)', () => {
 
   describe('texto acima do limite em cada endpoint de escrita', () => {
     it('POST /auth/register com e-mail de 255 caracteres', async () => {
+      // 64 + 1 + 63 + 1 + 63 + 1 + 58 + 4 = 255 (rótulos de domínio de até 63)
       const email = `${'a'.repeat(64)}@${'b'.repeat(63)}.${'c'.repeat(63)}.${'d'.repeat(58)}.com`;
       expect(email).toHaveLength(255);
 
@@ -215,6 +217,44 @@ describe('Limites de entrada (e2e)', () => {
       expectValidation400(res);
       expect(res.body.errors).toEqual(['property padding should not exist']);
     });
+
+    it('um JSON de ~101 KB responde 413 no formato global', async () => {
+      const body = JSON.stringify({ email: 'maria@x.com', password: DEFAULT_PASSWORD, padding: 'x'.repeat(101 * 1024) });
+
+      const res = await request(app.getHttpServer())
+        .post('/auth/login')
+        .set('Content-Type', 'application/json')
+        .send(body)
+        .expect(413);
+
+      expect(res.body).toMatchObject({ statusCode: 413, message: 'Corpo da requisição muito grande' });
+      expect(Object.keys(res.body).sort()).toEqual(ERROR_KEYS);
+    });
+
+    it('um corpo urlencoded de ~101 KB também responde 413 no formato global', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/auth/login')
+        .set('Content-Type', 'application/x-www-form-urlencoded')
+        .send(`email=maria%40x.com&password=${DEFAULT_PASSWORD}&padding=${'x'.repeat(101 * 1024)}`)
+        .expect(413);
+
+      expect(res.body).toMatchObject({ statusCode: 413, message: 'Corpo da requisição muito grande' });
+      expect(Object.keys(res.body).sort()).toEqual(ERROR_KEYS);
+    });
+  });
+
+  describe('arrays', () => {
+    it('POST /inspectors/me com ~20 mil especialidades responde 400 com o teto de itens', async () => {
+      const specialties = Array.from({ length: 20_000 }, (_, i) => i);
+
+      const res = await request(app.getHttpServer())
+        .post('/inspectors/me')
+        .set(auth(user))
+        .send({ ...inspectorProfilePayload, specialties });
+
+      expectValidation400(res);
+      expect(res.body.errors).toContain('specialties must contain no more than 7 elements');
+    });
   });
 
   describe('contrato no /docs-json', () => {
@@ -246,9 +286,15 @@ describe('Limites de entrada (e2e)', () => {
       ['CreateInspectorProfileDto', 'basePriceCents', { minimum: 0, maximum: 500_000 }],
       ['UpdateInspectorProfileDto', 'bio', { maxLength: 2000 }],
       ['UpdateInspectorProfileDto', 'basePriceCents', { maximum: 500_000 }],
+      ['CreateListingDto', 'state', { minLength: 2, maxLength: 2 }],
+      ['CreateInspectorProfileDto', 'specialties', { minItems: 1, maxItems: 7 }],
+      ['CreateInspectorProfileDto', 'serviceRadiusKm', { minimum: 1, maximum: 200 }],
+      ['RegisterDto', 'name', { minLength: 2, maxLength: 100 }],
       ['RegisterDto', 'email', { maxLength: 254 }],
       ['RegisterDto', 'password', { minLength: 8, maxLength: 72 }],
       ['LoginDto', 'email', { maxLength: 254 }],
+      ['LoginDto', 'password', { minLength: 8, maxLength: 72 }],
+      ['ConfirmAppointmentDto', 'meetingAddress', { minLength: 5, maxLength: 300 }],
     ] as const)('%s.%s tem %o', (schema, field, expected) => {
       expect(prop(schema, field)).toMatchObject(expected);
     });
@@ -260,9 +306,20 @@ describe('Limites de entrada (e2e)', () => {
       ['maxPriceCents', { maximum: 1_000_000_000 }],
       ['brand', { maxLength: 100 }],
       ['city', { maxLength: 100 }],
-      ['minYear', { minimum: 1950 }],
+      ['state', { minLength: 2, maxLength: 2 }],
+      ['minYear', { minimum: 1950, maximum: new Date().getFullYear() + 1 }],
+      ['maxYear', { minimum: 1950, maximum: new Date().getFullYear() + 1 }],
     ] as const)('o parâmetro %s de GET /listings tem %o', (name, expected) => {
       const param = doc.paths['/listings'].get.parameters?.find((p) => p.name === name && p.in === 'query');
+
+      expect(param?.schema).toMatchObject(expected);
+    });
+
+    it.each([
+      ['page', { minimum: 1, maximum: 10000 }],
+      ['limit', { minimum: 1, maximum: 50 }],
+    ] as const)('o parâmetro %s de GET /appointments tem %o', (name, expected) => {
+      const param = doc.paths['/appointments'].get.parameters?.find((p) => p.name === name && p.in === 'query');
 
       expect(param?.schema).toMatchObject(expected);
     });
