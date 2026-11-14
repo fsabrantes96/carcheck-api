@@ -433,12 +433,12 @@ describe('ListingsService', () => {
       );
     });
 
-    it('ordena por createdAt desc e inclui seller e vehicle', async () => {
+    it('ordena por createdAt desc, desempata por id desc e inclui seller e vehicle', async () => {
       await service.findAll(query());
 
       expect(findManyArgs()).toEqual(
         expect.objectContaining({
-          orderBy: { createdAt: 'desc' },
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
           include: { seller: true, vehicle: true },
         }),
       );
@@ -522,31 +522,59 @@ describe('ListingsService', () => {
   });
 
   describe('findMine', () => {
-    it('busca os anúncios pelo sellerId, sem os arquivados', async () => {
-      prisma.listing.findMany.mockResolvedValue([]);
+    const WHERE = { sellerId: 'u1', status: { not: 'ARCHIVED' } };
 
-      await service.findMine('u1');
+    beforeEach(() => {
+      prisma.listing.findMany.mockResolvedValue([]);
+      prisma.listing.count.mockResolvedValue(0);
+    });
+
+    it('busca os anúncios do dono, sem os arquivados, paginados e com desempate por id', async () => {
+      await service.findMine('u1', { page: 1, limit: 20 });
 
       expect(prisma.listing.findMany).toHaveBeenCalledWith({
-        where: { sellerId: 'u1', status: { not: 'ARCHIVED' } },
+        where: WHERE,
         include: { seller: true, vehicle: true },
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        skip: 0,
+        take: 20,
       });
     });
 
-    it('mapeia cada anúncio para ListingResponseDto', async () => {
+    it('calcula o skip a partir de page e limit', async () => {
+      await service.findMine('u1', { page: 3, limit: 2 });
+
+      expect(prisma.listing.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ skip: 4, take: 2 }),
+      );
+    });
+
+    it('conta com o mesmo where do findMany, na mesma transação', async () => {
+      await service.findMine('u1', { page: 1, limit: 20 });
+
+      expect(prisma.listing.count).toHaveBeenCalledWith({ where: WHERE });
+      expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    });
+
+    it('devolve { items, total, page, limit } com cada anúncio como MyListingResponseDto', async () => {
       prisma.listing.findMany.mockResolvedValue([
         listingEntity(),
         listingEntity({ id: 'l2', status: 'PAUSED' }),
       ]);
+      prisma.listing.count.mockResolvedValue(7);
 
-      const result = await service.findMine('u1');
+      const result = await service.findMine('u1', { page: 2, limit: 2 });
 
-      expect(result).toEqual([
-        expect.any(ListingResponseDto),
-        expect.any(ListingResponseDto),
-      ]);
-      expect(result.map((item) => item.id)).toEqual(['l1', 'l2']);
+      expect(result).toEqual({
+        items: [
+          expect.any(MyListingResponseDto),
+          expect.any(MyListingResponseDto),
+        ],
+        total: 7,
+        page: 2,
+        limit: 2,
+      });
+      expect(result.items.map((item) => item.id)).toEqual(['l1', 'l2']);
     });
   });
 
@@ -752,8 +780,11 @@ describe('ListingsService', () => {
       prisma.listing.findMany.mockResolvedValue([
         listingEntity({ status: 'PAUSED' }),
       ]);
+      prisma.listing.count.mockResolvedValue(1);
 
-      const [item] = await service.findMine('u1');
+      const {
+        items: [item],
+      } = await service.findMine('u1', { page: 1, limit: 20 });
 
       expect(item).toBeInstanceOf(MyListingResponseDto);
       expect(item.status).toBe('PAUSED');
