@@ -4,6 +4,7 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { ErrorCode, withCode } from '../common/errors/error-code.js';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import {
@@ -37,7 +38,7 @@ export class AuthService {
     const exists = await this.prisma.user.findUnique({
       where: { email: dto.email },
     });
-    if (exists) throw new ConflictException('E-mail já cadastrado');
+    if (exists) throw new ConflictException(withCode(ErrorCode.EMAIL_ALREADY_REGISTERED, 'E-mail já cadastrado'));
 
     const passwordHash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
     let user;
@@ -48,7 +49,7 @@ export class AuthService {
     } catch (error) {
       // Corrida: outra requisição criou o mesmo e-mail depois da checagem.
       if (isPrismaError(error, PRISMA_UNIQUE_VIOLATION)) {
-        throw new ConflictException('E-mail já cadastrado');
+        throw new ConflictException(withCode(ErrorCode.EMAIL_ALREADY_REGISTERED, 'E-mail já cadastrado'));
       }
       throw error;
     }
@@ -64,12 +65,12 @@ export class AuthService {
     if (!user) {
       // Tempo constante: compara com o hash fixo e descarta o resultado.
       await bcrypt.compare(dto.password, DUMMY_HASH);
-      throw new UnauthorizedException('E-mail ou senha inválidos');
+      throw new UnauthorizedException(withCode(ErrorCode.INVALID_CREDENTIALS, 'E-mail ou senha inválidos'));
     }
 
     const passwordOk = await bcrypt.compare(dto.password, user.passwordHash);
     if (!passwordOk) {
-      throw new UnauthorizedException('E-mail ou senha inválidos');
+      throw new UnauthorizedException(withCode(ErrorCode.INVALID_CREDENTIALS, 'E-mail ou senha inválidos'));
     }
 
     const payload: JwtPayload = { sub: user.id, email: user.email };
@@ -80,7 +81,7 @@ export class AuthService {
 
   async me(userId: string): Promise<UserResponseDto> {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user) throw new NotFoundException('Usuário não encontrado');
+    if (!user) throw new NotFoundException(withCode(ErrorCode.USER_NOT_FOUND, 'Usuário não encontrado'));
     return UserResponseDto.from(user);
   }
 }

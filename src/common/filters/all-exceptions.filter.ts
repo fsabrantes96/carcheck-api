@@ -152,7 +152,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     if (isPgError(exception, PG_EXCLUSION_VIOLATION)) {
       return {
         statusCode: HttpStatus.CONFLICT,
-        code: ErrorCode.CONFLICT,
+        code: ErrorCode.SLOT_UNAVAILABLE,
         message: EXCLUSION_VIOLATION_MESSAGE,
       };
     }

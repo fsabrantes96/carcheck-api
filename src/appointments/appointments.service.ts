@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { CLOCK } from '../common/clock/clock.js';
 import type { Clock } from '../common/clock/clock.js';
+import { ErrorCode, withCode } from '../common/errors/error-code.js';
 import { splitPlatformFee } from '../common/money/platform-fee.js';
 import { isUniqueViolationOn } from '../common/prisma/prisma-errors.js';
 import { BUSINESS_RULES } from '../config/business-rules.js';
@@ -90,7 +91,10 @@ export class AppointmentsService {
     // O @IsISO8601 aceita formatos (semana, dia ordinal) que o Date não entende.
     if (Number.isNaN(startsAt.getTime())) {
       throw new BadRequestException(
-        'startsAt inválido: use data e hora no formato aaaa-mm-ddThh:mm:ss com fuso (Z ou ±hh:mm)',
+        withCode(
+          ErrorCode.INVALID_SCHEDULE,
+          'startsAt inválido: use data e hora no formato aaaa-mm-ddThh:mm:ss com fuso (Z ou ±hh:mm)',
+        ),
       );
     }
     this.assertSchedulingWindow(now, startsAt);
@@ -104,25 +108,33 @@ export class AppointmentsService {
           FROM "Listing" WHERE "id" = ${dto.listingId}
           FOR SHARE`;
         if (!listing || listing.status !== 'ACTIVE') {
-          throw new NotFoundException('Anúncio não encontrado');
+          throw new NotFoundException(withCode(ErrorCode.LISTING_NOT_FOUND, 'Anúncio não encontrado'));
         }
         if (listing.sellerId === buyerId) {
-          throw new ForbiddenException('Você não pode agendar avaliação do seu próprio anúncio');
+          throw new ForbiddenException(
+            withCode(ErrorCode.FORBIDDEN, 'Você não pode agendar avaliação do seu próprio anúncio'),
+          );
         }
 
         const inspector = await tx.inspectorProfile.findFirst({
           where: { id: dto.inspectorProfileId, verified: true },
           select: { userId: true, basePriceCents: true },
         });
-        if (!inspector) throw new NotFoundException('Avaliador não encontrado');
+        if (!inspector) throw new NotFoundException(withCode(ErrorCode.INSPECTOR_NOT_FOUND, 'Avaliador não encontrado'));
         if (inspector.userId === buyerId) {
-          throw new ForbiddenException('Você não pode agendar uma avaliação consigo mesmo');
+          throw new ForbiddenException(
+            withCode(ErrorCode.FORBIDDEN, 'Você não pode agendar uma avaliação consigo mesmo'),
+          );
         }
         if (inspector.userId === listing.sellerId) {
-          throw new ConflictException('Este avaliador não está disponível para este anúncio');
+          throw new ConflictException(
+            withCode(ErrorCode.INSPECTOR_UNAVAILABLE, 'Este avaliador não está disponível para este anúncio'),
+          );
         }
         if (inspector.basePriceCents < this.rules.minInspectionPriceCents) {
-          throw new ConflictException('Este avaliador está indisponível no momento');
+          throw new ConflictException(
+            withCode(ErrorCode.INSPECTOR_UNAVAILABLE, 'Este avaliador está indisponível no momento'),
+          );
         }
 
         // Pedido duplicado antes do horário: com um pedido em andamento, a
@@ -137,7 +149,7 @@ export class AppointmentsService {
           },
           select: { id: true },
         });
-        if (duplicate) throw new ConflictException(DUPLICATE_MESSAGE);
+        if (duplicate) throw new ConflictException(withCode(ErrorCode.APPOINTMENT_DUPLICATE, DUPLICATE_MESSAGE));
 
         // Checagem branda: a garantia é a exclusion constraint, aplicada no
         // aceite. PAID ocupa sempre; ACCEPTED/AWAITING_PAYMENT só se não venceram.
@@ -153,7 +165,11 @@ export class AppointmentsService {
           },
           select: { id: true },
         });
-        if (busy) throw new ConflictException('O avaliador não está disponível nesse horário');
+        if (busy) {
+          throw new ConflictException(
+            withCode(ErrorCode.SLOT_UNAVAILABLE, 'O avaliador não está disponível nesse horário'),
+          );
+        }
 
         const fee = splitPlatformFee(inspector.basePriceCents, this.rules.platformFeeBps);
         const created = await tx.appointment.create({
@@ -177,7 +193,7 @@ export class AppointmentsService {
       });
     } catch (error) {
       if (isUniqueViolationOn(error, APPOINTMENT_OPEN_TRIPLET_INDEX)) {
-        throw new ConflictException(DUPLICATE_MESSAGE);
+        throw new ConflictException(withCode(ErrorCode.APPOINTMENT_DUPLICATE, DUPLICATE_MESSAGE));
       }
       throw error;
     }
@@ -232,7 +248,7 @@ export class AppointmentsService {
       include: APPOINTMENT_INCLUDE,
     });
     const role = appointment && participantOf(appointment, userId);
-    if (!appointment || !role) throw new NotFoundException(NOT_FOUND_MESSAGE);
+    if (!appointment || !role) throw new NotFoundException(withCode(ErrorCode.APPOINTMENT_NOT_FOUND, NOT_FOUND_MESSAGE));
     return appointmentResponseFor(role, appointment);
   }
 
@@ -247,7 +263,9 @@ export class AppointmentsService {
         select: { verified: true },
       });
       if (!profile?.verified) {
-        throw new ConflictException('Seu perfil de avaliador precisa estar verificado para aceitar');
+        throw new ConflictException(
+          withCode(ErrorCode.INSPECTOR_NOT_VERIFIED, 'Seu perfil de avaliador precisa estar verificado para aceitar'),
+        );
       }
 
       // Libera horários presos por agendamentos do mesmo avaliador que já
@@ -328,13 +346,15 @@ export class AppointmentsService {
       },
     });
     const role = snapshot && participantOf(snapshot, userId);
-    if (!snapshot || !role) throw new NotFoundException(NOT_FOUND_MESSAGE);
+    if (!snapshot || !role) throw new NotFoundException(withCode(ErrorCode.APPOINTMENT_NOT_FOUND, NOT_FOUND_MESSAGE));
 
     const decision = decide(role, action as AppointmentAction, snapshot.status);
     if (!decision.ok) {
       throw decision.reason === 'FORBIDDEN_ACTOR'
-        ? new ForbiddenException(`Você não pode ${ACTION_VERB[action]} este agendamento`)
-        : new ConflictException('Ação não permitida no estado atual');
+        ? new ForbiddenException(
+            withCode(ErrorCode.FORBIDDEN, `Você não pode ${ACTION_VERB[action]} este agendamento`),
+          )
+        : new ConflictException(withCode(ErrorCode.INVALID_STATE, 'Ação não permitida no estado atual'));
     }
 
     if (isDue(snapshot.status, snapshot.expiresAt, now)) {
@@ -342,7 +362,7 @@ export class AppointmentsService {
         where: { id, ...dueWhere(now, snapshot.status) },
         data: expiredData(now),
       });
-      throw new ConflictException('O prazo para esta ação expirou');
+      throw new ConflictException(withCode(ErrorCode.APPOINTMENT_EXPIRED, 'O prazo para esta ação expirou'));
     }
 
     return { snapshot, now, role };
@@ -367,7 +387,9 @@ export class AppointmentsService {
       data,
     });
     if (count === 0) {
-      throw new ConflictException('O agendamento mudou de estado; recarregue e tente novamente');
+      throw new ConflictException(
+        withCode(ErrorCode.STATE_CHANGED, 'O agendamento mudou de estado; recarregue e tente novamente'),
+      );
     }
   }
 
@@ -380,14 +402,20 @@ export class AppointmentsService {
     const minNoticeHours = this.rules.appointmentMinNoticeHours;
     if (startsAt.getTime() < now.getTime() + minNoticeHours * HOUR_MS) {
       throw new BadRequestException(
-        minNoticeHours === 0
-          ? 'O horário do agendamento precisa estar no futuro'
-          : `O agendamento precisa de pelo menos ${minNoticeHours} ${minNoticeHours === 1 ? 'hora' : 'horas'} de antecedência`,
+        withCode(
+          ErrorCode.INVALID_SCHEDULE,
+          minNoticeHours === 0
+            ? 'O horário do agendamento precisa estar no futuro'
+            : `O agendamento precisa de pelo menos ${minNoticeHours} ${minNoticeHours === 1 ? 'hora' : 'horas'} de antecedência`,
+        ),
       );
     }
     if (startsAt.getTime() > now.getTime() + MAX_ADVANCE_DAYS * DAY_MS) {
       throw new BadRequestException(
-        `O agendamento pode ser feito com no máximo ${MAX_ADVANCE_DAYS} dias de antecedência`,
+        withCode(
+          ErrorCode.INVALID_SCHEDULE,
+          `O agendamento pode ser feito com no máximo ${MAX_ADVANCE_DAYS} dias de antecedência`,
+        ),
       );
     }
   }

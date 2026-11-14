@@ -12,7 +12,7 @@ export class ErrorResponseDto {
   @ApiProperty({
     enum: ERROR_CODES,
     enumName: 'ErrorCode',
-    example: 'NOT_FOUND',
+    example: 'LISTING_NOT_FOUND',
     description:
       'Código do erro, estável e legível por máquina. O cliente decide por ele, não pela mensagem, que é texto para pessoas e pode mudar.',
   })

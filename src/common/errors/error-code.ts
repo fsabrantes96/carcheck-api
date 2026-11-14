@@ -27,6 +27,31 @@ export const ErrorCode = {
   RANGE_NOT_SATISFIABLE: 'RANGE_NOT_SATISFIABLE',
   TOO_MANY_REQUESTS: 'TOO_MANY_REQUESTS',
   INTERNAL_ERROR: 'INTERNAL_ERROR',
+
+  // De domínio: nascem nos services, quando o front precisa distinguir o caso.
+  INVALID_CREDENTIALS: 'INVALID_CREDENTIALS',
+  EMAIL_ALREADY_REGISTERED: 'EMAIL_ALREADY_REGISTERED',
+  USER_NOT_FOUND: 'USER_NOT_FOUND',
+  LISTING_NOT_FOUND: 'LISTING_NOT_FOUND',
+  INSPECTOR_NOT_FOUND: 'INSPECTOR_NOT_FOUND',
+  INSPECTOR_PROFILE_NOT_FOUND: 'INSPECTOR_PROFILE_NOT_FOUND',
+  APPOINTMENT_NOT_FOUND: 'APPOINTMENT_NOT_FOUND',
+  INSPECTOR_PROFILE_EXISTS: 'INSPECTOR_PROFILE_EXISTS',
+  /** Ação não permitida no estado atual (anúncio ou agendamento). */
+  INVALID_STATE: 'INVALID_STATE',
+  /** O prazo da ação no agendamento venceu (o agendamento virou EXPIRED). */
+  APPOINTMENT_EXPIRED: 'APPOINTMENT_EXPIRED',
+  /** Corrida: o estado mudou entre a leitura e a gravação; recarregar. */
+  STATE_CHANGED: 'STATE_CHANGED',
+  LISTING_HAS_PAID_APPOINTMENT: 'LISTING_HAS_PAID_APPOINTMENT',
+  APPOINTMENT_DUPLICATE: 'APPOINTMENT_DUPLICATE',
+  /** Horário do avaliador ocupado (checagem ou exclusion constraint). */
+  SLOT_UNAVAILABLE: 'SLOT_UNAVAILABLE',
+  INSPECTOR_UNAVAILABLE: 'INSPECTOR_UNAVAILABLE',
+  INSPECTOR_NOT_VERIFIED: 'INSPECTOR_NOT_VERIFIED',
+  PRICE_BELOW_MINIMUM: 'PRICE_BELOW_MINIMUM',
+  /** startsAt inválido, sem a antecedência mínima ou além do horizonte. */
+  INVALID_SCHEDULE: 'INVALID_SCHEDULE',
 } as const;
 
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];
