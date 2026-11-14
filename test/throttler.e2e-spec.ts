@@ -45,4 +45,24 @@ describe('Rate limit real de POST /auth/login (e2e)', () => {
     });
     expect(Object.keys(res.body).sort()).toEqual(ERROR_KEYS);
   });
+
+  it('responde o 429 com o code TOO_MANY_REQUESTS, no-store e o Retry-After', async () => {
+    const server = app.getHttpServer();
+    const body = { email: 'ninguem@x.com', password: DEFAULT_PASSWORD };
+    for (let n = 0; n < 5; n++) {
+      await request(server).post('/auth/login').send(body);
+    }
+
+    const res = await request(server).post('/auth/login').send(body);
+
+    expect(res.status).toBe(429);
+    expect(res.body).toMatchObject({
+      statusCode: 429,
+      code: 'TOO_MANY_REQUESTS',
+      message: 'Muitas requisições. Tente novamente em instantes.',
+    });
+    expect(res.headers['cache-control']).toBe('no-store');
+    expect(res.headers['content-type']).toBe('application/json; charset=utf-8');
+    expect(Number(res.headers['retry-after'])).toBeGreaterThan(0);
+  });
 });

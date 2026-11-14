@@ -74,6 +74,16 @@ describe('rejectUnsupportedContentType', () => {
     },
   );
 
+  it('passa o 415 com o code UNSUPPORTED_MEDIA_TYPE', () => {
+    const { next } = run({ 'content-length': '1', 'content-type': 'text/plain' }, false);
+
+    const error = next.mock.calls[0][0] as UnsupportedMediaTypeException;
+    expect(error.getResponse()).toEqual({
+      code: 'UNSUPPORTED_MEDIA_TYPE',
+      message: 'Formato da requisição não suportado',
+    });
+  });
+
   it('não responde sozinho: só chama next', () => {
     const res = { status: vi.fn(), json: vi.fn(), send: vi.fn(), end: vi.fn() };
     const next = vi.fn();

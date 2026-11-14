@@ -672,6 +672,118 @@ describe('AllExceptionsFilter', () => {
     });
   });
 
+  describe('code do erro', () => {
+    it.each([
+      ['400', new BadRequestException('x'), 'BAD_REQUEST'],
+      ['401', new HttpException('x', 401), 'UNAUTHENTICATED'],
+      ['403', new HttpException('x', 403), 'FORBIDDEN'],
+      ['404', new NotFoundException('x'), 'NOT_FOUND'],
+      ['409', new HttpException('x', 409), 'CONFLICT'],
+      ['412', new HttpException('x', 412), 'PRECONDITION_FAILED'],
+      ['413', new HttpException('x', 413), 'PAYLOAD_TOO_LARGE'],
+      ['415', new HttpException('x', 415), 'UNSUPPORTED_MEDIA_TYPE'],
+      ['416', new HttpException('x', 416), 'RANGE_NOT_SATISFIABLE'],
+      ['429 do throttler', new ThrottlerException('Muitas requisições.'), 'TOO_MANY_REQUESTS'],
+      ['4xx fora do mapa', new HttpException('x', 418), 'BAD_REQUEST'],
+    ])('usa o code padrão do status numa HttpException sem code (%s)', (_caso, exception, code) => {
+      const { body } = run(exception);
+
+      expect(body.code).toBe(code);
+    });
+
+    it('usa o code que veio no corpo da exceção', () => {
+      const { body } = run(
+        new BadRequestException({ code: 'INVALID_ID', message: 'Identificador inválido' }),
+      );
+
+      expect(body).toMatchObject({
+        statusCode: 400,
+        code: 'INVALID_ID',
+        message: 'Identificador inválido',
+      });
+    });
+
+    it('ignora um code que não está no enum e usa o padrão do status', () => {
+      const { body } = run(
+        new HttpException({ code: 'INVENTADO', message: 'x' }, 409),
+      );
+
+      expect(body.code).toBe('CONFLICT');
+    });
+
+    it('responde VALIDATION_FAILED ao 400 do ValidationPipe', () => {
+      const { body } = run(
+        new BadRequestException(['email must be an email']),
+      );
+
+      expect(body).toMatchObject({
+        code: 'VALIDATION_FAILED',
+        message: 'Dados inválidos',
+        errors: ['email must be an email'],
+      });
+    });
+
+    it.each([
+      ['entity.too.large', 413, 'PAYLOAD_TOO_LARGE'],
+      ['parameters.too.many', 413, 'PAYLOAD_TOO_LARGE'],
+      ['entity.parse.failed', 400, 'INVALID_BODY'],
+      ['querystring.parse.rangeError', 400, 'INVALID_BODY'],
+      ['encoding.unsupported', 415, 'UNSUPPORTED_MEDIA_TYPE'],
+      ['charset.unsupported', 415, 'UNSUPPORTED_MEDIA_TYPE'],
+      ['request.aborted', 400, 'BAD_REQUEST'],
+    ])('responde o code %s → %i %s nos 4xx do body-parser', (type, status, code) => {
+      const { body } = run(bodyParserError(type, status, 'mensagem crua'));
+
+      expect(body.statusCode).toBe(status);
+      expect(body.code).toBe(code);
+    });
+
+    it.each([
+      ['P2002', 'CONFLICT'],
+      ['P2003', 'CONFLICT'],
+      ['P2025', 'NOT_FOUND'],
+    ])('responde o code %s → %s nos erros mapeados do Prisma', (prismaCode, code) => {
+      const { body } = run(prismaError(prismaCode));
+
+      expect(body.code).toBe(code);
+    });
+
+    it('responde TRANSACTION_CONFLICT ao deadlock', () => {
+      vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+
+      const { body } = run(deadlockFromRawQuery());
+
+      expect(body).toMatchObject({ statusCode: 409, code: 'TRANSACTION_CONFLICT' });
+    });
+
+    it('responde INTERNAL_ERROR ao erro não tratado', () => {
+      const { body } = run(new Error('falhou'));
+
+      expect(body).toMatchObject({ statusCode: 500, code: 'INTERNAL_ERROR' });
+    });
+
+    it('põe o code logo depois do statusCode no corpo', () => {
+      const { body } = run(new NotFoundException('x'));
+
+      expect(Object.keys(body).slice(0, 2)).toEqual(['statusCode', 'code']);
+    });
+
+    it.each([
+      ['string lançada', 'falhou'],
+      ['null', null],
+      ['objeto qualquer', { status: 404 }],
+      ['HttpException com corpo sem mensagem', new HttpException({}, 400)],
+      ['5xx do body-parser', bodyParserError('stream.not.readable', 500, 'x')],
+      ['erro do Prisma não mapeado', prismaError('P2000')],
+      ['violação de exclusion constraint', exclusionViolationFromModelQuery()],
+    ])('nenhum erro sai sem code (%s)', (_caso, exception) => {
+      const { body } = run(exception);
+
+      expect(typeof body.code).toBe('string');
+      expect(body.code).toMatch(/^[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$/);
+    });
+  });
+
   describe('erro genérico', () => {
     it('responde 500 sem vazar a mensagem nem a stack e registra no Logger', () => {
       const exception = new Error('senha do banco: xyz');

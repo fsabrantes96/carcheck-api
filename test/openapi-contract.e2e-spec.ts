@@ -70,6 +70,30 @@ describe('Contrato OpenAPI (e2e)', () => {
     expect(doc).toEqual(versioned);
   });
 
+  describe('code do erro', () => {
+    it('o ErrorResponseDto tem code obrigatório, referenciando o enum nomeado ErrorCode', () => {
+      const error = doc.components.schemas.ErrorResponseDto;
+
+      expect(error.properties?.code).toEqual({
+        $ref: '#/components/schemas/ErrorCode',
+      });
+      expect(error.required).toContain('code');
+    });
+
+    it('o ErrorCode é um enum de strings em SCREAMING_SNAKE_CASE', () => {
+      const errorCode = doc.components.schemas.ErrorCode;
+
+      expect(errorCode.type).toBe('string');
+      expect(Array.isArray(errorCode.enum)).toBe(true);
+      for (const value of errorCode.enum as string[]) {
+        expect(value).toMatch(/^[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$/);
+      }
+      expect(errorCode.enum).toEqual(
+        expect.arrayContaining(['VALIDATION_FAILED', 'ROUTE_NOT_FOUND', 'INTERNAL_ERROR']),
+      );
+    });
+  });
+
   describe('erros que valem para toda rota', () => {
     it('toda operação documenta 429 (limite global do throttler) e 500, no formato de erro', () => {
       for (const [name, operation] of operations(doc)) {

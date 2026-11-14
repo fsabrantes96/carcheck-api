@@ -317,6 +317,21 @@ describe('Banco indisponível (e2e)', () => {
       expect.stringMatching(/ECONNREFUSED|127\.0\.0\.1|connect/i),
     );
   });
+
+  it('responde o 500 com o code INTERNAL_ERROR e no-store', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email: 'maria@x.com', password: DEFAULT_PASSWORD })
+      .expect(500);
+
+    expect(res.body).toMatchObject({
+      statusCode: 500,
+      code: 'INTERNAL_ERROR',
+      message: 'Erro interno do servidor',
+    });
+    expect(res.headers['cache-control']).toBe('no-store');
+    expect(res.headers['content-type']).toBe('application/json; charset=utf-8');
+  });
 });
 
 describe('Contrato de erros da camada HTTP (e2e, fix/error-contract)', () => {

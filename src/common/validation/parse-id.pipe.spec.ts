@@ -20,6 +20,15 @@ describe('parseIdPipe', () => {
     },
   );
 
+  it('responde o code INVALID_ID', async () => {
+    const error = await parseIdPipe.transform('abc', metadata).catch((e: unknown) => e);
+
+    expect((error as BadRequestException).getResponse()).toEqual({
+      code: 'INVALID_ID',
+      message: 'Identificador inválido',
+    });
+  });
+
   it('não usa a mensagem padrão do Nest, em inglês', async () => {
     const error = await parseIdPipe.transform('abc', metadata).catch((e: unknown) => e);
 

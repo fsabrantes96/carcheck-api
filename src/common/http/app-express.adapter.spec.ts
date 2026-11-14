@@ -264,3 +264,58 @@ describe('AppExpressAdapter.setNotFoundHandler (risco 68)', () => {
     expect(adapter.mapException(error)).toBe(error);
   });
 });
+
+describe('AppExpressAdapter: code dos erros da camada do Express', () => {
+  const adapter = new AppExpressAdapter();
+
+  function codeOf(error: unknown): unknown {
+    const mapped = adapter.mapException(error) as HttpException;
+    return (mapped.getResponse() as { code?: unknown }).code;
+  }
+
+  it('responde INVALID_URL_PARAM ao URIError do router', () => {
+    expect(
+      codeOf(Object.assign(new URIError("Failed to decode param '%FF'"), { status: 400 })),
+    ).toBe('INVALID_URL_PARAM');
+  });
+
+  it('responde INVALID_BODY ao erro de descompressão', () => {
+    expect(codeOf(decompressionError('Z_DATA_ERROR', 'incorrect header check'))).toBe(
+      'INVALID_BODY',
+    );
+  });
+
+  it.each([
+    [400, 'BAD_REQUEST'],
+    [403, 'FORBIDDEN'],
+    [404, 'NOT_FOUND'],
+    [405, 'METHOD_NOT_ALLOWED'],
+    [412, 'PRECONDITION_FAILED'],
+    [413, 'PAYLOAD_TOO_LARGE'],
+    [415, 'UNSUPPORTED_MEDIA_TYPE'],
+    [416, 'RANGE_NOT_SATISFIABLE'],
+    [418, 'BAD_REQUEST'],
+  ])('responde ao http-error %i com o code %s', (status, code) => {
+    expect(codeOf(httpError(status, 'texto cru'))).toBe(code);
+  });
+
+  it('responde ROUTE_NOT_FOUND à rota inexistente', () => {
+    const local = new AppExpressAdapter();
+    const use = vi.spyOn(local, 'use').mockReturnValue(undefined);
+    local.setNotFoundHandler(vi.fn());
+    const middleware = use.mock.calls[0][0] as (
+      req: unknown,
+      res: unknown,
+      next: (error?: unknown) => void,
+    ) => void;
+    const next = vi.fn();
+
+    middleware({ originalUrl: '/nao-existe', method: 'GET' }, {}, next);
+
+    const error = next.mock.calls[0][0] as NotFoundException;
+    expect(error.getResponse()).toEqual({
+      code: 'ROUTE_NOT_FOUND',
+      message: 'Rota não encontrada',
+    });
+  });
+});
