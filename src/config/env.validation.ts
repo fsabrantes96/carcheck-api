@@ -1,5 +1,5 @@
 /**
- * Validação das variáveis de ambiente das regras de negócio e dos jobs, feita no boot
+ * Validação das variáveis de ambiente das regras de negócio, dos jobs e da documentação, feita no boot
  * pelo ConfigModule (opção `validate`). Se algo estiver errado, a aplicação
  * não sobe e a mensagem diz exatamente o que configurar.
  */
@@ -67,6 +67,19 @@ export interface JobsEnv {
 const JOBS_ENABLED_DEFAULT = true;
 const JOBS_ENABLED_HINT = 'liga os jobs agendados, true ou false (padrão true)';
 
+/** Variável da documentação servida pela instância, já convertida. */
+export interface DocsEnv {
+  /**
+   * Serve o Swagger UI (/docs) e o JSON do OpenAPI (/docs-json). Padrão
+   * true; desligar em produção (risco 61). Não afeta o openapi.json.
+   */
+  DOCS_ENABLED: boolean;
+}
+
+const DOCS_ENABLED_DEFAULT = true;
+const DOCS_ENABLED_HINT =
+  'liga o Swagger UI (/docs) e o JSON do OpenAPI (/docs-json), true ou false (padrão true; desligue em produção)';
+
 /**
  * Lê um boolean do ambiente: ausente ou vazio → `fallback`; "true"/"false"
  * sem diferenciar maiúsculas e com espaços em volta; boolean já convertido
@@ -92,6 +105,15 @@ export function isJobsEnabled(env: Record<string, unknown>): boolean {
   return parseBoolean(env.JOBS_ENABLED, JOBS_ENABLED_DEFAULT) === true;
 }
 
+/**
+ * A documentação (/docs, /docs-json) é servida? Mesma leitura do validateEnv;
+ * é lida do process.env no configureApp. Valor inválido não liga (falha
+ * fechada), mas nem chega aqui: o validateEnv já derrubou o boot.
+ */
+export function isDocsEnabled(env: Record<string, unknown>): boolean {
+  return parseBoolean(env.DOCS_ENABLED, DOCS_ENABLED_DEFAULT) === true;
+}
+
 function parseInteger(raw: unknown): number | undefined {
   if (typeof raw === 'number') return Number.isSafeInteger(raw) ? raw : undefined;
   if (typeof raw !== 'string') return undefined;
@@ -108,9 +130,9 @@ function parseInteger(raw: unknown): number | undefined {
  */
 export function validateEnv(
   config: Record<string, unknown>,
-): Record<string, unknown> & BusinessEnv & JobsEnv {
+): Record<string, unknown> & BusinessEnv & JobsEnv & DocsEnv {
   const problems: string[] = [];
-  const parsed = {} as BusinessEnv & JobsEnv;
+  const parsed = {} as BusinessEnv & JobsEnv & DocsEnv;
 
   for (const [name, rule] of Object.entries(RULES) as [keyof BusinessEnv, IntRule][]) {
     const raw = config[name];
@@ -138,6 +160,13 @@ export function validateEnv(
     problems.push(`JOBS_ENABLED inválida (recebido: ${JSON.stringify(config.JOBS_ENABLED)}): ${JOBS_ENABLED_HINT}.`);
   } else {
     parsed.JOBS_ENABLED = jobsEnabled;
+  }
+
+  const docsEnabled = parseBoolean(config.DOCS_ENABLED, DOCS_ENABLED_DEFAULT);
+  if (docsEnabled === undefined) {
+    problems.push(`DOCS_ENABLED inválida (recebido: ${JSON.stringify(config.DOCS_ENABLED)}): ${DOCS_ENABLED_HINT}.`);
+  } else {
+    parsed.DOCS_ENABLED = docsEnabled;
   }
 
   if (problems.length > 0) {
