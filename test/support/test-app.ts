@@ -36,6 +36,11 @@ export interface TestAppOptions {
   realThrottler?: boolean;
   /** Sobrescritas extras do módulo (ex.: um PrismaService que falha). */
   configure?: (builder: TestingModuleBuilder) => TestingModuleBuilder;
+  /**
+   * Roda depois do configureApp e antes do init (ex.: um middleware Express
+   * só do teste, que precisa ficar antes das rotas e do handler de 404).
+   */
+  beforeInit?: (app: INestApplication<App>) => void;
 }
 
 /**
@@ -59,6 +64,7 @@ export async function createTestApp(
   const app =
     moduleRef.createNestApplication<INestApplication<App>>(createHttpAdapter());
   configureApp(app);
+  options.beforeInit?.(app);
   await app.init();
   return app;
 }

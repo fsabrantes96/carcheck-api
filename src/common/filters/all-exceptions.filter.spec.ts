@@ -50,6 +50,8 @@ function createHost(
     status: vi.fn().mockReturnThis(),
     json: vi.fn(),
     removeHeader: vi.fn(),
+    setHeader: vi.fn(),
+    destroy: vi.fn(),
     headersSent,
   };
   const host = {
@@ -491,8 +493,38 @@ describe('AllExceptionsFilter', () => {
         HttpStatus.UNSUPPORTED_MEDIA_TYPE,
       );
       expect(body.error).toBe('Unsupported Media Type');
-      expect(body.message).toBe('Requisição inválida');
+      expect(body.message).toBe('Formato da requisição não suportado');
       expect(JSON.stringify(body)).not.toContain('encoding');
+    });
+
+    it('responde 415 "Formato da requisição não suportado" a um charset não suportado', () => {
+      const { response, body } = run(
+        bodyParserError('charset.unsupported', 415, 'unsupported charset "LATIN9"'),
+      );
+
+      expect(response.status).toHaveBeenCalledWith(
+        HttpStatus.UNSUPPORTED_MEDIA_TYPE,
+      );
+      expect(body.message).toBe('Formato da requisição não suportado');
+      expect(JSON.stringify(body)).not.toContain('LATIN9');
+    });
+
+    it('responde 413 "Corpo da requisição muito grande" a parâmetros demais no urlencoded', () => {
+      const { response, body } = run(
+        bodyParserError('parameters.too.many', 413, 'too many parameters'),
+      );
+
+      expect(response.status).toHaveBeenCalledWith(HttpStatus.PAYLOAD_TOO_LARGE);
+      expect(body.message).toBe('Corpo da requisição muito grande');
+    });
+
+    it('usa a mensagem padrão do status num 4xx do parser sem mensagem própria', () => {
+      const { response, body } = run(
+        bodyParserError('request.aborted', 400, 'request aborted'),
+      );
+
+      expect(response.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
+      expect(body.message).toBe('Requisição inválida');
     });
 
     it('não registra no Logger.error os 4xx do parser', () => {
@@ -572,6 +604,70 @@ describe('AllExceptionsFilter', () => {
       new AllExceptionsFilter().catch(new NotFoundException('x'), host);
 
       expect(response.removeHeader).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Cache-Control das respostas de erro', () => {
+    it.each([
+      ['HttpException', new NotFoundException('Anúncio não encontrado')],
+      ['429 do throttler', new ThrottlerException('Muitas requisições.')],
+      ['4xx do body-parser', bodyParserError('entity.too.large', 413, 'x')],
+      ['erro de Prisma mapeado', prismaError('P2002')],
+      ['erro não tratado (500)', new Error('falhou')],
+    ])('grava Cache-Control: no-store em %s', (_caso, exception) => {
+      const { response } = run(exception);
+
+      expect(response.setHeader).toHaveBeenCalledWith('Cache-Control', 'no-store');
+    });
+
+    it('grava o no-store depois de remover os cabeçalhos do arquivo e antes do json', () => {
+      const { response } = run(new HttpException('x', 412));
+
+      const setOrder = response.setHeader.mock.invocationCallOrder[0];
+      expect(setOrder).toBeGreaterThan(
+        Math.max(...response.removeHeader.mock.invocationCallOrder),
+      );
+      expect(setOrder).toBeLessThan(response.json.mock.invocationCallOrder[0]);
+    });
+  });
+
+  describe('cabeçalhos já enviados (risco 69)', () => {
+    function runAfterHeadersSent(exception: unknown) {
+      const { host, response } = createHost('/docs/swagger-ui.css', 'GET', true);
+      new AllExceptionsFilter().catch(exception, host);
+      return response;
+    }
+
+    it('não chama status nem json, que lançariam ERR_HTTP_HEADERS_SENT', () => {
+      const response = runAfterHeadersSent(new Error('falha no meio do stream'));
+
+      expect(response.status).not.toHaveBeenCalled();
+      expect(response.json).not.toHaveBeenCalled();
+      expect(response.setHeader).not.toHaveBeenCalled();
+    });
+
+    it('encerra a resposta incompleta com destroy', () => {
+      const response = runAfterHeadersSent(new Error('falha no meio do stream'));
+
+      expect(response.destroy).toHaveBeenCalledTimes(1);
+    });
+
+    it('registra o erro no Logger.error com a stack', () => {
+      const exception = new Error('falha no meio do stream');
+
+      runAfterHeadersSent(exception);
+
+      expect(loggerError).toHaveBeenCalledTimes(1);
+      expect(loggerError).toHaveBeenCalledWith(
+        'Erro depois do envio dos cabeçalhos em GET /docs/swagger-ui.css',
+        exception.stack,
+      );
+    });
+
+    it('não lança, mesmo com uma HttpException', () => {
+      expect(() =>
+        runAfterHeadersSent(new NotFoundException('x')),
+      ).not.toThrow();
     });
   });
 

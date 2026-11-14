@@ -139,6 +139,22 @@ describe('RolesGuard', () => {
       );
     });
 
+    it('responde "Token inválido ou expirado" quando o usuário do token não existe mais (risco 71)', async () => {
+      prisma.user.findUnique.mockResolvedValue(null);
+
+      await expect(guard.canActivate(rotaInspectorOuAdmin())).rejects.toThrow(
+        new UnauthorizedException('Token inválido ou expirado'),
+      );
+    });
+
+    it('responde "Token inválido ou expirado" quando não há usuário na requisição (risco 71)', async () => {
+      const ctx = criarContexto(HandlerController, HandlerController.prototype.inspectorOuAdmin);
+
+      await expect(guard.canActivate(ctx)).rejects.toThrow(
+        new UnauthorizedException('Token inválido ou expirado'),
+      );
+    });
+
     it('busca as roles no banco pelo sub do token, selecionando só roles', async () => {
       prisma.user.findUnique.mockResolvedValue({ roles: [Role.ADMIN] });
 

@@ -1,4 +1,8 @@
-import { BadRequestException, HttpException } from '@nestjs/common';
+import {
+  BadRequestException,
+  HttpException,
+  NotFoundException,
+} from '@nestjs/common';
 import { ExpressAdapter } from '@nestjs/platform-express';
 import { AppExpressAdapter } from './app-express.adapter.js';
 
@@ -133,7 +137,7 @@ describe('AppExpressAdapter.mapException', () => {
       [405, 'Método não permitido'],
       [412, 'Pré-condição da requisição não atendida'],
       [413, 'Corpo da requisição muito grande'],
-      [415, 'Tipo de conteúdo não suportado'],
+      [415, 'Formato da requisição não suportado'],
       [416, 'Intervalo solicitado inválido'],
     ])(
       'responde ao http-error %i com a mensagem do mapa em português',
@@ -221,5 +225,42 @@ describe('AppExpressAdapter.mapException', () => {
 
       expect(adapter.mapException(error)).toBe(error);
     });
+  });
+});
+
+describe('AppExpressAdapter.setNotFoundHandler (risco 68)', () => {
+  /** Registra o handler e devolve o middleware que o adapter montou no Express. */
+  function registeredMiddleware(original: () => void) {
+    const adapter = new AppExpressAdapter();
+    const use = vi.spyOn(adapter, 'use').mockReturnValue(undefined);
+    adapter.setNotFoundHandler(original);
+    expect(use).toHaveBeenCalledTimes(1);
+    return use.mock.calls[0][0] as (
+      req: unknown,
+      res: unknown,
+      next: (error?: unknown) => void,
+    ) => void;
+  }
+
+  it('passa adiante um 404 "Rota não encontrada", sem repetir o método nem a URL', () => {
+    const original = vi.fn();
+    const next = vi.fn();
+    const middleware = registeredMiddleware(original);
+
+    middleware({ originalUrl: '/docs/swagger-ui.css%00', method: 'GET' }, {}, next);
+
+    expect(original).not.toHaveBeenCalled();
+    expect(next).toHaveBeenCalledTimes(1);
+    const error = next.mock.calls[0][0] as NotFoundException;
+    expect(error).toBeInstanceOf(NotFoundException);
+    expect(error.message).toBe('Rota não encontrada');
+    expect(JSON.stringify(error.getResponse())).not.toMatch(/GET|swagger|%00/);
+  });
+
+  it('o 404 de rota passa intacto pelo mapException', () => {
+    const adapter = new AppExpressAdapter();
+    const error = new NotFoundException('Rota não encontrada');
+
+    expect(adapter.mapException(error)).toBe(error);
   });
 });

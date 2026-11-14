@@ -1,11 +1,20 @@
+import http from 'node:http';
+import type { AddressInfo } from 'node:net';
 import { Logger } from '@nestjs/common';
 import type { INestApplication } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import { PrismaPg } from '@prisma/adapter-pg';
+import type { NextFunction, Request, Response } from 'express';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import { PrismaClient } from '../src/generated/prisma/client.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
-import { DEFAULT_PASSWORD, ERROR_KEYS } from './support/fixtures.js';
+import {
+  DEFAULT_PASSWORD,
+  ERROR_KEYS,
+  listingPayload,
+  registerAndLogin,
+} from './support/fixtures.js';
 import {
   closeTestApp,
   createTestApp,
@@ -201,7 +210,7 @@ describe('Erros da camada do Express (e2e, riscos 65 e 67)', () => {
     function expectNoFileHeaders(res: request.Response) {
       expect(res.headers['etag']).not.toBe(assetEtag);
       expect(res.headers).not.toHaveProperty('last-modified');
-      expect(res.headers).not.toHaveProperty('cache-control');
+      expect(res.headers['cache-control']).toBe('no-store');
       expect(res.headers).not.toHaveProperty('accept-ranges');
       expect(Number(res.headers['content-length'])).toBe(
         Buffer.byteLength(res.text),
@@ -307,5 +316,251 @@ describe('Banco indisponível (e2e)', () => {
       'Erro não tratado em POST /auth/login',
       expect.stringMatching(/ECONNREFUSED|127\.0\.0\.1|connect/i),
     );
+  });
+});
+
+describe('Contrato de erros da camada HTTP (e2e, fix/error-contract)', () => {
+  let app: INestApplication<App>;
+  const JSON_CONTENT_TYPE = 'application/json; charset=utf-8';
+  const UNSUPPORTED = 'Formato da requisição não suportado';
+
+  beforeAll(async () => {
+    app = await createTestApp();
+  });
+
+  beforeEach(async () => {
+    await resetDatabase(app);
+  });
+
+  afterAll(async () => {
+    await closeTestApp(app);
+  });
+
+  function expectError(res: request.Response, statusCode: number, message: string) {
+    expect(res.status).toBe(statusCode);
+    expect(res.headers['content-type']).toBe(JSON_CONTENT_TYPE);
+    expect(res.headers['cache-control']).toBe('no-store');
+    expect(res.body).toMatchObject({ statusCode, message });
+    expect(Object.keys(res.body).sort()).toEqual(ERROR_KEYS);
+  }
+
+  describe('rota inexistente (risco 68)', () => {
+    it.each([
+      ['GET', '/nao-existe'],
+      ['GET', '/docs/swagger-ui.css%00'],
+      ['GET', '/docs/%FF'],
+      ['DELETE', '/auth/login'],
+      ['POST', '/listings/a/b/c'],
+    ])('responde 404 "Rota não encontrada" a %s %s, sem repetir a URL na mensagem', async (method, path) => {
+      const res = await request(app.getHttpServer())[method.toLowerCase() as 'get'](path);
+
+      expectError(res, 404, 'Rota não encontrada');
+      expect(res.body.message).not.toContain('Cannot');
+      expect(res.body.message).not.toContain(path);
+    });
+
+    it('mantém a mensagem do service no 404 de recurso', async () => {
+      const res = await request(app.getHttpServer()).get(
+        '/listings/00000000-0000-4000-8000-000000000000',
+      );
+
+      expectError(res, 404, 'Anúncio não encontrado');
+    });
+  });
+
+  it('responde 400 "Identificador inválido" a um :id que não é uuid (risco 70)', async () => {
+    const res = await request(app.getHttpServer()).get('/listings/abc');
+
+    expectError(res, 400, 'Identificador inválido');
+  });
+
+  it('responde 401 "Token inválido ou expirado" ao token válido de uma conta que não existe mais (risco 71)', async () => {
+    const token = app.get(JwtService).sign({
+      sub: '00000000-0000-4000-8000-000000000000',
+      email: 'fantasma@x.com',
+    });
+
+    const res = await request(app.getHttpServer())
+      .get('/inspectors/me')
+      .set('Authorization', `Bearer ${token}`);
+
+    expectError(res, 401, 'Token inválido ou expirado');
+  });
+
+  describe('415 por Content-Type', () => {
+    it('responde 415 a um corpo text/plain', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/auth/login')
+        .set('Content-Type', 'text/plain')
+        .send('email=maria@x.com');
+
+      expectError(res, 415, UNSUPPORTED);
+    });
+
+    it('responde 415 antes da autenticação: sem token e com corpo text/plain, não 401', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/listings')
+        .set('Content-Type', 'text/plain')
+        .send('qualquer coisa');
+
+      expectError(res, 415, UNSUPPORTED);
+    });
+
+    it.each([
+      'application/json',
+      'application/json; charset=utf-8',
+      'Application/JSON; Charset=UTF-8',
+      'application/json;charset=utf-8',
+      'application/json ; charset=utf-8',
+    ])('lê um corpo JSON com Content-Type %j', async (contentType) => {
+      const res = await request(app.getHttpServer())
+        .post('/auth/login')
+        .set('Content-Type', contentType)
+        .send(JSON.stringify({ email: 'ninguem@x.com', password: DEFAULT_PASSWORD }));
+
+      expectError(res, 401, 'E-mail ou senha inválidos');
+    });
+
+    it('lê um corpo urlencoded', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/auth/login')
+        .type('form')
+        .send({ email: 'ninguem@x.com', password: DEFAULT_PASSWORD });
+
+      expectError(res, 401, 'E-mail ou senha inválidos');
+    });
+
+    it.each([
+      ['sem Content-Type', undefined],
+      ['com Content-Type text/plain e corpo vazio', 'text/plain'],
+    ])('deixa passar um POST sem corpo (pause) %s', async (_caso, contentType) => {
+      const seller = await registerAndLogin(app, 'vendedor@x.com');
+      const created = await request(app.getHttpServer())
+        .post('/listings')
+        .set('Authorization', `Bearer ${seller.token}`)
+        .send(listingPayload())
+        .expect(201);
+
+      const req = request(app.getHttpServer())
+        .post(`/listings/${created.body.id}/pause`)
+        .set('Authorization', `Bearer ${seller.token}`);
+      if (contentType) req.set('Content-Type', contentType);
+      const res = await req;
+
+      expect(res.status).toBe(200);
+      expect(res.body.status).toBe('PAUSED');
+    });
+  });
+
+  it.each([
+    ['Content-Encoding desconhecido', { 'Content-Type': 'application/json', 'Content-Encoding': 'xpto' }],
+    ['charset não suportado', { 'Content-Type': 'application/json; charset=latin9' }],
+  ])('responde 415 "Formato da requisição não suportado" a %s', async (_caso, headers) => {
+    const res = await request(app.getHttpServer())
+      .post('/auth/login')
+      .set(headers)
+      .send('{}');
+
+    expectError(res, 415, UNSUPPORTED);
+    expect(JSON.stringify(res.body)).not.toMatch(/xpto|latin9/i);
+  });
+
+  it('responde 413 "Corpo da requisição muito grande" a parâmetros demais no urlencoded', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/auth/login')
+      .set('Content-Type', 'application/x-www-form-urlencoded')
+      .send(Array.from({ length: 1100 }, (_, i) => `a${i}=1`).join('&'));
+
+    expectError(res, 413, 'Corpo da requisição muito grande');
+  });
+
+  it.each([
+    ['400 de validação', () => request(app.getHttpServer()).post('/auth/login').send({}), 400],
+    ['401 sem token', () => request(app.getHttpServer()).get('/listings/mine'), 401],
+    ['400 de JSON malformado', () => request(app.getHttpServer()).post('/auth/login').set('Content-Type', 'application/json').send('{"a":'), 400],
+  ])('grava Cache-Control: no-store no %s', async (_caso, send, status) => {
+    const res = await send();
+
+    expect(res.status).toBe(status);
+    expect(res.headers['cache-control']).toBe('no-store');
+    expect(res.headers['content-type']).toBe(JSON_CONTENT_TYPE);
+  });
+});
+
+describe('Erro depois do envio dos cabeçalhos (e2e, risco 69)', () => {
+  let app: INestApplication<App>;
+  let server: http.Server;
+  let loggerError: ReturnType<typeof vi.spyOn>;
+  const unhandled: unknown[] = [];
+  const onUnhandled = (reason: unknown) => unhandled.push(reason);
+
+  beforeAll(async () => {
+    app = await createTestApp({
+      // Um middleware do teste que começa a resposta e falha no meio, como um
+      // asset do /docs cujo arquivo some durante o stream.
+      beforeInit: (created) =>
+        created.use('/teste-falha-no-meio', (_req: Request, res: Response, next: NextFunction) => {
+          res.writeHead(200, { 'Content-Type': 'text/plain' });
+          res.write('parcial');
+          next(new Error('falha no meio do envio'));
+        }),
+    });
+    server = app.getHttpServer() as unknown as http.Server;
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    process.on('unhandledRejection', onUnhandled);
+  });
+
+  beforeEach(() => {
+    unhandled.length = 0;
+    loggerError = vi.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  afterAll(async () => {
+    process.off('unhandledRejection', onUnhandled);
+    await closeTestApp(app);
+  });
+
+  /** GET cru: devolve o que chegou e se a conexão foi encerrada sem terminar a resposta. */
+  function rawGet(path: string): Promise<{ status?: number; body: string; aborted: boolean }> {
+    const { port } = server.address() as AddressInfo;
+    return new Promise((resolve) => {
+      let body = '';
+      let status: number | undefined;
+      const req = http.get({ host: '127.0.0.1', port, path, agent: false }, (res) => {
+        status = res.statusCode;
+        res.setEncoding('utf8');
+        res.on('data', (chunk: string) => (body += chunk));
+        res.on('end', () => resolve({ status, body, aborted: false }));
+        res.on('aborted', () => resolve({ status, body, aborted: true }));
+        res.on('error', () => resolve({ status, body, aborted: true }));
+      });
+      req.on('error', () => resolve({ status, body, aborted: true }));
+    });
+  }
+
+  it('encerra a conexão sem tentar mandar o JSON de erro e registra o erro uma vez', async () => {
+    const res = await rawGet('/teste-falha-no-meio');
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(res).toMatchObject({ status: 200, aborted: true });
+    expect(res.body).toBe('parcial');
+    expect(loggerError).toHaveBeenCalledTimes(1);
+    expect(loggerError).toHaveBeenCalledWith(
+      'Erro depois do envio dos cabeçalhos em GET /teste-falha-no-meio',
+      expect.stringContaining('falha no meio do envio'),
+    );
+    expect(unhandled).toEqual([]);
+  });
+
+  it('continua respondendo depois disso', async () => {
+    await rawGet('/teste-falha-no-meio');
+
+    const res = await request(app.getHttpServer()).get('/listings').expect(200);
+
+    expect(res.body).toHaveProperty('items');
   });
 });
