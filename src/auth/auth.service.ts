@@ -1,12 +1,11 @@
 import {
   ConflictException,
   Injectable,
-  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { ErrorCode, withCode } from '../common/errors/error-code.js';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
+import { ErrorCode, withCode } from '../common/errors/error-code.js';
 import {
   isPrismaError,
   PRISMA_UNIQUE_VIOLATION,
@@ -16,6 +15,7 @@ import { LoginDto } from './dto/login.dto.js';
 import { LoginResponseDto } from './dto/login-response.dto.js';
 import { RegisterDto } from './dto/register.dto.js';
 import { UserResponseDto } from './dto/user-response.dto.js';
+import { INVALID_TOKEN_MESSAGE } from './jwt-auth.guard.js';
 import type { JwtPayload } from './types/jwt-payload.js';
 
 const BCRYPT_ROUNDS = 10;
@@ -81,7 +81,11 @@ export class AuthService {
 
   async me(userId: string): Promise<UserResponseDto> {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user) throw new NotFoundException(withCode(ErrorCode.USER_NOT_FOUND, 'Usuário não encontrado'));
+    // Token válido de uma conta que não existe mais: para o cliente é o mesmo
+    // caso de um token inválido (precisa entrar de novo), como no RolesGuard.
+    if (!user) {
+      throw new UnauthorizedException(withCode(ErrorCode.UNAUTHENTICATED, INVALID_TOKEN_MESSAGE));
+    }
     return UserResponseDto.from(user);
   }
 }

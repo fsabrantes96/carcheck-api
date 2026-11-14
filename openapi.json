@@ -199,17 +199,7 @@
             }
           },
           "401": {
-            "description": "Token ausente, inválido ou expirado",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponseDto"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Usuário não encontrado (token válido de uma conta que não existe mais)",
+            "description": "Token ausente, inválido ou expirado, ou token válido de uma conta que não existe mais",
             "content": {
               "application/json": {
                 "schema": {
@@ -2387,7 +2377,6 @@
           "FORBIDDEN",
           "NOT_FOUND",
           "ROUTE_NOT_FOUND",
-          "METHOD_NOT_ALLOWED",
           "CONFLICT",
           "TRANSACTION_CONFLICT",
           "PRECONDITION_FAILED",
@@ -2398,7 +2387,6 @@
           "INTERNAL_ERROR",
           "INVALID_CREDENTIALS",
           "EMAIL_ALREADY_REGISTERED",
-          "USER_NOT_FOUND",
           "LISTING_NOT_FOUND",
           "INSPECTOR_NOT_FOUND",
           "INSPECTOR_PROFILE_NOT_FOUND",
@@ -2415,7 +2403,7 @@
           "PRICE_BELOW_MINIMUM",
           "INVALID_SCHEDULE"
         ],
-        "description": "Código do erro, estável e legível por máquina. O cliente decide por ele, não pela mensagem, que é texto para pessoas e pode mudar."
+        "description": "Código do erro, estável e legível por máquina. O cliente decide por ele, não pela mensagem, que é texto para pessoas e pode mudar. A lista pode crescer; trate code desconhecido pelo status HTTP."
       },
       "ErrorResponseDto": {
         "type": "object",
@@ -2427,7 +2415,7 @@
           },
           "code": {
             "example": "LISTING_NOT_FOUND",
-            "description": "Código do erro, estável e legível por máquina. O cliente decide por ele, não pela mensagem, que é texto para pessoas e pode mudar.",
+            "description": "Código do erro, estável e legível por máquina. O cliente decide por ele, não pela mensagem, que é texto para pessoas e pode mudar. A lista pode crescer; trate code desconhecido pelo status HTTP.",
             "allOf": [
               {
                 "$ref": "#/components/schemas/ErrorCode"

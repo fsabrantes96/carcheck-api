@@ -4,7 +4,6 @@ import {
   ApiBearerAuth,
   ApiConflictResponse,
   ApiCreatedResponse,
-  ApiNotFoundResponse,
   ApiOkResponse,
   ApiTags,
   ApiTooManyRequestsResponse,
@@ -16,7 +15,7 @@ import {
   ApiBodyErrorResponses,
   ApiCommonErrorResponses,
   throttleDescription,
-  UNAUTHORIZED_DESCRIPTION,
+  UNAUTHORIZED_OR_DELETED_ACCOUNT_DESCRIPTION,
 } from '../common/swagger/api-responses.js';
 import { AUTH_THROTTLE } from '../common/throttler/throttler.config.js';
 import { AuthService } from './auth.service.js';
@@ -67,8 +66,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOkResponse({ type: UserResponseDto })
-  @ApiUnauthorizedResponse({ type: ErrorResponseDto, description: UNAUTHORIZED_DESCRIPTION })
-  @ApiNotFoundResponse({ type: ErrorResponseDto, description: 'Usuário não encontrado (token válido de uma conta que não existe mais)' })
+  @ApiUnauthorizedResponse({ type: ErrorResponseDto, description: UNAUTHORIZED_OR_DELETED_ACCOUNT_DESCRIPTION })
   me(@CurrentUser() user: JwtPayload): Promise<UserResponseDto> {
     return this.auth.me(user.sub);
   }

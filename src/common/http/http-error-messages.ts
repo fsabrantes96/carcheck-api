@@ -29,7 +29,6 @@ export const HTTP_LAYER_MESSAGES: Readonly<Record<number, string>> = {
   400: BAD_REQUEST_MESSAGE,
   403: 'Acesso negado',
   404: 'Recurso não encontrado',
-  405: 'Método não permitido',
   412: 'Pré-condição da requisição não atendida',
   413: PAYLOAD_TOO_LARGE_MESSAGE,
   415: UNSUPPORTED_MEDIA_TYPE_MESSAGE,

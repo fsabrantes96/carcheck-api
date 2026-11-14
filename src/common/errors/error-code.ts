@@ -4,8 +4,11 @@
  * nunca pelo texto em pt-BR, que pode mudar.
  *
  * Como criar um code novo: acrescente aqui (SCREAMING_SNAKE_CASE, valor igual
- * ao nome), use no throw com `withCode` e rode `npm run openapi`. Um code é
- * contrato: renomear ou remover quebra o front.
+ * ao nome), no fim do seu grupo, use no throw com `withCode` e rode
+ * `npm run openapi`. Um code é contrato: depois da PR fix/error-contract,
+ * nunca remover nem renomear (só adicionar); um code que deixar de sair fica
+ * no enum. A ordem não faz parte do contrato. O front trata code
+ * desconhecido pelo status HTTP.
  */
 export const ErrorCode = {
   // Genéricos: nascem no filtro, no adapter, nos pipes e nos guards.
@@ -18,7 +21,6 @@ export const ErrorCode = {
   FORBIDDEN: 'FORBIDDEN',
   NOT_FOUND: 'NOT_FOUND',
   ROUTE_NOT_FOUND: 'ROUTE_NOT_FOUND',
-  METHOD_NOT_ALLOWED: 'METHOD_NOT_ALLOWED',
   CONFLICT: 'CONFLICT',
   TRANSACTION_CONFLICT: 'TRANSACTION_CONFLICT',
   PRECONDITION_FAILED: 'PRECONDITION_FAILED',
@@ -31,7 +33,6 @@ export const ErrorCode = {
   // De domínio: nascem nos services, quando o front precisa distinguir o caso.
   INVALID_CREDENTIALS: 'INVALID_CREDENTIALS',
   EMAIL_ALREADY_REGISTERED: 'EMAIL_ALREADY_REGISTERED',
-  USER_NOT_FOUND: 'USER_NOT_FOUND',
   LISTING_NOT_FOUND: 'LISTING_NOT_FOUND',
   INSPECTOR_NOT_FOUND: 'INSPECTOR_NOT_FOUND',
   INSPECTOR_PROFILE_NOT_FOUND: 'INSPECTOR_PROFILE_NOT_FOUND',
@@ -85,7 +86,6 @@ const DEFAULT_CODE_BY_STATUS: Readonly<Record<number, ErrorCode>> = {
   401: ErrorCode.UNAUTHENTICATED,
   403: ErrorCode.FORBIDDEN,
   404: ErrorCode.NOT_FOUND,
-  405: ErrorCode.METHOD_NOT_ALLOWED,
   409: ErrorCode.CONFLICT,
   412: ErrorCode.PRECONDITION_FAILED,
   413: ErrorCode.PAYLOAD_TOO_LARGE,

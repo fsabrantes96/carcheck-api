@@ -184,7 +184,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     }
 
     this.logger.error(
-      `Erro não tratado em ${request.method} ${request.url}`,
+      `Erro não tratado em ${request.method} ${this.routeOf(request)}`,
       exception instanceof Error ? exception.stack : String(exception),
     );
     return {

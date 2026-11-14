@@ -19,7 +19,10 @@ import {
  * das constantes da configuração: se o limite mudar, a documentação muda junto.
  */
 export const UNAUTHORIZED_DESCRIPTION = 'Token ausente, inválido ou expirado';
-/** Rotas com RolesGuard: ele também responde 401 se a conta do token não existe mais. */
+/**
+ * Rotas que leem a conta do token (RolesGuard, GET /auth/me): também
+ * respondem 401 se a conta não existe mais.
+ */
 export const UNAUTHORIZED_OR_DELETED_ACCOUNT_DESCRIPTION =
   'Token ausente, inválido ou expirado, ou token válido de uma conta que não existe mais';
 export const INVALID_UUID_DESCRIPTION = 'Identificador inválido: o id precisa ser uuid';
