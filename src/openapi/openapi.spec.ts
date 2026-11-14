@@ -1,5 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import type { INestApplication } from '@nestjs/common';
+import { buildOpenApiDocument, serializeOpenApiDocument } from './openapi-document.js';
 
 /**
  * O openapi.json da raiz é o contrato que o front usa para gerar os tipos.
@@ -15,11 +16,20 @@ describe('openapi.json', () => {
   let app: INestApplication;
 
   beforeAll(async () => {
-    // Valores fictícios só para o boot do módulo: nada aqui conecta ou assina.
-    // A porta 1 garante que uma conexão acidental falharia.
+    // Valores fictícios para todas as variáveis que o validateEnv lê, para o
+    // resultado não depender do .env de quem roda. O .env ainda é lido (pelo
+    // dotenv/config do PrismaService e pelo ConfigModule), mas não sobrescreve
+    // o que já está no ambiente; DOTENV_OVERRIDE=false garante isso mesmo se o
+    // shell tiver DOTENV_OVERRIDE=true. A porta 1 faz uma conexão acidental
+    // falhar.
+    vi.stubEnv('DOTENV_OVERRIDE', 'false');
     vi.stubEnv('DATABASE_URL', 'postgresql://openapi:openapi@127.0.0.1:1/openapi');
     vi.stubEnv('JWT_SECRET', 'segredo-apenas-para-gerar-o-openapi');
+    vi.stubEnv('JWT_EXPIRES_IN_SECONDS', '3600');
     vi.stubEnv('PLATFORM_FEE_BPS', '1000');
+    vi.stubEnv('MIN_INSPECTION_PRICE_CENTS', '5000');
+    vi.stubEnv('APPOINTMENT_DURATION_MINUTES', '60');
+    vi.stubEnv('APPOINTMENT_MIN_NOTICE_HOURS', '24');
     vi.stubEnv('JOBS_ENABLED', 'false');
     // Import dinâmico: o ConfigModule.forRoot valida o ambiente ao carregar o AppModule.
     const { AppModule } = await import('../app.module.js');
@@ -33,8 +43,6 @@ describe('openapi.json', () => {
   });
 
   it('está atualizado com o código (se falhar, rode npm run openapi e versione o arquivo)', async () => {
-    const { buildOpenApiDocument, serializeOpenApiDocument } = await import('./openapi-document.js');
-
     await expect(serializeOpenApiDocument(buildOpenApiDocument(app))).toMatchFileSnapshot(
       '../../openapi.json',
     );

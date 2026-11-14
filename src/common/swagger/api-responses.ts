@@ -7,28 +7,43 @@ import {
   ApiUnsupportedMediaTypeResponse,
 } from '@nestjs/swagger';
 import { ErrorResponseDto } from '../dto/error-response.dto.js';
-import { THROTTLE_ERROR_MESSAGE } from '../throttler/throttler.config.js';
+import { BODY_SIZE_LIMIT } from '../limits.js';
+import {
+  GLOBAL_THROTTLE_LIMIT,
+  THROTTLE_ERROR_MESSAGE,
+} from '../throttler/throttler.config.js';
 
 /**
- * Descrições reaproveitadas nas respostas de erro do Swagger. O texto entre
- * aspas é a mensagem que a API devolve; o resto explica quando acontece.
+ * Descrições reaproveitadas nas respostas de erro do Swagger. Os números vêm
+ * das constantes da configuração: se o limite mudar, a documentação muda junto.
  */
 export const UNAUTHORIZED_DESCRIPTION = 'Token ausente, inválido ou expirado';
+/** Rotas com RolesGuard: ele também responde 401 se a conta do token não existe mais. */
+export const UNAUTHORIZED_OR_DELETED_ACCOUNT_DESCRIPTION =
+  'Token ausente, inválido ou expirado, ou token válido de uma conta que não existe mais';
 export const INVALID_UUID_DESCRIPTION = 'Id inválido: precisa ser uuid';
-/** Deadlock ou falha de serialização no banco (AllExceptionsFilter): o cliente repete. */
+/**
+ * Deadlock ou falha de serialização no banco (AllExceptionsFilter): o cliente
+ * repete. Só nas rotas que abrem transação ($transaction).
+ */
 export const TRANSACTION_CONFLICT_DESCRIPTION =
   'ou "Conflito ao processar, tente novamente" (conflito de transação no banco; repita a requisição)';
 
+/** Descrição do 429 de um limite por IP, por minuto. */
+export function throttleDescription(limit: number): string {
+  return `${THROTTLE_ERROR_MESSAGE} Limite: ${limit} requisições por minuto por IP.`;
+}
+
 /**
  * Erros que qualquer rota pode responder: 429 do limite global do throttler
- * (100/min por IP) e 500 genérico. Use na classe do controller; uma rota com
- * limite próprio declara o seu 429, que prevalece.
+ * e 500 genérico. Use na classe do controller; uma rota com limite próprio
+ * declara o seu 429, que prevalece.
  */
 export function ApiCommonErrorResponses(): ClassDecorator & MethodDecorator {
   return applyDecorators(
     ApiTooManyRequestsResponse({
       type: ErrorResponseDto,
-      description: `${THROTTLE_ERROR_MESSAGE} (limite global de 100 requisições por minuto por IP)`,
+      description: throttleDescription(GLOBAL_THROTTLE_LIMIT),
     }),
     ApiInternalServerErrorResponse({
       type: ErrorResponseDto,
@@ -38,15 +53,15 @@ export function ApiCommonErrorResponses(): ClassDecorator & MethodDecorator {
 }
 
 /**
- * Erros do body-parser em rotas com corpo: 413 acima de 100kb e 415 com
- * Content-Encoding ou charset não suportado. O 400 (validação ou JSON
+ * Erros do body-parser em rotas com corpo: 413 acima do limite do corpo e 415
+ * com Content-Encoding ou charset não suportado. O 400 (validação ou JSON
  * malformado) fica em cada rota, com a descrição dela.
  */
 export function ApiBodyErrorResponses(): MethodDecorator {
   return applyDecorators(
     ApiPayloadTooLargeResponse({
       type: ErrorResponseDto,
-      description: 'Corpo da requisição muito grande (acima de 100kb)',
+      description: `Corpo da requisição muito grande (acima de ${BODY_SIZE_LIMIT})`,
     }),
     ApiUnsupportedMediaTypeResponse({
       type: ErrorResponseDto,

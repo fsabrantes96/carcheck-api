@@ -15,12 +15,10 @@ import { ErrorResponseDto } from '../common/dto/error-response.dto.js';
 import {
   ApiBodyErrorResponses,
   ApiCommonErrorResponses,
+  throttleDescription,
   UNAUTHORIZED_DESCRIPTION,
 } from '../common/swagger/api-responses.js';
-import {
-  AUTH_THROTTLE,
-  THROTTLE_ERROR_MESSAGE,
-} from '../common/throttler/throttler.config.js';
+import { AUTH_THROTTLE } from '../common/throttler/throttler.config.js';
 import { AuthService } from './auth.service.js';
 import { CurrentUser } from './current-user.decorator.js';
 import { LoginDto } from './dto/login.dto.js';
@@ -40,7 +38,7 @@ export class AuthController {
   @Throttle(AUTH_THROTTLE)
   @ApiTooManyRequestsResponse({
     type: ErrorResponseDto,
-    description: `${THROTTLE_ERROR_MESSAGE} (5 por minuto por IP)`,
+    description: throttleDescription(AUTH_THROTTLE.default.limit),
   })
   @ApiCreatedResponse({ type: UserResponseDto })
   @ApiBadRequestResponse({ type: ErrorResponseDto, description: 'Dados inválidos (lista em errors) ou corpo malformado' })
@@ -54,7 +52,7 @@ export class AuthController {
   @Throttle(AUTH_THROTTLE)
   @ApiTooManyRequestsResponse({
     type: ErrorResponseDto,
-    description: `${THROTTLE_ERROR_MESSAGE} (5 por minuto por IP)`,
+    description: throttleDescription(AUTH_THROTTLE.default.limit),
   })
   @HttpCode(200)
   @ApiOkResponse({ type: LoginResponseDto })

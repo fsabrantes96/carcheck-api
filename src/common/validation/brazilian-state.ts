@@ -25,6 +25,12 @@ const SWAGGER = {
   maxLength: STATE_LENGTH,
 };
 
+/** Na entrada, o Swagger também diz o que a API normaliza. */
+const SWAGGER_INPUT = {
+  ...SWAGGER,
+  description: 'Sigla da UF (uma das 27). Espaços nas pontas e minúsculas são normalizados ("sp" vira "SP")',
+};
+
 /** Para os Response DTOs: só a documentação (o valor vem do banco). */
 export function ApiBrazilianState(): PropertyDecorator {
   return ApiProperty(SWAGGER);
@@ -41,7 +47,7 @@ export function BrazilianStateField(
   options: { optional?: boolean } = {},
 ): PropertyDecorator {
   return applyDecorators(
-    options.optional ? ApiPropertyOptional(SWAGGER) : ApiProperty(SWAGGER),
+    options.optional ? ApiPropertyOptional(SWAGGER_INPUT) : ApiProperty(SWAGGER_INPUT),
     ...(options.optional ? [IsOptional()] : []),
     Transform(({ value }: { value: unknown }) =>
       typeof value === 'string' ? value.trim().toUpperCase() : value,

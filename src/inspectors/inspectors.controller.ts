@@ -16,6 +16,7 @@ import {
     ApiCommonErrorResponses,
     TRANSACTION_CONFLICT_DESCRIPTION,
     UNAUTHORIZED_DESCRIPTION,
+    UNAUTHORIZED_OR_DELETED_ACCOUNT_DESCRIPTION,
 } from '../common/swagger/api-responses.js';
 import { CurrentUser } from '../auth/current-user.decorator.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
@@ -64,7 +65,7 @@ export class InspectorsController {
     @Roles('INSPECTOR')
     @ApiBearerAuth()
     @ApiOkResponse({ type: MyInspectorProfileResponseDto, description: 'Perfil do avaliador com a comissão atual e o repasse estimado' })
-    @ApiUnauthorizedResponse({ type: ErrorResponseDto, description: UNAUTHORIZED_DESCRIPTION })
+    @ApiUnauthorizedResponse({ type: ErrorResponseDto, description: UNAUTHORIZED_OR_DELETED_ACCOUNT_DESCRIPTION })
     @ApiForbiddenResponse({ type: ErrorResponseDto, description: NOT_INSPECTOR_DESCRIPTION })
     @ApiNotFoundResponse({ type: ErrorResponseDto, description: 'Perfil de avaliador não encontrado' })
     findMine(@CurrentUser() user: JwtPayload): Promise<MyInspectorProfileResponseDto> {
@@ -78,7 +79,7 @@ export class InspectorsController {
     @ApiOkResponse({ type: InspectorResponseDto })
     @ApiBadRequestResponse({ type: ErrorResponseDto, description: 'Dados inválidos ou basePriceCents (quando enviado) abaixo de MIN_INSPECTION_PRICE_CENTS' })
     @ApiBodyErrorResponses()
-    @ApiUnauthorizedResponse({ type: ErrorResponseDto, description: UNAUTHORIZED_DESCRIPTION })
+    @ApiUnauthorizedResponse({ type: ErrorResponseDto, description: UNAUTHORIZED_OR_DELETED_ACCOUNT_DESCRIPTION })
     @ApiForbiddenResponse({ type: ErrorResponseDto, description: NOT_INSPECTOR_DESCRIPTION })
     @ApiNotFoundResponse({ type: ErrorResponseDto, description: 'Perfil de avaliador não encontrado' })
     update(

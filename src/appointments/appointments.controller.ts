@@ -22,6 +22,7 @@ import {
     ApiCommonErrorResponses,
     ApiUuidParam,
     INVALID_UUID_DESCRIPTION,
+    throttleDescription,
     TRANSACTION_CONFLICT_DESCRIPTION,
     UNAUTHORIZED_DESCRIPTION,
 } from '../common/swagger/api-responses.js';
@@ -63,7 +64,7 @@ export class AppointmentsController {
     @ApiForbiddenResponse({ type: ErrorResponseDto, description: 'Agendar no próprio anúncio, ou consigo mesmo como avaliador' })
     @ApiNotFoundResponse({ type: ErrorResponseDto, description: 'Anúncio não encontrado (ou não ACTIVE), ou avaliador não encontrado (ou não verificado)' })
     @ApiConflictResponse({ type: ErrorResponseDto, description: `Avaliador indisponível para o anúncio, preço abaixo do mínimo, horário ocupado ou pedido em andamento duplicado, ${TRANSACTION_CONFLICT_DESCRIPTION}` })
-    @ApiTooManyRequestsResponse({ type: ErrorResponseDto, description: 'Mais de 10 pedidos por minuto' })
+    @ApiTooManyRequestsResponse({ type: ErrorResponseDto, description: throttleDescription(APPOINTMENT_CREATE_THROTTLE.default.limit) })
     create(
         @CurrentUser() user: JwtPayload,
         @Body() dto: CreateAppointmentDto,
@@ -116,7 +117,7 @@ export class AppointmentsController {
     @ApiBadRequestResponse({ type: ErrorResponseDto, description: INVALID_UUID_DESCRIPTION })
     @ApiForbiddenResponse({ type: ErrorResponseDto, description: 'Você não pode recusar este agendamento (só o avaliador)' })
     @ApiNotFoundResponse({ type: ErrorResponseDto, description: 'Agendamento não encontrado (ou você não participa dele)' })
-    @ApiConflictResponse({ type: ErrorResponseDto, description: `Estado não permite, prazo expirado ou estado mudou, ${TRANSACTION_CONFLICT_DESCRIPTION}` })
+    @ApiConflictResponse({ type: ErrorResponseDto, description: 'Estado não permite, prazo expirado ou estado mudou' })
     decline(
         @Param('id', ParseUUIDPipe) id: string,
         @CurrentUser() user: JwtPayload,
@@ -132,7 +133,7 @@ export class AppointmentsController {
     @ApiBodyErrorResponses()
     @ApiForbiddenResponse({ type: ErrorResponseDto, description: 'Você não pode confirmar este agendamento (só o vendedor)' })
     @ApiNotFoundResponse({ type: ErrorResponseDto, description: 'Agendamento não encontrado (ou você não participa dele)' })
-    @ApiConflictResponse({ type: ErrorResponseDto, description: `Estado não permite, prazo expirado ou estado mudou, ${TRANSACTION_CONFLICT_DESCRIPTION}` })
+    @ApiConflictResponse({ type: ErrorResponseDto, description: 'Estado não permite, prazo expirado ou estado mudou' })
     confirm(
         @Param('id', ParseUUIDPipe) id: string,
         @CurrentUser() user: JwtPayload,
@@ -147,7 +148,7 @@ export class AppointmentsController {
     @ApiOkResponse({ schema: appointmentResponseSchema(), description: 'Cancelado (antes do pagamento); formato conforme o seu papel' })
     @ApiBadRequestResponse({ type: ErrorResponseDto, description: INVALID_UUID_DESCRIPTION })
     @ApiNotFoundResponse({ type: ErrorResponseDto, description: 'Agendamento não encontrado (ou você não participa dele)' })
-    @ApiConflictResponse({ type: ErrorResponseDto, description: `Estado não permite (ex.: já pago ou encerrado), prazo expirado ou estado mudou, ${TRANSACTION_CONFLICT_DESCRIPTION}` })
+    @ApiConflictResponse({ type: ErrorResponseDto, description: 'Estado não permite (ex.: já pago ou encerrado), prazo expirado ou estado mudou' })
     cancel(
         @Param('id', ParseUUIDPipe) id: string,
         @CurrentUser() user: JwtPayload,

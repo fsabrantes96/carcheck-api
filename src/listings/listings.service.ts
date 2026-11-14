@@ -20,7 +20,7 @@ import { ListingResponseDto } from './dto/listing-response.dto.js';
 import type { ListingsPageQueryDto } from './dto/listings-page-query.dto.js';
 import { MyListingResponseDto } from './dto/my-listing-response.dto.js';
 import { PaginatedListingsResponseDto } from './dto/paginated-listings-response.dto.js';
-import { PaginatedMyListingsResponseDto } from './dto/paginated-my-listings-response.dto.js';
+import type { PaginatedMyListingsResponseDto } from './dto/paginated-my-listings-response.dto.js';
 import { UpdateListingDto } from './dto/update-listing.dto.js';
 import type { VehicleDto } from './dto/vehicle.dto.js';
 import { decideListingTransition } from './listings.state-machine.js';
@@ -125,7 +125,7 @@ export class ListingsService {
 
     async findMine(
         sellerId: string,
-        query: Pick<ListingsPageQueryDto, 'page' | 'limit'>,
+        query: ListingsPageQueryDto,
     ): Promise<PaginatedMyListingsResponseDto> {
         const { page, limit } = query;
         const where: Prisma.ListingWhereInput = { sellerId, status: { not: 'ARCHIVED' } };

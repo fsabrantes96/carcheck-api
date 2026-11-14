@@ -32,7 +32,7 @@ export class AppointmentListingDto {
 }
 
 export class AppointmentInspectorDto {
-    @ApiProperty({ format: 'uuid', nullable: true, description: 'Id do perfil do avaliador (não é id de usuário)' })
+    @ApiProperty({ type: String, format: 'uuid', nullable: true, description: 'Id do perfil do avaliador (não é id de usuário)' })
     profileId: string | null;
     @ApiProperty() name: string;
 }
