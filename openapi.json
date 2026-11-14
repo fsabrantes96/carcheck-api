@@ -2143,7 +2143,7 @@
             }
           },
           "400": {
-            "description": "Id inválido (precisa ser uuid), ou meetingAddress ausente ou fora de 5 a 300 caracteres, ou corpo malformado",
+            "description": "Identificador inválido: o id precisa ser uuid, ou meetingAddress ausente ou fora de 5 a 300 caracteres, ou corpo malformado",
             "content": {
               "application/json": {
                 "schema": {

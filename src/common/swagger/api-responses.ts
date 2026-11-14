@@ -72,7 +72,7 @@ export function ApiBodyErrorResponses(): MethodDecorator {
   );
 }
 
-/** Parâmetro de rota :id, validado pelo ParseUUIDPipe (400 se não for uuid). */
+/** Parâmetro de rota :id, validado pelo parseIdPipe (400 INVALID_ID se não for uuid). */
 export function ApiUuidParam(): MethodDecorator {
   return ApiParam({ name: 'id', type: String, format: 'uuid' });
 }
