@@ -43,6 +43,31 @@ describe('ErrorCode', () => {
   });
 });
 
+describe('ErrorCode de domínio', () => {
+  it.each([
+    'INVALID_CREDENTIALS',
+    'EMAIL_ALREADY_REGISTERED',
+    'USER_NOT_FOUND',
+    'LISTING_NOT_FOUND',
+    'INSPECTOR_NOT_FOUND',
+    'INSPECTOR_PROFILE_NOT_FOUND',
+    'APPOINTMENT_NOT_FOUND',
+    'INSPECTOR_PROFILE_EXISTS',
+    'INVALID_STATE',
+    'APPOINTMENT_EXPIRED',
+    'STATE_CHANGED',
+    'LISTING_HAS_PAID_APPOINTMENT',
+    'APPOINTMENT_DUPLICATE',
+    'SLOT_UNAVAILABLE',
+    'INSPECTOR_UNAVAILABLE',
+    'INSPECTOR_NOT_VERIFIED',
+    'PRICE_BELOW_MINIMUM',
+    'INVALID_SCHEDULE',
+  ])('tem o code %s', (code) => {
+    expect(ERROR_CODES).toContain(code);
+  });
+});
+
 describe('defaultCodeForStatus', () => {
   it.each([
     [400, 'BAD_REQUEST'],

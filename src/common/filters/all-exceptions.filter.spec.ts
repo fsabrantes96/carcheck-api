@@ -756,6 +756,15 @@ describe('AllExceptionsFilter', () => {
       expect(body).toMatchObject({ statusCode: 409, code: 'TRANSACTION_CONFLICT' });
     });
 
+    it.each([
+      ['query de model (P2039)', exclusionViolationFromModelQuery()],
+      ['query crua (P2010)', exclusionViolationFromRawQuery()],
+    ])('responde SLOT_UNAVAILABLE à violação da exclusion constraint do horário (%s)', (_caso, exception) => {
+      const { body } = run(exception);
+
+      expect(body).toMatchObject({ statusCode: 409, code: 'SLOT_UNAVAILABLE' });
+    });
+
     it('responde INTERNAL_ERROR ao erro não tratado', () => {
       const { body } = run(new Error('falhou'));
 
