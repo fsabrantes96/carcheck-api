@@ -204,6 +204,7 @@ describe('AllExceptionsFilter', () => {
         status: vi.fn().mockReturnThis(),
         json: vi.fn(),
         removeHeader: vi.fn(),
+        setHeader: vi.fn(),
         headersSent: false,
       };
       const host = {

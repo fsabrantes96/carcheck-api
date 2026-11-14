@@ -8,6 +8,7 @@ import {
 import { Reflector } from '@nestjs/core';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type { Role } from '../generated/prisma/client.js';
+import { INVALID_TOKEN_MESSAGE } from './jwt-auth.guard.js';
 import { ROLES_KEY } from './roles.decorator.js';
 import type { AuthenticatedRequest } from './types/jwt-payload.js';
 
@@ -31,13 +32,15 @@ export class RolesGuard implements CanActivate {
         }
 
         const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
-        if (!request.user) throw new UnauthorizedException();
+        if (!request.user) throw new UnauthorizedException(INVALID_TOKEN_MESSAGE);
 
         const user = await this.prisma.user.findUnique({
             where: { id: request.user.sub },
             select: { roles: true },
         });
-        if (!user) throw new UnauthorizedException();
+        // Token válido de uma conta que não existe mais: para o cliente é o mesmo
+        // caso de um token inválido (precisa entrar de novo).
+        if (!user) throw new UnauthorizedException(INVALID_TOKEN_MESSAGE);
 
         const allowed = required.some((role) => user.roles.includes(role));
         if (!allowed) throw new ForbiddenException('Sem permissão para esta ação');

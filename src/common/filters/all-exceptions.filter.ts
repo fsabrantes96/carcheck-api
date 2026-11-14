@@ -11,6 +11,12 @@ import { Prisma } from '../../generated/prisma/client.js';
 import type { ErrorResponseDto } from '../dto/error-response.dto.js';
 import { isBodyParserError } from '../http/body-parser-error.js';
 import {
+  BODY_PARSER_MESSAGES,
+  httpLayerMessage,
+  INTERNAL_ERROR_MESSAGE,
+  VALIDATION_MESSAGE,
+} from '../http/http-error-messages.js';
+import {
   isPgError,
   PG_EXCLUSION_VIOLATION,
   transactionConflictCode,
@@ -29,21 +35,13 @@ const PRISMA_ERROR_MAP: Record<
   },
 };
 
-/** Mensagens dos erros 4xx do body-parser, no lugar das mensagens internas. */
-const BODY_PARSER_MESSAGES: Record<string, string> = {
-  'entity.too.large': 'Corpo da requisição muito grande',
-  'entity.parse.failed': 'Corpo da requisição inválido',
-  'querystring.parse.rangeError': 'Corpo da requisição inválido',
-};
-const BODY_PARSER_DEFAULT_MESSAGE = 'Requisição inválida';
-
 /**
  * Cabeçalhos que descrevem um arquivo estático. O send (assets do /docs)
  * grava esses cabeçalhos antes de emitir o 412/416; sem removê-los, o JSON de
  * erro sairia como text/css, com o ETag e o Last-Modified do arquivo. O
  * Content-Range fica (o 416 o exige) e o res.json recalcula Content-Type e
- * Content-Length. Vale para todo erro: um Cache-Control definido antes da
- * exceção (ex.: no-store por um interceptor) também sai da resposta de erro.
+ * Content-Length. O Cache-Control do arquivo sai e o filtro grava o no-store
+ * de toda resposta de erro.
  */
 const FILE_HEADERS = [
   'Content-Type',
@@ -65,8 +63,8 @@ const EXCLUSION_VIOLATION_MESSAGE =
 /** Deadlock (40P01) ou falha de serialização (40001): o cliente pode repetir. */
 const TRANSACTION_CONFLICT_MESSAGE = 'Conflito ao processar, tente novamente';
 
-const INTERNAL_ERROR_MESSAGE = 'Erro interno do servidor';
-const VALIDATION_MESSAGE = 'Dados inválidos';
+/** Resposta de erro não vai para cache (navegador, proxy, CDN). */
+const ERROR_CACHE_CONTROL = 'no-store';
 
 type ErrorBody = Pick<ErrorResponseDto, 'statusCode' | 'message' | 'errors'>;
 
@@ -83,6 +81,19 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const request = http.getRequest<Request>();
     const response = http.getResponse<Response>();
 
+    // Cabeçalhos já enviados (ex.: um asset do /docs que falha no meio do
+    // stream): não há como mandar o JSON de erro, e status().json() lançaria
+    // ERR_HTTP_HEADERS_SENT aqui dentro (risco 69). Registra e encerra a
+    // conexão, como o finalhandler do Express faria.
+    if (response.headersSent) {
+      this.logger.error(
+        `Erro depois do envio dos cabeçalhos em ${request.method} ${this.routeOf(request)}`,
+        exception instanceof Error ? exception.stack : String(exception),
+      );
+      response.destroy();
+      return;
+    }
+
     const body = this.toBody(exception, request);
 
     const payload: ErrorResponseDto = {
@@ -94,9 +105,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
       timestamp: new Date().toISOString(),
     };
 
-    if (!response.headersSent) {
-      for (const header of FILE_HEADERS) response.removeHeader(header);
-    }
+    for (const header of FILE_HEADERS) response.removeHeader(header);
+    response.setHeader('Cache-Control', ERROR_CACHE_CONTROL);
     response.status(body.statusCode).json(payload);
   }
 
@@ -114,7 +124,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
       return {
         statusCode: exception.status,
         message:
-          BODY_PARSER_MESSAGES[exception.type] ?? BODY_PARSER_DEFAULT_MESSAGE,
+          BODY_PARSER_MESSAGES[exception.type] ??
+          httpLayerMessage(exception.status),
       };
     }
 

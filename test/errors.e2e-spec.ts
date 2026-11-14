@@ -546,8 +546,11 @@ describe('Erro depois do envio dos cabeçalhos (e2e, risco 69)', () => {
     const res = await rawGet('/teste-falha-no-meio');
     await new Promise((resolve) => setTimeout(resolve, 50));
 
-    expect(res).toMatchObject({ status: 200, aborted: true });
-    expect(res.body).toBe('parcial');
+    // O status e o pedaço já escrito podem nem chegar: o destroy pode correr
+    // antes de o Node descarregar o buffer. O que importa: a conexão termina
+    // sem o JSON de erro grudado num corpo text/plain.
+    expect(res.aborted).toBe(true);
+    expect(res.body).not.toContain('statusCode');
     expect(loggerError).toHaveBeenCalledTimes(1);
     expect(loggerError).toHaveBeenCalledWith(
       'Erro depois do envio dos cabeçalhos em GET /teste-falha-no-meio',

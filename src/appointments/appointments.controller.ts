@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Post, Query, UseGuards } from '@nestjs/common';
 import {
     ApiBadRequestResponse,
     ApiBearerAuth,
@@ -27,6 +27,7 @@ import {
     UNAUTHORIZED_DESCRIPTION,
 } from '../common/swagger/api-responses.js';
 import { APPOINTMENT_CREATE_THROTTLE } from '../common/throttler/throttler.config.js';
+import { parseIdPipe } from '../common/validation/parse-id.pipe.js';
 import { AppointmentsService } from './appointments.service.js';
 import {
     APPOINTMENT_RESPONSE_MODELS,
@@ -89,7 +90,7 @@ export class AppointmentsController {
     @ApiBadRequestResponse({ type: ErrorResponseDto, description: INVALID_UUID_DESCRIPTION })
     @ApiNotFoundResponse({ type: ErrorResponseDto, description: 'Agendamento não encontrado (ou você não participa dele)' })
     findOne(
-        @Param('id', ParseUUIDPipe) id: string,
+        @Param('id', parseIdPipe) id: string,
         @CurrentUser() user: JwtPayload,
     ): Promise<AppointmentResponseDto> {
         return this.appointments.findOne(id, user.sub);
@@ -104,7 +105,7 @@ export class AppointmentsController {
     @ApiNotFoundResponse({ type: ErrorResponseDto, description: 'Agendamento não encontrado (ou você não participa dele)' })
     @ApiConflictResponse({ type: ErrorResponseDto, description: `Estado não permite, prazo expirado, perfil não verificado, estado mudou ou horário não está mais disponível, ${TRANSACTION_CONFLICT_DESCRIPTION}` })
     accept(
-        @Param('id', ParseUUIDPipe) id: string,
+        @Param('id', parseIdPipe) id: string,
         @CurrentUser() user: JwtPayload,
     ): Promise<InspectorAppointmentResponseDto> {
         return this.appointments.accept(id, user.sub);
@@ -119,7 +120,7 @@ export class AppointmentsController {
     @ApiNotFoundResponse({ type: ErrorResponseDto, description: 'Agendamento não encontrado (ou você não participa dele)' })
     @ApiConflictResponse({ type: ErrorResponseDto, description: 'Estado não permite, prazo expirado ou estado mudou' })
     decline(
-        @Param('id', ParseUUIDPipe) id: string,
+        @Param('id', parseIdPipe) id: string,
         @CurrentUser() user: JwtPayload,
     ): Promise<InspectorAppointmentResponseDto> {
         return this.appointments.decline(id, user.sub);
@@ -135,7 +136,7 @@ export class AppointmentsController {
     @ApiNotFoundResponse({ type: ErrorResponseDto, description: 'Agendamento não encontrado (ou você não participa dele)' })
     @ApiConflictResponse({ type: ErrorResponseDto, description: 'Estado não permite, prazo expirado ou estado mudou' })
     confirm(
-        @Param('id', ParseUUIDPipe) id: string,
+        @Param('id', parseIdPipe) id: string,
         @CurrentUser() user: JwtPayload,
         @Body() dto: ConfirmAppointmentDto,
     ): Promise<SellerAppointmentResponseDto> {
@@ -150,7 +151,7 @@ export class AppointmentsController {
     @ApiNotFoundResponse({ type: ErrorResponseDto, description: 'Agendamento não encontrado (ou você não participa dele)' })
     @ApiConflictResponse({ type: ErrorResponseDto, description: 'Estado não permite (ex.: já pago ou encerrado), prazo expirado ou estado mudou' })
     cancel(
-        @Param('id', ParseUUIDPipe) id: string,
+        @Param('id', parseIdPipe) id: string,
         @CurrentUser() user: JwtPayload,
     ): Promise<AppointmentResponseDto> {
         return this.appointments.cancel(id, user.sub);

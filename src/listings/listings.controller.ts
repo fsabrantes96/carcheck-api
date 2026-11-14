@@ -5,7 +5,6 @@ import {
     Get,
     HttpCode,
     Param,
-    ParseUUIDPipe,
     Patch,
     Post,
     Query,
@@ -24,6 +23,7 @@ import {
     ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { ErrorResponseDto } from '../common/dto/error-response.dto.js';
+import { parseIdPipe } from '../common/validation/parse-id.pipe.js';
 import {
     ApiBodyErrorResponses,
     ApiCommonErrorResponses,
@@ -88,7 +88,7 @@ export class ListingsController {
     @ApiOkResponse({ type: ListingResponseDto })
     @ApiBadRequestResponse({ type: ErrorResponseDto, description: INVALID_UUID_DESCRIPTION })
     @ApiNotFoundResponse({ type: ErrorResponseDto, description: NOT_FOUND })
-    findOne(@Param('id', ParseUUIDPipe) id: string): Promise<ListingResponseDto> {
+    findOne(@Param('id', parseIdPipe) id: string): Promise<ListingResponseDto> {
         return this.listings.findOnePublic(id);
     }
 
@@ -118,7 +118,7 @@ export class ListingsController {
     @ApiNotFoundResponse({ type: ErrorResponseDto, description: NOT_FOUND })
     @ApiConflictResponse({ type: ErrorResponseDto, description: 'Anúncio arquivado não pode ser alterado' })
     update(
-        @Param('id', ParseUUIDPipe) id: string,
+        @Param('id', parseIdPipe) id: string,
         @CurrentUser() user: JwtPayload,
         @Body() dto: UpdateListingDto,
     ): Promise<MyListingResponseDto> {
@@ -137,7 +137,7 @@ export class ListingsController {
     @ApiNotFoundResponse({ type: ErrorResponseDto, description: NOT_FOUND })
     @ApiConflictResponse({ type: ErrorResponseDto, description: `Ação não permitida no status atual do anúncio, ou o status mudou durante a requisição, ou há avaliação paga em andamento (agendamento PAID), ${TRANSACTION_CONFLICT_DESCRIPTION}` })
     pause(
-        @Param('id', ParseUUIDPipe) id: string,
+        @Param('id', parseIdPipe) id: string,
         @CurrentUser() user: JwtPayload,
     ): Promise<MyListingResponseDto> {
         return this.listings.pause(id, user.sub);
@@ -155,7 +155,7 @@ export class ListingsController {
     @ApiNotFoundResponse({ type: ErrorResponseDto, description: NOT_FOUND })
     @ApiConflictResponse({ type: ErrorResponseDto, description: `Ação não permitida no status atual do anúncio, ou o status mudou durante a requisição, ${TRANSACTION_CONFLICT_DESCRIPTION}` })
     activate(
-        @Param('id', ParseUUIDPipe) id: string,
+        @Param('id', parseIdPipe) id: string,
         @CurrentUser() user: JwtPayload,
     ): Promise<MyListingResponseDto> {
         return this.listings.activate(id, user.sub);
@@ -173,7 +173,7 @@ export class ListingsController {
     @ApiNotFoundResponse({ type: ErrorResponseDto, description: NOT_FOUND })
     @ApiConflictResponse({ type: ErrorResponseDto, description: `Ação não permitida no status atual do anúncio, ou o status mudou durante a requisição, ou há avaliação paga em andamento (agendamento PAID), ${TRANSACTION_CONFLICT_DESCRIPTION}` })
     markSold(
-        @Param('id', ParseUUIDPipe) id: string,
+        @Param('id', parseIdPipe) id: string,
         @CurrentUser() user: JwtPayload,
     ): Promise<MyListingResponseDto> {
         return this.listings.markSold(id, user.sub);
@@ -191,7 +191,7 @@ export class ListingsController {
     @ApiNotFoundResponse({ type: ErrorResponseDto, description: NOT_FOUND })
     @ApiConflictResponse({ type: ErrorResponseDto, description: `Anúncio já arquivado, ou o status mudou durante a requisição, ou há avaliação paga em andamento (agendamento PAID), ${TRANSACTION_CONFLICT_DESCRIPTION}` })
     remove(
-        @Param('id', ParseUUIDPipe) id: string,
+        @Param('id', parseIdPipe) id: string,
         @CurrentUser() user: JwtPayload,
     ): Promise<void> {
         return this.listings.remove(id, user.sub);

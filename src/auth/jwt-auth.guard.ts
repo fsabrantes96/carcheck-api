@@ -8,6 +8,9 @@ import { JwtService } from '@nestjs/jwt';
 import type { Request } from 'express';
 import type { AuthenticatedRequest, JwtPayload } from './types/jwt-payload.js';
 
+/** Token inválido, expirado ou de uma conta que não existe mais (RolesGuard). */
+export const INVALID_TOKEN_MESSAGE = 'Token inválido ou expirado';
+
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
     constructor(private readonly jwt: JwtService) { }
@@ -21,7 +24,7 @@ export class JwtAuthGuard implements CanActivate {
         try {
             request.user = await this.jwt.verifyAsync<JwtPayload>(token);
         } catch {
-            throw new UnauthorizedException('Token inválido ou expirado');
+            throw new UnauthorizedException(INVALID_TOKEN_MESSAGE);
         }
         return true;
     }

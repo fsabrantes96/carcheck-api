@@ -6,6 +6,7 @@ import { SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 import { AppModule } from './app.module.js';
 import { AppExpressAdapter } from './common/http/app-express.adapter.js';
+import { rejectUnsupportedContentType } from './common/http/unsupported-content-type.middleware.js';
 import { BODY_SIZE_LIMIT } from './common/limits.js';
 import { buildOpenApiDocument } from './openapi/openapi-document.js';
 
@@ -35,6 +36,11 @@ export function configureApp(app: INestApplication): void {
   // O helmet também remove o X-Powered-By; o disable evita que ele seja gerado.
   expressApp.disable('x-powered-by');
   app.use(helmet());
+
+  // Corpo de tipo que a API não lê → 415 no formato global, antes dos parsers
+  // e do roteamento (logo, antes da autenticação). Lista em
+  // ACCEPTED_BODY_CONTENT_TYPES.
+  app.use(rejectUnsupportedContentType);
 
   // Limite do corpo explícito (o mesmo padrão de 100kb do body-parser), para
   // não depender de padrão implícito. Precisa vir antes do init: o Nest só

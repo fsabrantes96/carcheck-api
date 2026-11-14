@@ -92,3 +92,13 @@ export const APPOINTMENTS_PAGE_MAX = 10_000;
 // Corpo da requisição
 /** Padrão do body-parser do Express, configurado de forma explícita. */
 export const BODY_SIZE_LIMIT = '100kb';
+/**
+ * Content-Types de corpo que a API lê (um parser registrado para cada um no
+ * configureApp). Corpo de outro tipo, ou sem Content-Type, recebe 415 antes
+ * do roteamento (rejectUnsupportedContentType). Ao aceitar upload de fotos,
+ * entra aqui 'multipart/form-data', junto com o parser dele.
+ */
+export const ACCEPTED_BODY_CONTENT_TYPES: readonly string[] = [
+  'application/json',
+  'application/x-www-form-urlencoded',
+];
