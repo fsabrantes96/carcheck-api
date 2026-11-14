@@ -4,6 +4,8 @@ import {
     ListingStatus,
     Transmission,
 } from '../../generated/prisma/client.js';
+import { VEHICLE_YEAR_DESCRIPTION, VEHICLE_YEAR_MIN } from '../../common/limits.js';
+import { ApiBrazilianState } from '../../common/validation/brazilian-state.js';
 
 export type ListingWithRelations = {
     id: string;
@@ -29,8 +31,8 @@ export type ListingWithRelations = {
 export class VehicleResponseDto {
     @ApiProperty() brand: string;
     @ApiProperty() model: string;
-    @ApiProperty() year: number;
-    @ApiProperty() mileageKm: number;
+    @ApiProperty({ type: 'integer', minimum: VEHICLE_YEAR_MIN, description: VEHICLE_YEAR_DESCRIPTION }) year: number;
+    @ApiProperty({ type: 'integer', description: 'Quilometragem' }) mileageKm: number;
     @ApiProperty({ enum: FuelType }) fuel: FuelType;
     @ApiProperty({ enum: Transmission }) transmission: Transmission;
 }
@@ -42,13 +44,13 @@ export class VehicleResponseDto {
  * MyListingResponseDto.
  */
 export class ListingResponseDto {
-    @ApiProperty() id: string;
+    @ApiProperty({ format: 'uuid' }) id: string;
     @ApiProperty() sellerName: string;
     @ApiProperty() title: string;
     @ApiProperty() description: string;
-    @ApiProperty() priceCents: number;
+    @ApiProperty({ type: 'integer', description: 'Preço em centavos' }) priceCents: number;
     @ApiProperty() city: string;
-    @ApiProperty() state: string;
+    @ApiBrazilianState() state: string;
     @ApiProperty({ type: VehicleResponseDto, nullable: true })
     vehicle: VehicleResponseDto | null;
     @ApiProperty() createdAt: Date;

@@ -2,11 +2,12 @@ import { ValidationPipe } from '@nestjs/common';
 import type { INestApplication } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 import { AppModule } from './app.module.js';
 import { AppExpressAdapter } from './common/http/app-express.adapter.js';
 import { BODY_SIZE_LIMIT } from './common/limits.js';
+import { buildOpenApiDocument } from './openapi/openapi-document.js';
 
 /**
  * Adapter HTTP da aplicação. Fica numa função para que o main.ts e os testes
@@ -53,12 +54,8 @@ export function configureApp(app: INestApplication): void {
     }),
   );
 
-  const config = new DocumentBuilder()
-    .setTitle('CarCheck API')
-    .setVersion('0.1')
-    .addBearerAuth()
-    .build();
-  SwaggerModule.setup('docs', app, SwaggerModule.createDocument(app, config));
+  // O mesmo documento do openapi.json versionado (buildOpenApiDocument).
+  SwaggerModule.setup('docs', app, buildOpenApiDocument(app));
 }
 
 /** Cria a aplicação do jeito que ela roda em produção. */

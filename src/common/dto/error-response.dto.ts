@@ -4,7 +4,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
  * Formato único de erro devolvido por toda a API (ver AllExceptionsFilter).
  */
 export class ErrorResponseDto {
-  @ApiProperty({ example: 404 })
+  @ApiProperty({ type: 'integer', example: 404, description: 'Status HTTP' })
   statusCode: number;
 
   @ApiProperty({ example: 'Not Found', description: 'Nome do status HTTP' })
@@ -20,9 +20,9 @@ export class ErrorResponseDto {
   })
   errors?: string[];
 
-  @ApiProperty({ example: '/listings/123' })
+  @ApiProperty({ example: '/listings/123', description: 'URL da requisição, com a query string' })
   path: string;
 
-  @ApiProperty({ example: '2026-11-10T12:00:00.000Z' })
+  @ApiProperty({ format: 'date-time', example: '2026-11-10T12:00:00.000Z' })
   timestamp: string;
 }

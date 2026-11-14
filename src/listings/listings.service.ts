@@ -17,14 +17,26 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { CreateListingDto } from './dto/create-listing.dto.js';
 import { ListListingsQueryDto } from './dto/list-listings-query.dto.js';
 import { ListingResponseDto } from './dto/listing-response.dto.js';
+import type { ListingsPageQueryDto } from './dto/listings-page-query.dto.js';
 import { MyListingResponseDto } from './dto/my-listing-response.dto.js';
 import { PaginatedListingsResponseDto } from './dto/paginated-listings-response.dto.js';
+import type { PaginatedMyListingsResponseDto } from './dto/paginated-my-listings-response.dto.js';
 import { UpdateListingDto } from './dto/update-listing.dto.js';
 import type { VehicleDto } from './dto/vehicle.dto.js';
 import { decideListingTransition } from './listings.state-machine.js';
 import type { ListingAction } from './listings.state-machine.js';
 
 const include = { seller: true, vehicle: true } as const;
+
+/**
+ * Ordem das listagens paginadas: mais novos primeiro e, no mesmo createdAt,
+ * por id. Sem o desempate, a ordem dos empatados fica a critério do Postgres
+ * e um anúncio pode se repetir ou sumir entre páginas.
+ */
+const STABLE_ORDER: Prisma.ListingOrderByWithRelationInput[] = [
+    { createdAt: 'desc' },
+    { id: 'desc' },
+];
 
 function toVehicleData(vehicle: VehicleDto) {
     return {
@@ -87,7 +99,7 @@ export class ListingsService {
             this.prisma.listing.findMany({
                 where,
                 include,
-                orderBy: { createdAt: 'desc' },
+                orderBy: STABLE_ORDER,
                 skip: (page - 1) * limit,
                 take: limit,
             }),
@@ -111,13 +123,30 @@ export class ListingsService {
         return ListingResponseDto.from(listing);
     }
 
-    async findMine(sellerId: string): Promise<MyListingResponseDto[]> {
-        const listings = await this.prisma.listing.findMany({
-            where: { sellerId, status: { not: 'ARCHIVED' } },
-            include,
-            orderBy: { createdAt: 'desc' },
-        });
-        return listings.map((l) => MyListingResponseDto.from(l));
+    async findMine(
+        sellerId: string,
+        query: ListingsPageQueryDto,
+    ): Promise<PaginatedMyListingsResponseDto> {
+        const { page, limit } = query;
+        const where: Prisma.ListingWhereInput = { sellerId, status: { not: 'ARCHIVED' } };
+
+        const [listings, total] = await this.prisma.$transaction([
+            this.prisma.listing.findMany({
+                where,
+                include,
+                orderBy: STABLE_ORDER,
+                skip: (page - 1) * limit,
+                take: limit,
+            }),
+            this.prisma.listing.count({ where }),
+        ]);
+
+        return {
+            items: listings.map((l) => MyListingResponseDto.from(l)),
+            total,
+            page,
+            limit,
+        };
     }
 
     async update(

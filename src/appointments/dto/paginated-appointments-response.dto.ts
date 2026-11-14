@@ -10,7 +10,7 @@ export class PaginatedAppointmentsResponseDto {
     })
     items: AppointmentResponseDto[];
 
-    @ApiProperty() total: number;
-    @ApiProperty() page: number;
-    @ApiProperty() limit: number;
+    @ApiProperty({ type: 'integer' }) total: number;
+    @ApiProperty({ type: 'integer' }) page: number;
+    @ApiProperty({ type: 'integer' }) limit: number;
 }

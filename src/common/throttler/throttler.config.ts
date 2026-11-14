@@ -5,9 +5,12 @@ const ONE_MINUTE_MS = 60_000;
 export const THROTTLE_ERROR_MESSAGE =
   'Muitas requisições. Tente novamente em instantes.';
 
+/** Limite global por IP, por minuto (também citado no Swagger). */
+export const GLOBAL_THROTTLE_LIMIT = 100;
+
 /** Limite global: 100 requisições por minuto por IP. */
 export const throttlerOptions: ThrottlerModuleOptions = {
-  throttlers: [{ name: 'default', ttl: ONE_MINUTE_MS, limit: 100 }],
+  throttlers: [{ name: 'default', ttl: ONE_MINUTE_MS, limit: GLOBAL_THROTTLE_LIMIT }],
   errorMessage: THROTTLE_ERROR_MESSAGE,
 };
 

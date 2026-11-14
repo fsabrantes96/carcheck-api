@@ -154,6 +154,159 @@ describe('Listings (e2e)', () => {
     });
   });
 
+  describe('GET /listings/mine (paginação)', () => {
+    function getMine(query: Record<string, unknown> = {}, token = seller.token) {
+      return request(app.getHttpServer())
+        .get('/listings/mine')
+        .set('Authorization', `Bearer ${token}`)
+        .query(query);
+    }
+
+    async function createMany(count: number): Promise<string[]> {
+      const ids: string[] = [];
+      for (let n = 1; n <= count; n++) {
+        ids.push(
+          (await createListing(listingPayload({ title: `Anúncio número ${n}` })))
+            .id,
+        );
+      }
+      return ids;
+    }
+
+    it('responde { items, total, page, limit } com os padrões page 1 e limit 20', async () => {
+      const { id } = await createListing();
+
+      const res = await getMine().expect(200);
+
+      expect(Object.keys(res.body).sort()).toEqual([
+        'items',
+        'limit',
+        'page',
+        'total',
+      ]);
+      expect(res.body).toMatchObject({ total: 1, page: 1, limit: 20 });
+      expect(res.body.items.map((l: { id: string }) => l.id)).toEqual([id]);
+      expect(res.body.items[0]).toMatchObject({ status: 'ACTIVE' });
+      expect(res.body.items[0]).not.toHaveProperty('sellerId');
+    });
+
+    it('pagina com page e limit sem repetir nem perder anúncios, e o total conta todos', async () => {
+      const created = await createMany(5);
+
+      const pages = await Promise.all(
+        [1, 2, 3].map((page) => getMine({ page, limit: 2 }).expect(200)),
+      );
+
+      expect(pages.map((p) => p.body.items.length)).toEqual([2, 2, 1]);
+      expect(pages.map((p) => p.body.total)).toEqual([5, 5, 5]);
+      expect(pages[2].body).toMatchObject({ page: 3, limit: 2 });
+      const seen = pages.flatMap((p) =>
+        p.body.items.map((l: { id: string }) => l.id),
+      );
+      expect(seen).toHaveLength(5);
+      expect(new Set(seen)).toEqual(new Set(created));
+    });
+
+    it('página além do fim responde 200 com items vazio e o total real', async () => {
+      await createMany(3);
+
+      const res = await getMine({ page: 10, limit: 2 }).expect(200);
+
+      expect(res.body).toEqual({ items: [], total: 3, page: 10, limit: 2 });
+    });
+
+    it('aceita os limites page=200 e limit=50', async () => {
+      const res = await getMine({ page: 200, limit: 50 }).expect(200);
+
+      expect(res.body).toEqual({ items: [], total: 0, page: 200, limit: 50 });
+    });
+
+    it.each([
+      [{ page: 0 }, 'page must not be less than 1'],
+      [{ page: 201 }, 'page must not be greater than 200'],
+      [{ limit: 0 }, 'limit must not be less than 1'],
+      [{ limit: 51 }, 'limit must not be greater than 50'],
+      [{ page: 1.5 }, 'page must be an integer number'],
+    ])(
+      'responde 400 no formato de validação com %o',
+      async (query, error) => {
+        const res = await getMine(query).expect(400);
+
+        expect(res.body.message).toBe('Dados inválidos');
+        expect(Object.keys(res.body).sort()).toEqual(VALIDATION_ERROR_KEYS);
+        expect(res.body.errors).toContain(error);
+      },
+    );
+
+    it('traz só os anúncios do dono: os de outro vendedor não entram nos itens nem no total', async () => {
+      const own = await createMany(2);
+      const other = await registerAndLogin(app, 'outro@x.com', 'Outro Vendedor');
+      await createListing(listingPayload({ title: 'Anúncio de outra pessoa' }), other.token);
+
+      const res = await getMine().expect(200);
+
+      expect(res.body.total).toBe(2);
+      expect(new Set(res.body.items.map((l: { id: string }) => l.id))).toEqual(
+        new Set(own),
+      );
+    });
+
+    it('sem token responde 401', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/listings/mine')
+        .expect(401);
+
+      expect(Object.keys(res.body).sort()).toEqual(ERROR_KEYS);
+    });
+  });
+
+  describe('ordem estável entre páginas (createdAt desc, depois id desc)', () => {
+    const SAME_INSTANT = new Date('2026-11-10T12:00:00.000Z');
+
+    /**
+     * Cria anúncios e põe todos no mesmo createdAt, direto no banco: sem o
+     * desempate por id, a ordem entre páginas fica indefinida.
+     */
+    async function listingsWithSameCreatedAt(count: number): Promise<string[]> {
+      for (let n = 1; n <= count; n++) {
+        await createListing(listingPayload({ title: `Anúncio empatado ${n}` }));
+      }
+      await prisma.listing.updateMany({ data: { createdAt: SAME_INSTANT } });
+      // A ordem esperada é a do próprio banco por id desc (colação do Postgres).
+      const expected = await prisma.listing.findMany({
+        orderBy: { id: 'desc' },
+        select: { id: true },
+      });
+      return expected.map((l) => l.id);
+    }
+
+    async function walkPages(path: string, total: number): Promise<string[]> {
+      const ids: string[] = [];
+      for (let page = 1; page <= total; page++) {
+        const res = await request(app.getHttpServer())
+          .get(path)
+          .set('Authorization', `Bearer ${seller.token}`)
+          .query({ page, limit: 1 })
+          .expect(200);
+        ids.push(...res.body.items.map((l: { id: string }) => l.id));
+      }
+      return ids;
+    }
+
+    it.each(['/listings', '/listings/mine'])(
+      'GET %s com limit=1 percorre os anúncios empatados em id desc, sem repetir, e repete a mesma ordem',
+      async (path) => {
+        const expected = await listingsWithSameCreatedAt(5);
+
+        const first = await walkPages(path, 5);
+        const second = await walkPages(path, 5);
+
+        expect(first).toEqual(expected);
+        expect(second).toEqual(expected);
+      },
+    );
+  });
+
   describe('PATCH /listings/:id com status', () => {
     it('responde 400 (campo não permitido) e não altera o status do anúncio', async () => {
       const listing = await createListing();
@@ -274,7 +427,7 @@ describe('Listings (e2e)', () => {
       .get('/listings/mine')
       .set('Authorization', `Bearer ${seller.token}`)
       .expect(200);
-    return res.body as { id: string; status: string }[];
+    return res.body.items as { id: string; status: string }[];
   }
 
   describe('arquivamento (DELETE /listings/:id)', () => {
@@ -596,6 +749,32 @@ describe('Listings (e2e)', () => {
 
       expect(props).toContain('title');
       expect(props).not.toContain('status');
+    });
+
+    it('GET /listings/mine documenta a resposta paginada com itens MyListingResponseDto e os parâmetros page e limit', () => {
+      const op = doc.paths['/listings/mine'].get as {
+        parameters: { name: string; in: string; schema: Record<string, unknown> }[];
+        responses: Record<string, { content: Record<string, { schema: unknown }> }>;
+      };
+
+      expect(op.responses['200'].content['application/json'].schema).toEqual({
+        $ref: '#/components/schemas/PaginatedMyListingsResponseDto',
+      });
+      const paginated = doc.components.schemas.PaginatedMyListingsResponseDto
+        .properties as Record<string, { items?: unknown }>;
+      expect(Object.keys(paginated).sort()).toEqual([
+        'items',
+        'limit',
+        'page',
+        'total',
+      ]);
+      expect(paginated.items.items).toEqual({
+        $ref: '#/components/schemas/MyListingResponseDto',
+      });
+      const param = (name: string) =>
+        op.parameters.find((p) => p.name === name && p.in === 'query')?.schema;
+      expect(param('page')).toMatchObject({ minimum: 1, maximum: 200, default: 1 });
+      expect(param('limit')).toMatchObject({ minimum: 1, maximum: 50, default: 20 });
     });
 
     it.each(['pause', 'activate', 'mark-sold'])(

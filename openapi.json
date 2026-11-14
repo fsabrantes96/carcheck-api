@@ -1,0 +1,3696 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/auth/register": {
+      "post": {
+        "operationId": "AuthController_register",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dados inválidos (lista em errors) ou corpo malformado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "E-mail já cadastrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Corpo da requisição muito grande (acima de 100kb)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Content-Encoding ou charset do corpo não suportado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Muitas requisições. Tente novamente em instantes. Limite: 5 requisições por minuto por IP.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro interno do servidor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "operationId": "AuthController_login",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dados inválidos (lista em errors) ou corpo malformado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "E-mail ou senha inválidos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Corpo da requisição muito grande (acima de 100kb)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Content-Encoding ou charset do corpo não suportado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Muitas requisições. Tente novamente em instantes. Limite: 5 requisições por minuto por IP.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro interno do servidor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "operationId": "AuthController_me",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, inválido ou expirado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Usuário não encontrado (token válido de uma conta que não existe mais)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Muitas requisições. Tente novamente em instantes. Limite: 100 requisições por minuto por IP.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro interno do servidor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/inspectors": {
+      "get": {
+        "operationId": "InspectorsController_findAll",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/InspectorResponseDto"
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Muitas requisições. Tente novamente em instantes. Limite: 100 requisições por minuto por IP.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro interno do servidor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "inspectors"
+        ]
+      }
+    },
+    "/inspectors/me": {
+      "post": {
+        "operationId": "InspectorsController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateInspectorProfileDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InspectorResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dados inválidos ou preço base abaixo de MIN_INSPECTION_PRICE_CENTS",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, inválido ou expirado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "\"Você já possui perfil de avaliador\", ou \"Conflito ao processar, tente novamente\" (conflito de transação no banco; repita a requisição)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Corpo da requisição muito grande (acima de 100kb)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Content-Encoding ou charset do corpo não suportado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Muitas requisições. Tente novamente em instantes. Limite: 100 requisições por minuto por IP.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro interno do servidor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "inspectors"
+        ]
+      },
+      "get": {
+        "operationId": "InspectorsController_findMine",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Perfil do avaliador com a comissão atual e o repasse estimado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyInspectorProfileResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, inválido ou expirado, ou token válido de uma conta que não existe mais",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "\"Sem permissão para esta ação\": o usuário não tem a role INSPECTOR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Perfil de avaliador não encontrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Muitas requisições. Tente novamente em instantes. Limite: 100 requisições por minuto por IP.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro interno do servidor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "inspectors"
+        ]
+      },
+      "patch": {
+        "operationId": "InspectorsController_update",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateInspectorProfileDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InspectorResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dados inválidos ou basePriceCents (quando enviado) abaixo de MIN_INSPECTION_PRICE_CENTS",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, inválido ou expirado, ou token válido de uma conta que não existe mais",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "\"Sem permissão para esta ação\": o usuário não tem a role INSPECTOR",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Perfil de avaliador não encontrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Corpo da requisição muito grande (acima de 100kb)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Content-Encoding ou charset do corpo não suportado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Muitas requisições. Tente novamente em instantes. Limite: 100 requisições por minuto por IP.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro interno do servidor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "inspectors"
+        ]
+      }
+    },
+    "/listings": {
+      "get": {
+        "operationId": "ListingsController_findAll",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 200,
+              "default": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "brand",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maxLength": 100,
+              "example": "Volkswagen",
+              "type": "string"
+            }
+          },
+          {
+            "name": "city",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maxLength": 100,
+              "example": "Boituva",
+              "type": "string"
+            }
+          },
+          {
+            "name": "state",
+            "required": false,
+            "in": "query",
+            "description": "Sigla da UF (uma das 27). Espaços nas pontas e minúsculas são normalizados (\"sp\" vira \"SP\")",
+            "schema": {
+              "minLength": 2,
+              "maxLength": 2,
+              "example": "SP",
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/BrazilianState"
+                }
+              ]
+            }
+          },
+          {
+            "name": "minPriceCents",
+            "required": false,
+            "in": "query",
+            "description": "Preço mínimo em centavos",
+            "schema": {
+              "minimum": 0,
+              "maximum": 1000000000,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "maxPriceCents",
+            "required": false,
+            "in": "query",
+            "description": "Preço máximo em centavos",
+            "schema": {
+              "minimum": 0,
+              "maximum": 1000000000,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "minYear",
+            "required": false,
+            "in": "query",
+            "description": "Ano do veículo, de 1950 até o ano atual + 1",
+            "schema": {
+              "minimum": 1950,
+              "example": 2015,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "maxYear",
+            "required": false,
+            "in": "query",
+            "description": "Ano do veículo, de 1950 até o ano atual + 1",
+            "schema": {
+              "minimum": 1950,
+              "example": 2022,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedListingsResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Filtros inválidos (lista em errors): UF fora das 27, page de 1 a 200, limit de 1 a 50, faixas de preço e ano",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Muitas requisições. Tente novamente em instantes. Limite: 100 requisições por minuto por IP.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro interno do servidor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "listings"
+        ]
+      },
+      "post": {
+        "operationId": "ListingsController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateListingDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyListingResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dados inválidos (lista em errors) ou corpo malformado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, inválido ou expirado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Corpo da requisição muito grande (acima de 100kb)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Content-Encoding ou charset do corpo não suportado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Muitas requisições. Tente novamente em instantes. Limite: 100 requisições por minuto por IP.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro interno do servidor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "listings"
+        ]
+      }
+    },
+    "/listings/mine": {
+      "get": {
+        "operationId": "ListingsController_findMine",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 200,
+              "default": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Anúncios do usuário, sem os arquivados, paginados",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedMyListingsResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Paginação inválida (page de 1 a 200, limit de 1 a 50)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, inválido ou expirado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Muitas requisições. Tente novamente em instantes. Limite: 100 requisições por minuto por IP.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro interno do servidor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "listings"
+        ]
+      }
+    },
+    "/listings/{id}": {
+      "get": {
+        "operationId": "ListingsController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListingResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Id inválido: precisa ser uuid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Anúncio não encontrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Muitas requisições. Tente novamente em instantes. Limite: 100 requisições por minuto por IP.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro interno do servidor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "listings"
+        ]
+      },
+      "patch": {
+        "operationId": "ListingsController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateListingDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyListingResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Id inválido: precisa ser uuid, ou dados inválidos (inclusive enviar status, que muda só pelas rotas de transição)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, inválido ou expirado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Este anúncio não pertence a você",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Anúncio não encontrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Anúncio arquivado não pode ser alterado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Corpo da requisição muito grande (acima de 100kb)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Content-Encoding ou charset do corpo não suportado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Muitas requisições. Tente novamente em instantes. Limite: 100 requisições por minuto por IP.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro interno do servidor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "listings"
+        ]
+      },
+      "delete": {
+        "operationId": "ListingsController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Anúncio arquivado (status ARCHIVED); não é apagado do banco. Os agendamentos em aberto do anúncio (REQUESTED, ACCEPTED, AWAITING_PAYMENT) são cancelados (CANCELLED, endedBy SELLER)."
+          },
+          "400": {
+            "description": "Id inválido: precisa ser uuid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, inválido ou expirado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Este anúncio não pertence a você",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Anúncio não encontrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Anúncio já arquivado, ou o status mudou durante a requisição, ou há avaliação paga em andamento (agendamento PAID), ou \"Conflito ao processar, tente novamente\" (conflito de transação no banco; repita a requisição)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Muitas requisições. Tente novamente em instantes. Limite: 100 requisições por minuto por IP.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro interno do servidor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "listings"
+        ]
+      }
+    },
+    "/listings/{id}/pause": {
+      "post": {
+        "operationId": "ListingsController_pause",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Anúncio pausado (ACTIVE → PAUSED). Os agendamentos em aberto do anúncio (REQUESTED, ACCEPTED, AWAITING_PAYMENT) são cancelados (CANCELLED, endedBy SELLER).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyListingResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Id inválido: precisa ser uuid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, inválido ou expirado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Este anúncio não pertence a você",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Anúncio não encontrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Ação não permitida no status atual do anúncio, ou o status mudou durante a requisição, ou há avaliação paga em andamento (agendamento PAID), ou \"Conflito ao processar, tente novamente\" (conflito de transação no banco; repita a requisição)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Muitas requisições. Tente novamente em instantes. Limite: 100 requisições por minuto por IP.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro interno do servidor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "listings"
+        ]
+      }
+    },
+    "/listings/{id}/activate": {
+      "post": {
+        "operationId": "ListingsController_activate",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Anúncio reativado (PAUSED → ACTIVE)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyListingResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Id inválido: precisa ser uuid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, inválido ou expirado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Este anúncio não pertence a você",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Anúncio não encontrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Ação não permitida no status atual do anúncio, ou o status mudou durante a requisição, ou \"Conflito ao processar, tente novamente\" (conflito de transação no banco; repita a requisição)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Muitas requisições. Tente novamente em instantes. Limite: 100 requisições por minuto por IP.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro interno do servidor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "listings"
+        ]
+      }
+    },
+    "/listings/{id}/mark-sold": {
+      "post": {
+        "operationId": "ListingsController_markSold",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Anúncio marcado como vendido (ACTIVE ou PAUSED → SOLD). Os agendamentos em aberto do anúncio (REQUESTED, ACCEPTED, AWAITING_PAYMENT) são cancelados (CANCELLED, endedBy SELLER).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyListingResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Id inválido: precisa ser uuid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, inválido ou expirado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Este anúncio não pertence a você",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Anúncio não encontrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Ação não permitida no status atual do anúncio, ou o status mudou durante a requisição, ou há avaliação paga em andamento (agendamento PAID), ou \"Conflito ao processar, tente novamente\" (conflito de transação no banco; repita a requisição)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Muitas requisições. Tente novamente em instantes. Limite: 100 requisições por minuto por IP.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro interno do servidor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "listings"
+        ]
+      }
+    },
+    "/appointments": {
+      "post": {
+        "operationId": "AppointmentsController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAppointmentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Pedido criado (REQUESTED); quem pede vira o comprador",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BuyerAppointmentResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Dados inválidos (inclusive campos não permitidos como status, preço, comprador ou vendedor), antecedência mínima ou horizonte de 60 dias, ou corpo malformado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, inválido ou expirado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Agendar no próprio anúncio, ou consigo mesmo como avaliador",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Anúncio não encontrado (ou não ACTIVE), ou avaliador não encontrado (ou não verificado)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Avaliador indisponível para o anúncio, preço abaixo do mínimo, horário ocupado ou pedido em andamento duplicado, ou \"Conflito ao processar, tente novamente\" (conflito de transação no banco; repita a requisição)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Corpo da requisição muito grande (acima de 100kb)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Content-Encoding ou charset do corpo não suportado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Muitas requisições. Tente novamente em instantes. Limite: 10 requisições por minuto por IP.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro interno do servidor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "appointments"
+        ]
+      },
+      "get": {
+        "operationId": "AppointmentsController_list",
+        "parameters": [
+          {
+            "name": "as",
+            "required": false,
+            "in": "query",
+            "description": "Só os agendamentos em que você tem este papel",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "BUYER",
+                "SELLER",
+                "INSPECTOR"
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "REQUESTED",
+                "ACCEPTED",
+                "AWAITING_PAYMENT",
+                "PAID",
+                "REPORT_SUBMITTED",
+                "DISPUTED",
+                "COMPLETED",
+                "DECLINED",
+                "CANCELLED",
+                "EXPIRED"
+              ]
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 10000,
+              "default": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedAppointmentsResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Filtros inválidos (as, status, page, limit <= 50)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, inválido ou expirado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Muitas requisições. Tente novamente em instantes. Limite: 100 requisições por minuto por IP.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro interno do servidor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "appointments"
+        ]
+      }
+    },
+    "/appointments/{id}": {
+      "get": {
+        "operationId": "AppointmentsController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Formato conforme o seu papel (myRole)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/BuyerAppointmentResponseDto"
+                    },
+                    {
+                      "$ref": "#/components/schemas/SellerAppointmentResponseDto"
+                    },
+                    {
+                      "$ref": "#/components/schemas/InspectorAppointmentResponseDto"
+                    }
+                  ],
+                  "discriminator": {
+                    "propertyName": "myRole",
+                    "mapping": {
+                      "BUYER": "#/components/schemas/BuyerAppointmentResponseDto",
+                      "SELLER": "#/components/schemas/SellerAppointmentResponseDto",
+                      "INSPECTOR": "#/components/schemas/InspectorAppointmentResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Id inválido: precisa ser uuid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, inválido ou expirado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Agendamento não encontrado (ou você não participa dele)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Muitas requisições. Tente novamente em instantes. Limite: 100 requisições por minuto por IP.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro interno do servidor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "appointments"
+        ]
+      }
+    },
+    "/appointments/{id}/accept": {
+      "post": {
+        "operationId": "AppointmentsController_accept",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Aceito (REQUESTED → ACCEPTED); ocupa o horário do avaliador",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InspectorAppointmentResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Id inválido: precisa ser uuid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, inválido ou expirado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Você não pode aceitar este agendamento (só o avaliador)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Agendamento não encontrado (ou você não participa dele)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Estado não permite, prazo expirado, perfil não verificado, estado mudou ou horário não está mais disponível, ou \"Conflito ao processar, tente novamente\" (conflito de transação no banco; repita a requisição)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Muitas requisições. Tente novamente em instantes. Limite: 100 requisições por minuto por IP.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro interno do servidor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "appointments"
+        ]
+      }
+    },
+    "/appointments/{id}/decline": {
+      "post": {
+        "operationId": "AppointmentsController_decline",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Recusado (REQUESTED → DECLINED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InspectorAppointmentResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Id inválido: precisa ser uuid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, inválido ou expirado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Você não pode recusar este agendamento (só o avaliador)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Agendamento não encontrado (ou você não participa dele)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Estado não permite, prazo expirado ou estado mudou",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Muitas requisições. Tente novamente em instantes. Limite: 100 requisições por minuto por IP.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro interno do servidor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "appointments"
+        ]
+      }
+    },
+    "/appointments/{id}/confirm": {
+      "post": {
+        "operationId": "AppointmentsController_confirm",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmAppointmentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Confirmado (ACCEPTED → AWAITING_PAYMENT); abre a janela de 30 min para pagar",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SellerAppointmentResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Id inválido (precisa ser uuid), ou meetingAddress ausente ou fora de 5 a 300 caracteres, ou corpo malformado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, inválido ou expirado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Você não pode confirmar este agendamento (só o vendedor)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Agendamento não encontrado (ou você não participa dele)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Estado não permite, prazo expirado ou estado mudou",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Corpo da requisição muito grande (acima de 100kb)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Content-Encoding ou charset do corpo não suportado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Muitas requisições. Tente novamente em instantes. Limite: 100 requisições por minuto por IP.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro interno do servidor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "appointments"
+        ]
+      }
+    },
+    "/appointments/{id}/cancel": {
+      "post": {
+        "operationId": "AppointmentsController_cancel",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cancelado (antes do pagamento); formato conforme o seu papel",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/BuyerAppointmentResponseDto"
+                    },
+                    {
+                      "$ref": "#/components/schemas/SellerAppointmentResponseDto"
+                    },
+                    {
+                      "$ref": "#/components/schemas/InspectorAppointmentResponseDto"
+                    }
+                  ],
+                  "discriminator": {
+                    "propertyName": "myRole",
+                    "mapping": {
+                      "BUYER": "#/components/schemas/BuyerAppointmentResponseDto",
+                      "SELLER": "#/components/schemas/SellerAppointmentResponseDto",
+                      "INSPECTOR": "#/components/schemas/InspectorAppointmentResponseDto"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Id inválido: precisa ser uuid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, inválido ou expirado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Agendamento não encontrado (ou você não participa dele)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Estado não permite (ex.: já pago ou encerrado), prazo expirado ou estado mudou",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Muitas requisições. Tente novamente em instantes. Limite: 100 requisições por minuto por IP.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro interno do servidor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "appointments"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "CarCheck API",
+    "description": "",
+    "version": "0.1",
+    "contact": {}
+  },
+  "tags": [],
+  "servers": [],
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      }
+    },
+    "schemas": {
+      "ErrorResponseDto": {
+        "type": "object",
+        "properties": {
+          "statusCode": {
+            "type": "integer",
+            "example": 404,
+            "description": "Status HTTP"
+          },
+          "error": {
+            "type": "string",
+            "example": "Not Found",
+            "description": "Nome do status HTTP"
+          },
+          "message": {
+            "type": "string",
+            "example": "Anúncio não encontrado"
+          },
+          "errors": {
+            "description": "Lista de erros de validação (só em 400 de validação)",
+            "example": [
+              "email must be an email"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "path": {
+            "type": "string",
+            "example": "/listings/123",
+            "description": "URL da requisição, com a query string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-11-10T12:00:00.000Z"
+          }
+        },
+        "required": [
+          "statusCode",
+          "error",
+          "message",
+          "path",
+          "timestamp"
+        ]
+      },
+      "RegisterDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Maria Silva",
+            "minLength": 2,
+            "maxLength": 100
+          },
+          "email": {
+            "type": "string",
+            "example": "maria@email.com",
+            "maxLength": 254
+          },
+          "password": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 72,
+            "description": "No máximo 72 bytes em UTF-8 (acentos ocupam 2 bytes; emoji, 4)"
+          }
+        },
+        "required": [
+          "name",
+          "email",
+          "password"
+        ]
+      },
+      "UserResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "email",
+          "createdAt"
+        ]
+      },
+      "LoginDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "example": "maria@email.com",
+            "maxLength": 254
+          },
+          "password": {
+            "type": "string",
+            "example": "senha12345",
+            "minLength": 8,
+            "maxLength": 72
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ]
+      },
+      "LoginResponseDto": {
+        "type": "object",
+        "properties": {
+          "accessToken": {
+            "type": "string",
+            "description": "Enviar no header Authorization: Bearer <token>"
+          },
+          "user": {
+            "$ref": "#/components/schemas/UserResponseDto"
+          }
+        },
+        "required": [
+          "accessToken",
+          "user"
+        ]
+      },
+      "BrazilianState": {
+        "type": "string",
+        "enum": [
+          "AC",
+          "AL",
+          "AP",
+          "AM",
+          "BA",
+          "CE",
+          "DF",
+          "ES",
+          "GO",
+          "MA",
+          "MT",
+          "MS",
+          "MG",
+          "PA",
+          "PB",
+          "PR",
+          "PE",
+          "PI",
+          "RJ",
+          "RN",
+          "RS",
+          "RO",
+          "RR",
+          "SC",
+          "SP",
+          "SE",
+          "TO"
+        ],
+        "description": "Sigla da UF (uma das 27)"
+      },
+      "InspectorResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Id do perfil do avaliador (não é id de usuário)"
+          },
+          "name": {
+            "type": "string"
+          },
+          "bio": {
+            "type": "string"
+          },
+          "specialties": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "ENGINE",
+                "TRANSMISSION",
+                "SUSPENSION",
+                "BRAKES",
+                "ELECTRICAL",
+                "BODYWORK",
+                "AIR_CONDITIONING"
+              ]
+            }
+          },
+          "city": {
+            "type": "string"
+          },
+          "state": {
+            "example": "SP",
+            "description": "Sigla da UF (uma das 27)",
+            "minLength": 2,
+            "maxLength": 2,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BrazilianState"
+              }
+            ]
+          },
+          "serviceRadiusKm": {
+            "type": "integer",
+            "description": "Raio de atendimento em km"
+          },
+          "basePriceCents": {
+            "type": "integer",
+            "description": "Preço base em centavos"
+          },
+          "verified": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "bio",
+          "specialties",
+          "city",
+          "state",
+          "serviceRadiusKm",
+          "basePriceCents",
+          "verified"
+        ]
+      },
+      "CreateInspectorProfileDto": {
+        "type": "object",
+        "properties": {
+          "bio": {
+            "type": "string",
+            "example": "Mecânico há 15 anos, especialista em câmbio.",
+            "minLength": 20,
+            "maxLength": 2000
+          },
+          "specialties": {
+            "type": "array",
+            "example": [
+              "ENGINE",
+              "BRAKES"
+            ],
+            "minItems": 1,
+            "maxItems": 7,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "enum": [
+                "ENGINE",
+                "TRANSMISSION",
+                "SUSPENSION",
+                "BRAKES",
+                "ELECTRICAL",
+                "BODYWORK",
+                "AIR_CONDITIONING"
+              ]
+            }
+          },
+          "city": {
+            "type": "string",
+            "example": "Barretos",
+            "minLength": 2,
+            "maxLength": 100
+          },
+          "state": {
+            "example": "SP",
+            "description": "Sigla da UF (uma das 27). Espaços nas pontas e minúsculas são normalizados (\"sp\" vira \"SP\")",
+            "minLength": 2,
+            "maxLength": 2,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BrazilianState"
+              }
+            ]
+          },
+          "serviceRadiusKm": {
+            "type": "integer",
+            "example": 30,
+            "description": "Raio de atendimento em km",
+            "minimum": 1,
+            "maximum": 200
+          },
+          "basePriceCents": {
+            "type": "integer",
+            "example": 15000,
+            "description": "Preço base em centavos (R$ 150,00 = 15000). Abaixo do mínimo da plataforma (MIN_INSPECTION_PRICE_CENTS, padrão R$ 50,00) responde 400",
+            "minimum": 0,
+            "maximum": 500000
+          }
+        },
+        "required": [
+          "bio",
+          "specialties",
+          "city",
+          "state",
+          "serviceRadiusKm",
+          "basePriceCents"
+        ]
+      },
+      "MyInspectorProfileResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Id do perfil do avaliador (não é id de usuário)"
+          },
+          "name": {
+            "type": "string"
+          },
+          "bio": {
+            "type": "string"
+          },
+          "specialties": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "ENGINE",
+                "TRANSMISSION",
+                "SUSPENSION",
+                "BRAKES",
+                "ELECTRICAL",
+                "BODYWORK",
+                "AIR_CONDITIONING"
+              ]
+            }
+          },
+          "city": {
+            "type": "string"
+          },
+          "state": {
+            "example": "SP",
+            "description": "Sigla da UF (uma das 27)",
+            "minLength": 2,
+            "maxLength": 2,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BrazilianState"
+              }
+            ]
+          },
+          "serviceRadiusKm": {
+            "type": "integer",
+            "description": "Raio de atendimento em km"
+          },
+          "basePriceCents": {
+            "type": "integer",
+            "description": "Preço base em centavos"
+          },
+          "verified": {
+            "type": "boolean"
+          },
+          "platformFeeBps": {
+            "type": "integer",
+            "example": 1000,
+            "description": "Comissão atual da plataforma em pontos-base (1000 = 10%)"
+          },
+          "estimatedPayoutCents": {
+            "type": "integer",
+            "example": 13500,
+            "description": "Repasse estimado em centavos sobre o preço base, com a comissão atual"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "bio",
+          "specialties",
+          "city",
+          "state",
+          "serviceRadiusKm",
+          "basePriceCents",
+          "verified",
+          "platformFeeBps",
+          "estimatedPayoutCents"
+        ]
+      },
+      "UpdateInspectorProfileDto": {
+        "type": "object",
+        "properties": {
+          "bio": {
+            "type": "string",
+            "example": "Mecânico há 15 anos, especialista em câmbio.",
+            "minLength": 20,
+            "maxLength": 2000
+          },
+          "specialties": {
+            "type": "array",
+            "example": [
+              "ENGINE",
+              "BRAKES"
+            ],
+            "minItems": 1,
+            "maxItems": 7,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "enum": [
+                "ENGINE",
+                "TRANSMISSION",
+                "SUSPENSION",
+                "BRAKES",
+                "ELECTRICAL",
+                "BODYWORK",
+                "AIR_CONDITIONING"
+              ]
+            }
+          },
+          "city": {
+            "type": "string",
+            "example": "Barretos",
+            "minLength": 2,
+            "maxLength": 100
+          },
+          "state": {
+            "example": "SP",
+            "description": "Sigla da UF (uma das 27). Espaços nas pontas e minúsculas são normalizados (\"sp\" vira \"SP\")",
+            "minLength": 2,
+            "maxLength": 2,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BrazilianState"
+              }
+            ]
+          },
+          "serviceRadiusKm": {
+            "type": "integer",
+            "example": 30,
+            "description": "Raio de atendimento em km",
+            "minimum": 1,
+            "maximum": 200
+          },
+          "basePriceCents": {
+            "type": "integer",
+            "example": 15000,
+            "description": "Preço base em centavos (R$ 150,00 = 15000). Abaixo do mínimo da plataforma (MIN_INSPECTION_PRICE_CENTS, padrão R$ 50,00) responde 400",
+            "minimum": 0,
+            "maximum": 500000
+          }
+        }
+      },
+      "VehicleResponseDto": {
+        "type": "object",
+        "properties": {
+          "brand": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "year": {
+            "type": "integer",
+            "minimum": 1950,
+            "description": "Ano do veículo, de 1950 até o ano atual + 1"
+          },
+          "mileageKm": {
+            "type": "integer",
+            "description": "Quilometragem"
+          },
+          "fuel": {
+            "type": "string",
+            "enum": [
+              "GASOLINE",
+              "ETHANOL",
+              "FLEX",
+              "DIESEL",
+              "ELECTRIC",
+              "HYBRID"
+            ]
+          },
+          "transmission": {
+            "type": "string",
+            "enum": [
+              "MANUAL",
+              "AUTOMATIC",
+              "CVT",
+              "AUTOMATED"
+            ]
+          }
+        },
+        "required": [
+          "brand",
+          "model",
+          "year",
+          "mileageKm",
+          "fuel",
+          "transmission"
+        ]
+      },
+      "ListingResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sellerName": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "priceCents": {
+            "type": "integer",
+            "description": "Preço em centavos"
+          },
+          "city": {
+            "type": "string"
+          },
+          "state": {
+            "example": "SP",
+            "description": "Sigla da UF (uma das 27)",
+            "minLength": 2,
+            "maxLength": 2,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BrazilianState"
+              }
+            ]
+          },
+          "vehicle": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/VehicleResponseDto"
+              }
+            ]
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "sellerName",
+          "title",
+          "description",
+          "priceCents",
+          "city",
+          "state",
+          "vehicle",
+          "createdAt"
+        ]
+      },
+      "PaginatedListingsResponseDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ListingResponseDto"
+            }
+          },
+          "total": {
+            "type": "integer"
+          },
+          "page": {
+            "type": "integer"
+          },
+          "limit": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "limit"
+        ]
+      },
+      "MyListingResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sellerName": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "priceCents": {
+            "type": "integer",
+            "description": "Preço em centavos"
+          },
+          "city": {
+            "type": "string"
+          },
+          "state": {
+            "example": "SP",
+            "description": "Sigla da UF (uma das 27)",
+            "minLength": 2,
+            "maxLength": 2,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BrazilianState"
+              }
+            ]
+          },
+          "vehicle": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/VehicleResponseDto"
+              }
+            ]
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "SOLD",
+              "PAUSED",
+              "ARCHIVED"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "sellerName",
+          "title",
+          "description",
+          "priceCents",
+          "city",
+          "state",
+          "vehicle",
+          "createdAt",
+          "status"
+        ]
+      },
+      "PaginatedMyListingsResponseDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MyListingResponseDto"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "description": "Total de anúncios do dono (sem os arquivados), em todas as páginas"
+          },
+          "page": {
+            "type": "integer"
+          },
+          "limit": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "limit"
+        ]
+      },
+      "VehicleDto": {
+        "type": "object",
+        "properties": {
+          "brand": {
+            "type": "string",
+            "example": "Volkswagen",
+            "minLength": 2,
+            "maxLength": 100
+          },
+          "model": {
+            "type": "string",
+            "example": "Gol",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "year": {
+            "type": "integer",
+            "example": 2018,
+            "minimum": 1950,
+            "description": "Ano do veículo, de 1950 até o ano atual + 1"
+          },
+          "mileageKm": {
+            "type": "integer",
+            "example": 68000,
+            "description": "Quilometragem",
+            "minimum": 0,
+            "maximum": 2000000
+          },
+          "fuel": {
+            "type": "string",
+            "enum": [
+              "GASOLINE",
+              "ETHANOL",
+              "FLEX",
+              "DIESEL",
+              "ELECTRIC",
+              "HYBRID"
+            ]
+          },
+          "transmission": {
+            "type": "string",
+            "enum": [
+              "MANUAL",
+              "AUTOMATIC",
+              "CVT",
+              "AUTOMATED"
+            ]
+          }
+        },
+        "required": [
+          "brand",
+          "model",
+          "year",
+          "mileageKm",
+          "fuel",
+          "transmission"
+        ]
+      },
+      "CreateListingDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "example": "Gol 1.0 2018 completo",
+            "minLength": 5,
+            "maxLength": 120
+          },
+          "description": {
+            "type": "string",
+            "example": "Único dono, revisões em dia, pneus novos.",
+            "minLength": 20,
+            "maxLength": 2000
+          },
+          "priceCents": {
+            "type": "integer",
+            "example": 4500000,
+            "description": "Preço em centavos (R$ 45.000,00)",
+            "minimum": 1,
+            "maximum": 1000000000
+          },
+          "city": {
+            "type": "string",
+            "example": "Boituva",
+            "minLength": 2,
+            "maxLength": 100
+          },
+          "state": {
+            "example": "SP",
+            "description": "Sigla da UF (uma das 27). Espaços nas pontas e minúsculas são normalizados (\"sp\" vira \"SP\")",
+            "minLength": 2,
+            "maxLength": 2,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BrazilianState"
+              }
+            ]
+          },
+          "vehicle": {
+            "$ref": "#/components/schemas/VehicleDto"
+          }
+        },
+        "required": [
+          "title",
+          "description",
+          "priceCents",
+          "city",
+          "state",
+          "vehicle"
+        ]
+      },
+      "UpdateListingDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "example": "Gol 1.0 2018 completo",
+            "minLength": 5,
+            "maxLength": 120
+          },
+          "description": {
+            "type": "string",
+            "example": "Único dono, revisões em dia, pneus novos.",
+            "minLength": 20,
+            "maxLength": 2000
+          },
+          "priceCents": {
+            "type": "integer",
+            "example": 4500000,
+            "description": "Preço em centavos (R$ 45.000,00)",
+            "minimum": 1,
+            "maximum": 1000000000
+          },
+          "city": {
+            "type": "string",
+            "example": "Boituva",
+            "minLength": 2,
+            "maxLength": 100
+          },
+          "state": {
+            "example": "SP",
+            "description": "Sigla da UF (uma das 27). Espaços nas pontas e minúsculas são normalizados (\"sp\" vira \"SP\")",
+            "minLength": 2,
+            "maxLength": 2,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BrazilianState"
+              }
+            ]
+          },
+          "vehicle": {
+            "$ref": "#/components/schemas/VehicleDto"
+          }
+        }
+      },
+      "AppointmentListingDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "state": {
+            "example": "SP",
+            "description": "Sigla da UF (uma das 27)",
+            "minLength": 2,
+            "maxLength": 2,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BrazilianState"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "city",
+          "state"
+        ]
+      },
+      "AppointmentInspectorDto": {
+        "type": "object",
+        "properties": {
+          "profileId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true,
+            "description": "Id do perfil do avaliador (não é id de usuário)"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "profileId",
+          "name"
+        ]
+      },
+      "AppointmentPersonDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "BuyerAppointmentResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "REQUESTED",
+              "ACCEPTED",
+              "AWAITING_PAYMENT",
+              "PAID",
+              "REPORT_SUBMITTED",
+              "DISPUTED",
+              "COMPLETED",
+              "DECLINED",
+              "CANCELLED",
+              "EXPIRED"
+            ]
+          },
+          "listing": {
+            "$ref": "#/components/schemas/AppointmentListingDto"
+          },
+          "inspector": {
+            "$ref": "#/components/schemas/AppointmentInspectorDto"
+          },
+          "buyer": {
+            "$ref": "#/components/schemas/AppointmentPersonDto"
+          },
+          "seller": {
+            "$ref": "#/components/schemas/AppointmentPersonDto"
+          },
+          "startsAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "endsAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true,
+            "description": "Prazo da etapa atual"
+          },
+          "meetingAddress": {
+            "type": "string",
+            "nullable": true
+          },
+          "endedBy": {
+            "type": "string",
+            "enum": [
+              "BUYER",
+              "SELLER",
+              "INSPECTOR",
+              "SYSTEM"
+            ],
+            "nullable": true,
+            "description": "Quem encerrou (recusa, cancelamento ou expiração)"
+          },
+          "availableActions": {
+            "type": "array",
+            "description": "Ações que quem chama pode executar agora",
+            "items": {
+              "type": "string",
+              "enum": [
+                "ACCEPT",
+                "DECLINE",
+                "CONFIRM",
+                "CANCEL"
+              ]
+            }
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "myRole": {
+            "type": "string",
+            "enum": [
+              "BUYER"
+            ]
+          },
+          "priceCents": {
+            "type": "integer",
+            "description": "Preço da avaliação em centavos"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "listing",
+          "inspector",
+          "buyer",
+          "seller",
+          "startsAt",
+          "endsAt",
+          "expiresAt",
+          "meetingAddress",
+          "endedBy",
+          "availableActions",
+          "createdAt",
+          "myRole",
+          "priceCents"
+        ]
+      },
+      "SellerAppointmentResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "REQUESTED",
+              "ACCEPTED",
+              "AWAITING_PAYMENT",
+              "PAID",
+              "REPORT_SUBMITTED",
+              "DISPUTED",
+              "COMPLETED",
+              "DECLINED",
+              "CANCELLED",
+              "EXPIRED"
+            ]
+          },
+          "listing": {
+            "$ref": "#/components/schemas/AppointmentListingDto"
+          },
+          "inspector": {
+            "$ref": "#/components/schemas/AppointmentInspectorDto"
+          },
+          "buyer": {
+            "$ref": "#/components/schemas/AppointmentPersonDto"
+          },
+          "seller": {
+            "$ref": "#/components/schemas/AppointmentPersonDto"
+          },
+          "startsAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "endsAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true,
+            "description": "Prazo da etapa atual"
+          },
+          "meetingAddress": {
+            "type": "string",
+            "nullable": true
+          },
+          "endedBy": {
+            "type": "string",
+            "enum": [
+              "BUYER",
+              "SELLER",
+              "INSPECTOR",
+              "SYSTEM"
+            ],
+            "nullable": true,
+            "description": "Quem encerrou (recusa, cancelamento ou expiração)"
+          },
+          "availableActions": {
+            "type": "array",
+            "description": "Ações que quem chama pode executar agora",
+            "items": {
+              "type": "string",
+              "enum": [
+                "ACCEPT",
+                "DECLINE",
+                "CONFIRM",
+                "CANCEL"
+              ]
+            }
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "myRole": {
+            "type": "string",
+            "enum": [
+              "SELLER"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "listing",
+          "inspector",
+          "buyer",
+          "seller",
+          "startsAt",
+          "endsAt",
+          "expiresAt",
+          "meetingAddress",
+          "endedBy",
+          "availableActions",
+          "createdAt",
+          "myRole"
+        ]
+      },
+      "InspectorAppointmentResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "REQUESTED",
+              "ACCEPTED",
+              "AWAITING_PAYMENT",
+              "PAID",
+              "REPORT_SUBMITTED",
+              "DISPUTED",
+              "COMPLETED",
+              "DECLINED",
+              "CANCELLED",
+              "EXPIRED"
+            ]
+          },
+          "listing": {
+            "$ref": "#/components/schemas/AppointmentListingDto"
+          },
+          "inspector": {
+            "$ref": "#/components/schemas/AppointmentInspectorDto"
+          },
+          "buyer": {
+            "$ref": "#/components/schemas/AppointmentPersonDto"
+          },
+          "seller": {
+            "$ref": "#/components/schemas/AppointmentPersonDto"
+          },
+          "startsAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "endsAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true,
+            "description": "Prazo da etapa atual"
+          },
+          "meetingAddress": {
+            "type": "string",
+            "nullable": true
+          },
+          "endedBy": {
+            "type": "string",
+            "enum": [
+              "BUYER",
+              "SELLER",
+              "INSPECTOR",
+              "SYSTEM"
+            ],
+            "nullable": true,
+            "description": "Quem encerrou (recusa, cancelamento ou expiração)"
+          },
+          "availableActions": {
+            "type": "array",
+            "description": "Ações que quem chama pode executar agora",
+            "items": {
+              "type": "string",
+              "enum": [
+                "ACCEPT",
+                "DECLINE",
+                "CONFIRM",
+                "CANCEL"
+              ]
+            }
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "myRole": {
+            "type": "string",
+            "enum": [
+              "INSPECTOR"
+            ]
+          },
+          "priceCents": {
+            "type": "integer",
+            "description": "Preço pago pelo comprador, em centavos"
+          },
+          "platformFeeBps": {
+            "type": "integer",
+            "description": "Comissão da plataforma em pontos-base, congelada na criação"
+          },
+          "platformFeeCents": {
+            "type": "integer",
+            "description": "Comissão da plataforma em centavos"
+          },
+          "inspectorPayoutCents": {
+            "type": "integer",
+            "description": "Repasse ao avaliador em centavos (preço - comissão)"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "listing",
+          "inspector",
+          "buyer",
+          "seller",
+          "startsAt",
+          "endsAt",
+          "expiresAt",
+          "meetingAddress",
+          "endedBy",
+          "availableActions",
+          "createdAt",
+          "myRole",
+          "priceCents",
+          "platformFeeBps",
+          "platformFeeCents",
+          "inspectorPayoutCents"
+        ]
+      },
+      "CreateAppointmentDto": {
+        "type": "object",
+        "properties": {
+          "listingId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Id do anúncio (precisa estar ACTIVE)"
+          },
+          "inspectorProfileId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Id do perfil do avaliador, como em GET /inspectors"
+          },
+          "startsAt": {
+            "type": "string",
+            "example": "2030-01-10T14:00:00.000Z",
+            "description": "Início da avaliação em ISO 8601 com fuso (Z ou ±hh:mm)"
+          }
+        },
+        "required": [
+          "listingId",
+          "inspectorProfileId",
+          "startsAt"
+        ]
+      },
+      "PaginatedAppointmentsResponseDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/BuyerAppointmentResponseDto"
+                },
+                {
+                  "$ref": "#/components/schemas/SellerAppointmentResponseDto"
+                },
+                {
+                  "$ref": "#/components/schemas/InspectorAppointmentResponseDto"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "myRole",
+                "mapping": {
+                  "BUYER": "#/components/schemas/BuyerAppointmentResponseDto",
+                  "SELLER": "#/components/schemas/SellerAppointmentResponseDto",
+                  "INSPECTOR": "#/components/schemas/InspectorAppointmentResponseDto"
+                }
+              }
+            },
+            "description": "Cada item vem no formato do seu papel naquele agendamento (myRole)"
+          },
+          "total": {
+            "type": "integer"
+          },
+          "page": {
+            "type": "integer"
+          },
+          "limit": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "limit"
+        ]
+      },
+      "ConfirmAppointmentDto": {
+        "type": "object",
+        "properties": {
+          "meetingAddress": {
+            "type": "string",
+            "example": "Rua das Flores, 123, Boituva/SP",
+            "minLength": 5,
+            "maxLength": 300
+          }
+        },
+        "required": [
+          "meetingAddress"
+        ]
+      }
+    }
+  }
+}

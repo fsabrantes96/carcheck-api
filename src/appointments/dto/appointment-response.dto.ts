@@ -1,4 +1,5 @@
 import { ApiProperty, getSchemaPath } from '@nestjs/swagger';
+import { ApiBrazilianState } from '../../common/validation/brazilian-state.js';
 import { AppointmentActor, AppointmentStatus } from '../../generated/prisma/client.js';
 import { availableActions, ROUTE_ACTIONS } from '../appointments.state-machine.js';
 import type { AppointmentAction, Participant } from '../appointments.state-machine.js';
@@ -27,11 +28,11 @@ export class AppointmentListingDto {
     @ApiProperty({ format: 'uuid' }) id: string;
     @ApiProperty() title: string;
     @ApiProperty() city: string;
-    @ApiProperty() state: string;
+    @ApiBrazilianState() state: string;
 }
 
 export class AppointmentInspectorDto {
-    @ApiProperty({ format: 'uuid', nullable: true, description: 'Id do perfil do avaliador (não é id de usuário)' })
+    @ApiProperty({ type: String, format: 'uuid', nullable: true, description: 'Id do perfil do avaliador (não é id de usuário)' })
     profileId: string | null;
     @ApiProperty() name: string;
 }
@@ -95,7 +96,7 @@ export abstract class AppointmentBaseResponseDto {
 /** Resposta para o comprador: base + preço que ele paga. */
 export class BuyerAppointmentResponseDto extends AppointmentBaseResponseDto {
     @ApiProperty({ enum: ['BUYER'] }) myRole: 'BUYER';
-    @ApiProperty({ description: 'Preço da avaliação em centavos' }) priceCents: number;
+    @ApiProperty({ type: 'integer', description: 'Preço da avaliação em centavos' }) priceCents: number;
 
     static from(appointment: AppointmentWithRelations): BuyerAppointmentResponseDto {
         const dto = AppointmentBaseResponseDto.fillBase(new BuyerAppointmentResponseDto(), appointment, 'BUYER');
@@ -119,10 +120,10 @@ export class SellerAppointmentResponseDto extends AppointmentBaseResponseDto {
 /** Resposta para o avaliador: base + preço, comissão e repasse congelados. */
 export class InspectorAppointmentResponseDto extends AppointmentBaseResponseDto {
     @ApiProperty({ enum: ['INSPECTOR'] }) myRole: 'INSPECTOR';
-    @ApiProperty({ description: 'Preço pago pelo comprador, em centavos' }) priceCents: number;
-    @ApiProperty({ description: 'Comissão da plataforma em pontos-base, congelada na criação' }) platformFeeBps: number;
-    @ApiProperty({ description: 'Comissão da plataforma em centavos' }) platformFeeCents: number;
-    @ApiProperty({ description: 'Repasse ao avaliador em centavos (preço - comissão)' }) inspectorPayoutCents: number;
+    @ApiProperty({ type: 'integer', description: 'Preço pago pelo comprador, em centavos' }) priceCents: number;
+    @ApiProperty({ type: 'integer', description: 'Comissão da plataforma em pontos-base, congelada na criação' }) platformFeeBps: number;
+    @ApiProperty({ type: 'integer', description: 'Comissão da plataforma em centavos' }) platformFeeCents: number;
+    @ApiProperty({ type: 'integer', description: 'Repasse ao avaliador em centavos (preço - comissão)' }) inspectorPayoutCents: number;
 
     static from(appointment: AppointmentWithRelations): InspectorAppointmentResponseDto {
         const dto = AppointmentBaseResponseDto.fillBase(new InspectorAppointmentResponseDto(), appointment, 'INSPECTOR');

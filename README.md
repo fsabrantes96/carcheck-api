@@ -48,12 +48,15 @@ A API sobe em `http://localhost:3000`.
 Swagger: `http://localhost:3000/docs`
 Contrato OpenAPI em JSON: `http://localhost:3000/docs-json`
 
+O mesmo contrato fica versionado em [openapi.json](openapi.json), na raiz, para o front gerar os tipos sem subir a API. Mudou um endpoint ou um DTO? Rode `npm run openapi` e versione o arquivo junto. O CI falha se ele estiver desatualizado.
+
 ## Scripts úteis
 
 | Comando | O que faz |
 |---|---|
 | `npm run start:dev` | Sobe a API com hot reload |
 | `npm run build` | Compila para `dist/` |
+| `npm run openapi` | Regrava o `openapi.json` a partir do código (sem servidor e sem banco) |
 | `npx prisma migrate dev` | Aplica/cria migrations |
 | `npx prisma generate` | Regenera o Prisma Client |
 | `npx prisma studio` | Interface web para ver o banco |
@@ -75,7 +78,7 @@ src/
 
 - Request DTO para toda entrada, validado com `class-validator`
 - Response DTO para toda saída (nunca expor a entity)
-- O contrato é gerado pelo código (Swagger), nunca escrito à mão
+- O contrato é gerado pelo código (Swagger), nunca escrito à mão, e versionado em `openapi.json`
 
 ## Ciclo de vida do anúncio
 

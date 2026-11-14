@@ -6,7 +6,6 @@ import {
     IsEnum,
     IsInt,
     IsString,
-    Length,
     Max,
     MaxLength,
     Min,
@@ -23,8 +22,8 @@ import {
     SERVICE_RADIUS_MIN_KM,
     SPECIALTIES_MAX_ITEMS,
     SPECIALTIES_MIN_ITEMS,
-    STATE_LENGTH,
 } from '../../common/limits.js';
+import { BrazilianStateField } from '../../common/validation/brazilian-state.js';
 import { UniqueArray } from '../../common/validation/unique-array.js';
 import { Specialty } from '../../generated/prisma/client.js';
 
@@ -60,17 +59,11 @@ export class CreateInspectorProfileDto {
     @MaxLength(CITY_MAX_LENGTH)
     city: string;
 
-    @ApiProperty({
-        example: 'SP',
-        description: 'Sigla do estado (2 letras)',
-        minLength: STATE_LENGTH,
-        maxLength: STATE_LENGTH,
-    })
-    @IsString()
-    @Length(STATE_LENGTH, STATE_LENGTH)
+    @BrazilianStateField()
     state: string;
 
     @ApiProperty({
+        type: 'integer',
         example: 30,
         description: 'Raio de atendimento em km',
         minimum: SERVICE_RADIUS_MIN_KM,
@@ -82,6 +75,7 @@ export class CreateInspectorProfileDto {
     serviceRadiusKm: number;
 
     @ApiProperty({
+        type: 'integer',
         example: 15000,
         description:
             'Preço base em centavos (R$ 150,00 = 15000). Abaixo do mínimo da plataforma (MIN_INSPECTION_PRICE_CENTS, padrão R$ 50,00) responde 400',

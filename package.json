@@ -19,6 +19,7 @@
     "test:cov": "vitest run --coverage",
     "test:debug": "vitest --inspect-brk --no-file-parallelism",
     "test:e2e": "vitest run --config ./vitest.config.e2e.ts",
+    "openapi": "vitest run src/openapi/openapi.spec.ts --update",
     "postinstall": "prisma generate"
   },
   "dependencies": {

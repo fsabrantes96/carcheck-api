@@ -7,6 +7,7 @@ import {
     VEHICLE_MILEAGE_MIN_KM,
     VEHICLE_MODEL_MAX_LENGTH,
     VEHICLE_MODEL_MIN_LENGTH,
+    VEHICLE_YEAR_DESCRIPTION,
     VEHICLE_YEAR_MAX,
     VEHICLE_YEAR_MIN,
 } from '../../common/limits.js';
@@ -33,13 +34,16 @@ export class VehicleDto {
     @MaxLength(VEHICLE_MODEL_MAX_LENGTH)
     model: string;
 
-    @ApiProperty({ example: 2018, minimum: VEHICLE_YEAR_MIN, maximum: VEHICLE_YEAR_MAX })
+    // Sem maximum no Swagger: o teto (ano atual + 1) muda a cada ano e o
+    // openapi.json precisa ser determinístico. A regra fica na descrição.
+    @ApiProperty({ type: 'integer', example: 2018, minimum: VEHICLE_YEAR_MIN, description: VEHICLE_YEAR_DESCRIPTION })
     @IsInt()
     @Min(VEHICLE_YEAR_MIN)
     @Max(VEHICLE_YEAR_MAX)
     year: number;
 
     @ApiProperty({
+        type: 'integer',
         example: 68000,
         description: 'Quilometragem',
         minimum: VEHICLE_MILEAGE_MIN_KM,

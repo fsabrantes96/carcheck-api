@@ -48,6 +48,11 @@ export const VEHICLE_YEAR_MIN = 1950;
  * o Ano-Novo continua com o teto antigo até reiniciar (ver docs/audit.md).
  */
 export const VEHICLE_YEAR_MAX = new Date().getFullYear() + 1;
+/**
+ * A regra do ano no Swagger. O VEHICLE_YEAR_MAX não entra como `maximum` no
+ * OpenAPI: mudaria o openapi.json a cada virada de ano.
+ */
+export const VEHICLE_YEAR_DESCRIPTION = `Ano do veículo, de ${VEHICLE_YEAR_MIN} até o ano atual + 1`;
 export const VEHICLE_MILEAGE_MIN_KM = 0;
 export const VEHICLE_MILEAGE_MAX_KM = 2_000_000;
 

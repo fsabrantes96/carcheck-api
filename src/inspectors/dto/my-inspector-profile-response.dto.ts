@@ -9,10 +9,10 @@ import type { InspectorWithUser } from './inspector-response.dto.js';
  * avaliador vê esses valores; a lista pública não os traz.
  */
 export class MyInspectorProfileResponseDto extends InspectorResponseDto {
-    @ApiProperty({ example: 1000, description: 'Comissão atual da plataforma em pontos-base (1000 = 10%)' })
+    @ApiProperty({ type: 'integer', example: 1000, description: 'Comissão atual da plataforma em pontos-base (1000 = 10%)' })
     platformFeeBps: number;
 
-    @ApiProperty({ example: 13500, description: 'Repasse estimado em centavos sobre o preço base, com a comissão atual' })
+    @ApiProperty({ type: 'integer', example: 13500, description: 'Repasse estimado em centavos sobre o preço base, com a comissão atual' })
     estimatedPayoutCents: number;
 
     static fromOwnProfile(

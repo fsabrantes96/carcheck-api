@@ -3,7 +3,6 @@ import { Type } from 'class-transformer';
 import {
     IsInt,
     IsString,
-    Length,
     Max,
     MaxLength,
     Min,
@@ -19,8 +18,8 @@ import {
     LISTING_PRICE_MIN_CENTS,
     LISTING_TITLE_MAX_LENGTH,
     LISTING_TITLE_MIN_LENGTH,
-    STATE_LENGTH,
 } from '../../common/limits.js';
+import { BrazilianStateField } from '../../common/validation/brazilian-state.js';
 import { VehicleDto } from './vehicle.dto.js';
 
 export class CreateListingDto {
@@ -45,6 +44,7 @@ export class CreateListingDto {
     description: string;
 
     @ApiProperty({
+        type: 'integer',
         example: 4500000,
         description: 'Preço em centavos (R$ 45.000,00)',
         minimum: LISTING_PRICE_MIN_CENTS,
@@ -61,9 +61,7 @@ export class CreateListingDto {
     @MaxLength(CITY_MAX_LENGTH)
     city: string;
 
-    @ApiProperty({ example: 'SP', minLength: STATE_LENGTH, maxLength: STATE_LENGTH })
-    @IsString()
-    @Length(STATE_LENGTH, STATE_LENGTH)
+    @BrazilianStateField()
     state: string;
 
     @ApiProperty({ type: VehicleDto })
