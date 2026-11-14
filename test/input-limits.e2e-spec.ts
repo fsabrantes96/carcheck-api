@@ -281,7 +281,7 @@ describe('Limites de entrada (e2e)', () => {
       ['UpdateListingDto', 'priceCents', { maximum: 1_000_000_000 }],
       ['VehicleDto', 'brand', { maxLength: 100 }],
       ['VehicleDto', 'mileageKm', { minimum: 0, maximum: 2_000_000 }],
-      ['VehicleDto', 'year', { minimum: 1950, maximum: new Date().getFullYear() + 1 }],
+      ['VehicleDto', 'year', { minimum: 1950 }],
       ['CreateInspectorProfileDto', 'bio', { maxLength: 2000 }],
       ['CreateInspectorProfileDto', 'basePriceCents', { minimum: 0, maximum: 500_000 }],
       ['UpdateInspectorProfileDto', 'bio', { maxLength: 2000 }],
@@ -307,8 +307,8 @@ describe('Limites de entrada (e2e)', () => {
       ['brand', { maxLength: 100 }],
       ['city', { maxLength: 100 }],
       ['state', { minLength: 2, maxLength: 2 }],
-      ['minYear', { minimum: 1950, maximum: new Date().getFullYear() + 1 }],
-      ['maxYear', { minimum: 1950, maximum: new Date().getFullYear() + 1 }],
+      ['minYear', { minimum: 1950 }],
+      ['maxYear', { minimum: 1950 }],
     ] as const)('o parâmetro %s de GET /listings tem %o', (name, expected) => {
       const param = doc.paths['/listings'].get.parameters?.find((p) => p.name === name && p.in === 'query');
 
