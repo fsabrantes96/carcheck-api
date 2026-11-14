@@ -73,6 +73,10 @@ describe('state: sigla de uma das 27 UFs', () => {
       [' sp ', 'SP'],
       ['rj', 'RJ'],
       ['Mg', 'MG'],
+      // Caixa alta do Unicode: grafias exóticas viram uma sigla ASCII; o que
+      // é validado e gravado é sempre uma das 27.
+      ['ſp', 'SP'],
+      ['pı', 'PI'],
     ])('normaliza %o para %s (trim e maiúsculas)', async (input, expected) => {
       const { dto, errors } = await check(cls, base, input);
 
@@ -92,6 +96,12 @@ describe('state: sigla de uma das 27 UFs', () => {
 
       expect(errors.map((e) => e.property)).toEqual(['state']);
       expect(errors[0].constraints).toHaveProperty('isIn');
+    });
+
+    it('recusa uma lista de UFs (state repetido na query string)', async () => {
+      const { errors } = await check(cls, base, ['SP', 'RJ']);
+
+      expect(errors.map((e) => e.property)).toEqual(['state']);
     });
 
     it('recusa state que não é texto sem tentar transformá-lo', async () => {

@@ -165,6 +165,12 @@ describe('UF em state (e2e)', () => {
       expectStateError(res);
     });
 
+    it('state repetido (?state=SP&state=RJ) responde 400', async () => {
+      const res = await request(server()).get('/listings?state=SP&state=RJ').expect(400);
+
+      expectStateError(res);
+    });
+
     it('state=rj filtra pela UF, sem diferenciar maiúsculas', async () => {
       const rj = await createListing('RJ');
       await createListing('SP');

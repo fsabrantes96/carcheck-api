@@ -63,7 +63,9 @@ describe('Contrato OpenAPI (e2e)', () => {
   const op = (method: string, path: string) => doc.paths[path][method];
 
   it('o /docs-json é igual ao openapi.json versionado na raiz do repositório', () => {
-    const versioned = JSON.parse(readFileSync('openapi.json', 'utf8')) as Doc;
+    const versioned = JSON.parse(
+      readFileSync(new URL('../openapi.json', import.meta.url), 'utf8'),
+    ) as Doc;
 
     expect(doc).toEqual(versioned);
   });
@@ -135,6 +137,23 @@ describe('Contrato OpenAPI (e2e)', () => {
       expect(op('get', '/auth/me').responses['404'].description).toContain('Usuário não encontrado');
     });
 
+    it.each([
+      ['post', '/appointments/{id}/decline'],
+      ['post', '/appointments/{id}/confirm'],
+      ['post', '/appointments/{id}/cancel'],
+    ])('%s %s (um único updateMany, sem transação) não cita conflito de transação no 409', (method, path) => {
+      expect(op(method, path).responses['409'].description).not.toContain('Conflito ao processar');
+    });
+
+    it.each(['get', 'patch'])(
+      '%s /inspectors/me documenta no 401 a conta que não existe mais (RolesGuard)',
+      (method) => {
+        expect(op(method, '/inspectors/me').responses['401'].description).toContain(
+          'conta que não existe mais',
+        );
+      },
+    );
+
     it.each(['get', 'patch'])(
       '%s /inspectors/me documenta o 403 com a mensagem do RolesGuard',
       (method) => {
@@ -152,10 +171,7 @@ describe('Contrato OpenAPI (e2e)', () => {
       ['post', '/listings/{id}/mark-sold'],
       ['post', '/appointments'],
       ['post', '/appointments/{id}/accept'],
-      ['post', '/appointments/{id}/decline'],
-      ['post', '/appointments/{id}/confirm'],
-      ['post', '/appointments/{id}/cancel'],
-    ])('%s %s cita no 409 o conflito de transação (repetir a requisição)', (method, path) => {
+    ])('%s %s (com transação) cita no 409 o conflito de transação (repetir a requisição)', (method, path) => {
       expect(op(method, path).responses['409'].description).toContain(
         'Conflito ao processar, tente novamente',
       );
@@ -167,6 +183,32 @@ describe('Contrato OpenAPI (e2e)', () => {
       const numbers = findSchemas(doc, (s) => s.type === 'number');
 
       expect(numbers).toEqual([]);
+    });
+
+    it('todo schema com format uuid ou date-time é type string', () => {
+      const wrong = findSchemas(
+        doc,
+        (s) => (s.format === 'uuid' || s.format === 'date-time') && s.type !== 'string',
+      );
+
+      expect(wrong).toEqual([]);
+    });
+
+    it('nenhuma propriedade é um objeto sem estrutura (type object sem properties, allOf ou oneOf)', () => {
+      const shapeless = findSchemas(
+        doc,
+        (s) => s.type === 'object' && !s.properties && !s.allOf && !s.oneOf && !s.additionalProperties,
+      );
+
+      expect(shapeless).toEqual([]);
+    });
+
+    it('AppointmentInspectorDto.profileId é uuid string anulável', () => {
+      expect(doc.components.schemas.AppointmentInspectorDto.properties?.profileId).toMatchObject({
+        type: 'string',
+        format: 'uuid',
+        nullable: true,
+      });
     });
 
     it.each([
