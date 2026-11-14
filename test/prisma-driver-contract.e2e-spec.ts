@@ -135,6 +135,7 @@ describe('Contrato do driver: deadlock (e2e)', () => {
       status: vi.fn().mockReturnThis(),
       json: vi.fn(),
       removeHeader: vi.fn(),
+      setHeader: vi.fn(),
       headersSent: false,
     };
     const host = {

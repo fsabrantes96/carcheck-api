@@ -1,3 +1,6 @@
+import { ErrorCode, withCode } from '../errors/error-code.js';
+import type { CodedErrorBody } from '../errors/error-code.js';
+
 /**
  * Mensagens das respostas de erro que não nascem num service: camada do
  * Express (router, body-parser, assets), pipes e filtro global. Ficam todas
@@ -37,12 +40,22 @@ export function httpLayerMessage(status: number): string {
   return HTTP_LAYER_MESSAGES[status] ?? BAD_REQUEST_MESSAGE;
 }
 
-/** Mensagens dos 4xx do body-parser, pelo campo `type` do erro. */
-export const BODY_PARSER_MESSAGES: Readonly<Record<string, string>> = {
-  'entity.too.large': PAYLOAD_TOO_LARGE_MESSAGE,
-  'parameters.too.many': PAYLOAD_TOO_LARGE_MESSAGE,
-  'entity.parse.failed': INVALID_BODY_MESSAGE,
-  'querystring.parse.rangeError': INVALID_BODY_MESSAGE,
-  'encoding.unsupported': UNSUPPORTED_MEDIA_TYPE_MESSAGE,
-  'charset.unsupported': UNSUPPORTED_MEDIA_TYPE_MESSAGE,
+const PAYLOAD_TOO_LARGE = withCode(ErrorCode.PAYLOAD_TOO_LARGE, PAYLOAD_TOO_LARGE_MESSAGE);
+const INVALID_BODY = withCode(ErrorCode.INVALID_BODY, INVALID_BODY_MESSAGE);
+const UNSUPPORTED_MEDIA_TYPE = withCode(
+  ErrorCode.UNSUPPORTED_MEDIA_TYPE,
+  UNSUPPORTED_MEDIA_TYPE_MESSAGE,
+);
+
+/**
+ * Code e mensagem dos 4xx do body-parser, pelo campo `type` do erro. Tipo
+ * fora do mapa: code padrão e mensagem da camada HTTP do status.
+ */
+export const BODY_PARSER_ERRORS: Readonly<Record<string, CodedErrorBody>> = {
+  'entity.too.large': PAYLOAD_TOO_LARGE,
+  'parameters.too.many': PAYLOAD_TOO_LARGE,
+  'entity.parse.failed': INVALID_BODY,
+  'querystring.parse.rangeError': INVALID_BODY,
+  'encoding.unsupported': UNSUPPORTED_MEDIA_TYPE,
+  'charset.unsupported': UNSUPPORTED_MEDIA_TYPE,
 };

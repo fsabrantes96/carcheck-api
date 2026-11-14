@@ -14,9 +14,10 @@ describe('parseIdPipe', () => {
   it.each(['nao-e-uuid', '123', ''])(
     'lança 400 "Identificador inválido" para %j (risco 70)',
     async (value) => {
-      await expect(parseIdPipe.transform(value, metadata)).rejects.toThrow(
-        new BadRequestException('Identificador inválido'),
-      );
+      const promise = parseIdPipe.transform(value, metadata);
+
+      await expect(promise).rejects.toThrow(BadRequestException);
+      await expect(promise).rejects.toThrow('Identificador inválido');
     },
   );
 

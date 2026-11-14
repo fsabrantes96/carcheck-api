@@ -251,7 +251,7 @@ describe('AllExceptionsFilter', () => {
           path: ACCEPT_URL,
         });
         expect(Object.keys(body).sort()).toEqual(
-          ['error', 'message', 'path', 'statusCode', 'timestamp'].sort(),
+          ['code', 'error', 'message', 'path', 'statusCode', 'timestamp'].sort(),
         );
       },
     );
@@ -318,11 +318,11 @@ describe('AllExceptionsFilter', () => {
   });
 
   describe('formato da resposta', () => {
-    it('tem exatamente as chaves statusCode, error, message, path e timestamp', () => {
+    it('tem exatamente as chaves statusCode, code, error, message, path e timestamp', () => {
       const { body } = run(new NotFoundException('Anúncio não encontrado'));
 
       expect(Object.keys(body).sort()).toEqual(
-        ['error', 'message', 'path', 'statusCode', 'timestamp'].sort(),
+        ['code', 'error', 'message', 'path', 'statusCode', 'timestamp'].sort(),
       );
     });
 

@@ -2375,6 +2375,30 @@
       }
     },
     "schemas": {
+      "ErrorCode": {
+        "type": "string",
+        "enum": [
+          "VALIDATION_FAILED",
+          "INVALID_ID",
+          "INVALID_URL_PARAM",
+          "INVALID_BODY",
+          "BAD_REQUEST",
+          "UNAUTHENTICATED",
+          "FORBIDDEN",
+          "NOT_FOUND",
+          "ROUTE_NOT_FOUND",
+          "METHOD_NOT_ALLOWED",
+          "CONFLICT",
+          "TRANSACTION_CONFLICT",
+          "PRECONDITION_FAILED",
+          "PAYLOAD_TOO_LARGE",
+          "UNSUPPORTED_MEDIA_TYPE",
+          "RANGE_NOT_SATISFIABLE",
+          "TOO_MANY_REQUESTS",
+          "INTERNAL_ERROR"
+        ],
+        "description": "Código do erro, estável e legível por máquina. O cliente decide por ele, não pela mensagem, que é texto para pessoas e pode mudar."
+      },
       "ErrorResponseDto": {
         "type": "object",
         "properties": {
@@ -2382,6 +2406,15 @@
             "type": "integer",
             "example": 404,
             "description": "Status HTTP"
+          },
+          "code": {
+            "example": "NOT_FOUND",
+            "description": "Código do erro, estável e legível por máquina. O cliente decide por ele, não pela mensagem, que é texto para pessoas e pode mudar.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ErrorCode"
+              }
+            ]
           },
           "error": {
             "type": "string",
@@ -2415,6 +2448,7 @@
         },
         "required": [
           "statusCode",
+          "code",
           "error",
           "message",
           "path",

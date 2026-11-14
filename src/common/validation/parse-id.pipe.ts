@@ -1,4 +1,5 @@
 import { BadRequestException, ParseUUIDPipe } from '@nestjs/common';
+import { ErrorCode, withCode } from '../errors/error-code.js';
 import { INVALID_ID_MESSAGE } from '../http/http-error-messages.js';
 
 /**
@@ -8,5 +9,6 @@ import { INVALID_ID_MESSAGE } from '../http/http-error-messages.js';
  * `format: uuid` no Swagger).
  */
 export const parseIdPipe = new ParseUUIDPipe({
-  exceptionFactory: () => new BadRequestException(INVALID_ID_MESSAGE),
+  exceptionFactory: () =>
+    new BadRequestException(withCode(ErrorCode.INVALID_ID, INVALID_ID_MESSAGE)),
 });

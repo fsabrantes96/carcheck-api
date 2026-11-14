@@ -1,5 +1,6 @@
 import { UnsupportedMediaTypeException } from '@nestjs/common';
 import type { NextFunction, Request, Response } from 'express';
+import { ErrorCode, withCode } from '../errors/error-code.js';
 import { ACCEPTED_BODY_CONTENT_TYPES } from '../limits.js';
 import { UNSUPPORTED_MEDIA_TYPE_MESSAGE } from './http-error-messages.js';
 
@@ -34,5 +35,9 @@ export function rejectUnsupportedContentType(
     next();
     return;
   }
-  next(new UnsupportedMediaTypeException(UNSUPPORTED_MEDIA_TYPE_MESSAGE));
+  next(
+    new UnsupportedMediaTypeException(
+      withCode(ErrorCode.UNSUPPORTED_MEDIA_TYPE, UNSUPPORTED_MEDIA_TYPE_MESSAGE),
+    ),
+  );
 }

@@ -74,9 +74,10 @@ describe('Contrato OpenAPI (e2e)', () => {
     it('o ErrorResponseDto tem code obrigatório, referenciando o enum nomeado ErrorCode', () => {
       const error = doc.components.schemas.ErrorResponseDto;
 
-      expect(error.properties?.code).toEqual({
-        $ref: '#/components/schemas/ErrorCode',
-      });
+      // Com description/example ao lado, o @nestjs/swagger põe o $ref num allOf.
+      expect(error.properties?.code?.allOf).toEqual([
+        { $ref: '#/components/schemas/ErrorCode' },
+      ]);
       expect(error.required).toContain('code');
     });
 

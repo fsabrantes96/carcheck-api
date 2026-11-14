@@ -9,9 +9,14 @@ import type { ExceptionFilter } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { Prisma } from '../../generated/prisma/client.js';
 import type { ErrorResponseDto } from '../dto/error-response.dto.js';
+import {
+  defaultCodeForStatus,
+  ErrorCode,
+  isErrorCode,
+} from '../errors/error-code.js';
 import { isBodyParserError } from '../http/body-parser-error.js';
 import {
-  BODY_PARSER_MESSAGES,
+  BODY_PARSER_ERRORS,
   httpLayerMessage,
   INTERNAL_ERROR_MESSAGE,
   VALIDATION_MESSAGE,
@@ -25,12 +30,21 @@ import {
 /** Erros conhecidos do Prisma que viram respostas HTTP previsíveis. */
 const PRISMA_ERROR_MAP: Record<
   string,
-  { status: HttpStatus; message: string }
+  { status: HttpStatus; code: ErrorCode; message: string }
 > = {
-  P2002: { status: HttpStatus.CONFLICT, message: 'Registro já existe' },
-  P2025: { status: HttpStatus.NOT_FOUND, message: 'Registro não encontrado' },
+  P2002: {
+    status: HttpStatus.CONFLICT,
+    code: ErrorCode.CONFLICT,
+    message: 'Registro já existe',
+  },
+  P2025: {
+    status: HttpStatus.NOT_FOUND,
+    code: ErrorCode.NOT_FOUND,
+    message: 'Registro não encontrado',
+  },
   P2003: {
     status: HttpStatus.CONFLICT,
+    code: ErrorCode.CONFLICT,
     message: 'Operação viola uma relação com outro registro',
   },
 };
@@ -66,7 +80,10 @@ const TRANSACTION_CONFLICT_MESSAGE = 'Conflito ao processar, tente novamente';
 /** Resposta de erro não vai para cache (navegador, proxy, CDN). */
 const ERROR_CACHE_CONTROL = 'no-store';
 
-type ErrorBody = Pick<ErrorResponseDto, 'statusCode' | 'message' | 'errors'>;
+type ErrorBody = Pick<
+  ErrorResponseDto,
+  'statusCode' | 'code' | 'message' | 'errors'
+>;
 
 /**
  * Filtro global: toda exceção sai no formato de ErrorResponseDto.
@@ -98,6 +115,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     const payload: ErrorResponseDto = {
       statusCode: body.statusCode,
+      code: body.code,
       error: this.statusName(body.statusCode),
       message: body.message,
       ...(body.errors && { errors: body.errors }),
@@ -121,11 +139,11 @@ export class AllExceptionsFilter implements ExceptionFilter {
       exception.status >= 400 &&
       exception.status <= 499
     ) {
+      const known = BODY_PARSER_ERRORS[exception.type];
       return {
         statusCode: exception.status,
-        message:
-          BODY_PARSER_MESSAGES[exception.type] ??
-          httpLayerMessage(exception.status),
+        code: known?.code ?? defaultCodeForStatus(exception.status),
+        message: known?.message ?? httpLayerMessage(exception.status),
       };
     }
 
@@ -134,6 +152,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     if (isPgError(exception, PG_EXCLUSION_VIOLATION)) {
       return {
         statusCode: HttpStatus.CONFLICT,
+        code: ErrorCode.CONFLICT,
         message: EXCLUSION_VIOLATION_MESSAGE,
       };
     }
@@ -148,6 +167,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       );
       return {
         statusCode: HttpStatus.CONFLICT,
+        code: ErrorCode.TRANSACTION_CONFLICT,
         message: TRANSACTION_CONFLICT_MESSAGE,
       };
     }
@@ -155,7 +175,11 @@ export class AllExceptionsFilter implements ExceptionFilter {
     if (exception instanceof Prisma.PrismaClientKnownRequestError) {
       const mapped = PRISMA_ERROR_MAP[exception.code];
       if (mapped) {
-        return { statusCode: mapped.status, message: mapped.message };
+        return {
+          statusCode: mapped.status,
+          code: mapped.code,
+          message: mapped.message,
+        };
       }
     }
 
@@ -165,6 +189,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     );
     return {
       statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+      code: ErrorCode.INTERNAL_ERROR,
       message: INTERNAL_ERROR_MESSAGE,
     };
   }
@@ -173,15 +198,14 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const statusCode = exception.getStatus();
     const res = exception.getResponse();
 
-    const rawMessage =
-      typeof res === 'string'
-        ? res
-        : ((res as { message?: unknown }).message ?? exception.message);
+    const body = typeof res === 'string' ? {} : (res as { message?: unknown; code?: unknown });
+    const rawMessage = typeof res === 'string' ? res : (body.message ?? exception.message);
 
     // O ValidationPipe devolve a lista de problemas em "message".
     if (Array.isArray(rawMessage)) {
       return {
         statusCode,
+        code: ErrorCode.VALIDATION_FAILED,
         message: VALIDATION_MESSAGE,
         errors: rawMessage.map(String),
       };
@@ -189,6 +213,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     return {
       statusCode,
+      // Code do throw (withCode) se for do enum; senão, o padrão do status.
+      code: isErrorCode(body.code) ? body.code : defaultCodeForStatus(statusCode),
       message: typeof rawMessage === 'string' ? rawMessage : exception.message,
     };
   }
