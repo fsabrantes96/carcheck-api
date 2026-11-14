@@ -11,6 +11,12 @@ import {
     ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { ErrorResponseDto } from '../common/dto/error-response.dto.js';
+import {
+    ApiBodyErrorResponses,
+    ApiCommonErrorResponses,
+    TRANSACTION_CONFLICT_DESCRIPTION,
+    UNAUTHORIZED_DESCRIPTION,
+} from '../common/swagger/api-responses.js';
 import { CurrentUser } from '../auth/current-user.decorator.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { Roles } from '../auth/roles.decorator.js';
@@ -22,7 +28,11 @@ import { MyInspectorProfileResponseDto } from './dto/my-inspector-profile-respon
 import { UpdateInspectorProfileDto } from './dto/update-inspector-profile.dto.js';
 import { InspectorsService } from './inspectors.service.js';
 
+/** Mensagem do RolesGuard quando o usuário não tem a role INSPECTOR. */
+const NOT_INSPECTOR_DESCRIPTION = '"Sem permissão para esta ação": o usuário não tem a role INSPECTOR';
+
 @ApiTags('inspectors')
+@ApiCommonErrorResponses()
 @Controller('inspectors')
 export class InspectorsController {
     constructor(private readonly inspectors: InspectorsService) { }
@@ -39,8 +49,9 @@ export class InspectorsController {
     @ApiBearerAuth()
     @ApiCreatedResponse({ type: InspectorResponseDto })
     @ApiBadRequestResponse({ type: ErrorResponseDto, description: 'Dados inválidos ou preço base abaixo de MIN_INSPECTION_PRICE_CENTS' })
-    @ApiConflictResponse({ type: ErrorResponseDto, description: 'Você já possui perfil de avaliador' })
-    @ApiUnauthorizedResponse({ type: ErrorResponseDto, description: 'Token ausente, inválido ou expirado' })
+    @ApiBodyErrorResponses()
+    @ApiConflictResponse({ type: ErrorResponseDto, description: `"Você já possui perfil de avaliador", ${TRANSACTION_CONFLICT_DESCRIPTION}` })
+    @ApiUnauthorizedResponse({ type: ErrorResponseDto, description: UNAUTHORIZED_DESCRIPTION })
     create(
         @CurrentUser() user: JwtPayload,
         @Body() dto: CreateInspectorProfileDto,
@@ -53,7 +64,8 @@ export class InspectorsController {
     @Roles('INSPECTOR')
     @ApiBearerAuth()
     @ApiOkResponse({ type: MyInspectorProfileResponseDto, description: 'Perfil do avaliador com a comissão atual e o repasse estimado' })
-    @ApiForbiddenResponse({ type: ErrorResponseDto, description: 'Você não é avaliador' })
+    @ApiUnauthorizedResponse({ type: ErrorResponseDto, description: UNAUTHORIZED_DESCRIPTION })
+    @ApiForbiddenResponse({ type: ErrorResponseDto, description: NOT_INSPECTOR_DESCRIPTION })
     @ApiNotFoundResponse({ type: ErrorResponseDto, description: 'Perfil de avaliador não encontrado' })
     findMine(@CurrentUser() user: JwtPayload): Promise<MyInspectorProfileResponseDto> {
         return this.inspectors.findMine(user.sub);
@@ -65,7 +77,9 @@ export class InspectorsController {
     @ApiBearerAuth()
     @ApiOkResponse({ type: InspectorResponseDto })
     @ApiBadRequestResponse({ type: ErrorResponseDto, description: 'Dados inválidos ou basePriceCents (quando enviado) abaixo de MIN_INSPECTION_PRICE_CENTS' })
-    @ApiForbiddenResponse({ type: ErrorResponseDto, description: 'Você não é avaliador' })
+    @ApiBodyErrorResponses()
+    @ApiUnauthorizedResponse({ type: ErrorResponseDto, description: UNAUTHORIZED_DESCRIPTION })
+    @ApiForbiddenResponse({ type: ErrorResponseDto, description: NOT_INSPECTOR_DESCRIPTION })
     @ApiNotFoundResponse({ type: ErrorResponseDto, description: 'Perfil de avaliador não encontrado' })
     update(
         @CurrentUser() user: JwtPayload,

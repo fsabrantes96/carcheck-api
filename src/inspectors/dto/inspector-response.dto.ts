@@ -16,14 +16,14 @@ export type InspectorWithUser = {
 
 /** Perfil público do avaliador (GET /inspectors). Sem comissão nem repasse. */
 export class InspectorResponseDto {
-    @ApiProperty() id: string;
+    @ApiProperty({ format: 'uuid', description: 'Id do perfil do avaliador (não é id de usuário)' }) id: string;
     @ApiProperty() name: string;
     @ApiProperty() bio: string;
     @ApiProperty({ enum: Specialty, isArray: true }) specialties: Specialty[];
     @ApiProperty() city: string;
     @ApiBrazilianState() state: string;
-    @ApiProperty() serviceRadiusKm: number;
-    @ApiProperty() basePriceCents: number;
+    @ApiProperty({ type: 'integer', description: 'Raio de atendimento em km' }) serviceRadiusKm: number;
+    @ApiProperty({ type: 'integer', description: 'Preço base em centavos' }) basePriceCents: number;
     @ApiProperty() verified: boolean;
 
     static from(profile: InspectorWithUser): InspectorResponseDto {

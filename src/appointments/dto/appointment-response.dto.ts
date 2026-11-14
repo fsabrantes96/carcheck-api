@@ -96,7 +96,7 @@ export abstract class AppointmentBaseResponseDto {
 /** Resposta para o comprador: base + preço que ele paga. */
 export class BuyerAppointmentResponseDto extends AppointmentBaseResponseDto {
     @ApiProperty({ enum: ['BUYER'] }) myRole: 'BUYER';
-    @ApiProperty({ description: 'Preço da avaliação em centavos' }) priceCents: number;
+    @ApiProperty({ type: 'integer', description: 'Preço da avaliação em centavos' }) priceCents: number;
 
     static from(appointment: AppointmentWithRelations): BuyerAppointmentResponseDto {
         const dto = AppointmentBaseResponseDto.fillBase(new BuyerAppointmentResponseDto(), appointment, 'BUYER');
@@ -120,10 +120,10 @@ export class SellerAppointmentResponseDto extends AppointmentBaseResponseDto {
 /** Resposta para o avaliador: base + preço, comissão e repasse congelados. */
 export class InspectorAppointmentResponseDto extends AppointmentBaseResponseDto {
     @ApiProperty({ enum: ['INSPECTOR'] }) myRole: 'INSPECTOR';
-    @ApiProperty({ description: 'Preço pago pelo comprador, em centavos' }) priceCents: number;
-    @ApiProperty({ description: 'Comissão da plataforma em pontos-base, congelada na criação' }) platformFeeBps: number;
-    @ApiProperty({ description: 'Comissão da plataforma em centavos' }) platformFeeCents: number;
-    @ApiProperty({ description: 'Repasse ao avaliador em centavos (preço - comissão)' }) inspectorPayoutCents: number;
+    @ApiProperty({ type: 'integer', description: 'Preço pago pelo comprador, em centavos' }) priceCents: number;
+    @ApiProperty({ type: 'integer', description: 'Comissão da plataforma em pontos-base, congelada na criação' }) platformFeeBps: number;
+    @ApiProperty({ type: 'integer', description: 'Comissão da plataforma em centavos' }) platformFeeCents: number;
+    @ApiProperty({ type: 'integer', description: 'Repasse ao avaliador em centavos (preço - comissão)' }) inspectorPayoutCents: number;
 
     static from(appointment: AppointmentWithRelations): InspectorAppointmentResponseDto {
         const dto = AppointmentBaseResponseDto.fillBase(new InspectorAppointmentResponseDto(), appointment, 'INSPECTOR');

@@ -24,6 +24,14 @@ import {
     ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { ErrorResponseDto } from '../common/dto/error-response.dto.js';
+import {
+    ApiBodyErrorResponses,
+    ApiCommonErrorResponses,
+    ApiUuidParam,
+    INVALID_UUID_DESCRIPTION,
+    TRANSACTION_CONFLICT_DESCRIPTION,
+    UNAUTHORIZED_DESCRIPTION,
+} from '../common/swagger/api-responses.js';
 import { CurrentUser } from '../auth/current-user.decorator.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import type { JwtPayload } from '../auth/types/jwt-payload.js';
@@ -37,13 +45,20 @@ import { PaginatedMyListingsResponseDto } from './dto/paginated-my-listings-resp
 import { UpdateListingDto } from './dto/update-listing.dto.js';
 import { ListingsService } from './listings.service.js';
 
+const NOT_OWNER = 'Este anúncio não pertence a você';
+const NOT_FOUND = 'Anúncio não encontrado';
+const CANCELS_OPEN_APPOINTMENTS =
+    'Os agendamentos em aberto do anúncio (REQUESTED, ACCEPTED, AWAITING_PAYMENT) são cancelados (CANCELLED, endedBy SELLER).';
+
 @ApiTags('listings')
+@ApiCommonErrorResponses()
 @Controller('listings')
 export class ListingsController {
     constructor(private readonly listings: ListingsService) { }
 
     @Get()
     @ApiOkResponse({ type: PaginatedListingsResponseDto })
+    @ApiBadRequestResponse({ type: ErrorResponseDto, description: 'Filtros inválidos (lista em errors): UF fora das 27, page de 1 a 200, limit de 1 a 50, faixas de preço e ano' })
     findAll(@Query() query: ListListingsQueryDto): Promise<PaginatedListingsResponseDto> {
         return this.listings.findAll(query);
     }
@@ -53,7 +68,7 @@ export class ListingsController {
     @ApiBearerAuth()
     @ApiOkResponse({ type: PaginatedMyListingsResponseDto, description: 'Anúncios do usuário, sem os arquivados, paginados' })
     @ApiBadRequestResponse({ type: ErrorResponseDto, description: 'Paginação inválida (page de 1 a 200, limit de 1 a 50)' })
-    @ApiUnauthorizedResponse({ type: ErrorResponseDto, description: 'Token ausente, inválido ou expirado' })
+    @ApiUnauthorizedResponse({ type: ErrorResponseDto, description: UNAUTHORIZED_DESCRIPTION })
     findMine(
         @CurrentUser() user: JwtPayload,
         @Query() query: ListingsPageQueryDto,
@@ -62,8 +77,10 @@ export class ListingsController {
     }
 
     @Get(':id')
+    @ApiUuidParam()
     @ApiOkResponse({ type: ListingResponseDto })
-    @ApiNotFoundResponse({ type: ErrorResponseDto, description: 'Anúncio não encontrado' })
+    @ApiBadRequestResponse({ type: ErrorResponseDto, description: INVALID_UUID_DESCRIPTION })
+    @ApiNotFoundResponse({ type: ErrorResponseDto, description: NOT_FOUND })
     findOne(@Param('id', ParseUUIDPipe) id: string): Promise<ListingResponseDto> {
         return this.listings.findOnePublic(id);
     }
@@ -72,7 +89,9 @@ export class ListingsController {
     @UseGuards(JwtAuthGuard)
     @ApiBearerAuth()
     @ApiCreatedResponse({ type: MyListingResponseDto })
-    @ApiUnauthorizedResponse({ type: ErrorResponseDto, description: 'Token ausente, inválido ou expirado' })
+    @ApiBadRequestResponse({ type: ErrorResponseDto, description: 'Dados inválidos (lista em errors) ou corpo malformado' })
+    @ApiBodyErrorResponses()
+    @ApiUnauthorizedResponse({ type: ErrorResponseDto, description: UNAUTHORIZED_DESCRIPTION })
     create(
         @CurrentUser() user: JwtPayload,
         @Body() dto: CreateListingDto,
@@ -83,11 +102,13 @@ export class ListingsController {
     @Patch(':id')
     @UseGuards(JwtAuthGuard)
     @ApiBearerAuth()
+    @ApiUuidParam()
     @ApiOkResponse({ type: MyListingResponseDto })
-    @ApiBadRequestResponse({ type: ErrorResponseDto, description: 'Dados inválidos (inclusive enviar status, que muda só pelas rotas de transição)' })
-    @ApiUnauthorizedResponse({ type: ErrorResponseDto, description: 'Token ausente, inválido ou expirado' })
-    @ApiForbiddenResponse({ type: ErrorResponseDto, description: 'Este anúncio não pertence a você' })
-    @ApiNotFoundResponse({ type: ErrorResponseDto, description: 'Anúncio não encontrado' })
+    @ApiBadRequestResponse({ type: ErrorResponseDto, description: `${INVALID_UUID_DESCRIPTION}, ou dados inválidos (inclusive enviar status, que muda só pelas rotas de transição)` })
+    @ApiBodyErrorResponses()
+    @ApiUnauthorizedResponse({ type: ErrorResponseDto, description: UNAUTHORIZED_DESCRIPTION })
+    @ApiForbiddenResponse({ type: ErrorResponseDto, description: NOT_OWNER })
+    @ApiNotFoundResponse({ type: ErrorResponseDto, description: NOT_FOUND })
     @ApiConflictResponse({ type: ErrorResponseDto, description: 'Anúncio arquivado não pode ser alterado' })
     update(
         @Param('id', ParseUUIDPipe) id: string,
@@ -101,11 +122,13 @@ export class ListingsController {
     @HttpCode(200)
     @UseGuards(JwtAuthGuard)
     @ApiBearerAuth()
-    @ApiOkResponse({ type: MyListingResponseDto, description: 'Anúncio pausado (ACTIVE → PAUSED). Os agendamentos em aberto do anúncio (REQUESTED, ACCEPTED, AWAITING_PAYMENT) são cancelados (CANCELLED, endedBy SELLER).' })
-    @ApiUnauthorizedResponse({ type: ErrorResponseDto, description: 'Token ausente, inválido ou expirado' })
-    @ApiForbiddenResponse({ type: ErrorResponseDto, description: 'Este anúncio não pertence a você' })
-    @ApiNotFoundResponse({ type: ErrorResponseDto, description: 'Anúncio não encontrado' })
-    @ApiConflictResponse({ type: ErrorResponseDto, description: 'Ação não permitida no status atual do anúncio, ou o status mudou durante a requisição, ou há avaliação paga em andamento (agendamento PAID)' })
+    @ApiUuidParam()
+    @ApiOkResponse({ type: MyListingResponseDto, description: `Anúncio pausado (ACTIVE → PAUSED). ${CANCELS_OPEN_APPOINTMENTS}` })
+    @ApiBadRequestResponse({ type: ErrorResponseDto, description: INVALID_UUID_DESCRIPTION })
+    @ApiUnauthorizedResponse({ type: ErrorResponseDto, description: UNAUTHORIZED_DESCRIPTION })
+    @ApiForbiddenResponse({ type: ErrorResponseDto, description: NOT_OWNER })
+    @ApiNotFoundResponse({ type: ErrorResponseDto, description: NOT_FOUND })
+    @ApiConflictResponse({ type: ErrorResponseDto, description: `Ação não permitida no status atual do anúncio, ou o status mudou durante a requisição, ou há avaliação paga em andamento (agendamento PAID), ${TRANSACTION_CONFLICT_DESCRIPTION}` })
     pause(
         @Param('id', ParseUUIDPipe) id: string,
         @CurrentUser() user: JwtPayload,
@@ -117,11 +140,13 @@ export class ListingsController {
     @HttpCode(200)
     @UseGuards(JwtAuthGuard)
     @ApiBearerAuth()
+    @ApiUuidParam()
     @ApiOkResponse({ type: MyListingResponseDto, description: 'Anúncio reativado (PAUSED → ACTIVE)' })
-    @ApiUnauthorizedResponse({ type: ErrorResponseDto, description: 'Token ausente, inválido ou expirado' })
-    @ApiForbiddenResponse({ type: ErrorResponseDto, description: 'Este anúncio não pertence a você' })
-    @ApiNotFoundResponse({ type: ErrorResponseDto, description: 'Anúncio não encontrado' })
-    @ApiConflictResponse({ type: ErrorResponseDto, description: 'Ação não permitida no status atual do anúncio, ou o status mudou durante a requisição' })
+    @ApiBadRequestResponse({ type: ErrorResponseDto, description: INVALID_UUID_DESCRIPTION })
+    @ApiUnauthorizedResponse({ type: ErrorResponseDto, description: UNAUTHORIZED_DESCRIPTION })
+    @ApiForbiddenResponse({ type: ErrorResponseDto, description: NOT_OWNER })
+    @ApiNotFoundResponse({ type: ErrorResponseDto, description: NOT_FOUND })
+    @ApiConflictResponse({ type: ErrorResponseDto, description: `Ação não permitida no status atual do anúncio, ou o status mudou durante a requisição, ${TRANSACTION_CONFLICT_DESCRIPTION}` })
     activate(
         @Param('id', ParseUUIDPipe) id: string,
         @CurrentUser() user: JwtPayload,
@@ -133,11 +158,13 @@ export class ListingsController {
     @HttpCode(200)
     @UseGuards(JwtAuthGuard)
     @ApiBearerAuth()
-    @ApiOkResponse({ type: MyListingResponseDto, description: 'Anúncio marcado como vendido (ACTIVE ou PAUSED → SOLD). Os agendamentos em aberto do anúncio (REQUESTED, ACCEPTED, AWAITING_PAYMENT) são cancelados (CANCELLED, endedBy SELLER).' })
-    @ApiUnauthorizedResponse({ type: ErrorResponseDto, description: 'Token ausente, inválido ou expirado' })
-    @ApiForbiddenResponse({ type: ErrorResponseDto, description: 'Este anúncio não pertence a você' })
-    @ApiNotFoundResponse({ type: ErrorResponseDto, description: 'Anúncio não encontrado' })
-    @ApiConflictResponse({ type: ErrorResponseDto, description: 'Ação não permitida no status atual do anúncio, ou o status mudou durante a requisição, ou há avaliação paga em andamento (agendamento PAID)' })
+    @ApiUuidParam()
+    @ApiOkResponse({ type: MyListingResponseDto, description: `Anúncio marcado como vendido (ACTIVE ou PAUSED → SOLD). ${CANCELS_OPEN_APPOINTMENTS}` })
+    @ApiBadRequestResponse({ type: ErrorResponseDto, description: INVALID_UUID_DESCRIPTION })
+    @ApiUnauthorizedResponse({ type: ErrorResponseDto, description: UNAUTHORIZED_DESCRIPTION })
+    @ApiForbiddenResponse({ type: ErrorResponseDto, description: NOT_OWNER })
+    @ApiNotFoundResponse({ type: ErrorResponseDto, description: NOT_FOUND })
+    @ApiConflictResponse({ type: ErrorResponseDto, description: `Ação não permitida no status atual do anúncio, ou o status mudou durante a requisição, ou há avaliação paga em andamento (agendamento PAID), ${TRANSACTION_CONFLICT_DESCRIPTION}` })
     markSold(
         @Param('id', ParseUUIDPipe) id: string,
         @CurrentUser() user: JwtPayload,
@@ -149,11 +176,13 @@ export class ListingsController {
     @HttpCode(204)
     @UseGuards(JwtAuthGuard)
     @ApiBearerAuth()
-    @ApiNoContentResponse({ description: 'Anúncio arquivado (status ARCHIVED); não é apagado do banco. Os agendamentos em aberto do anúncio (REQUESTED, ACCEPTED, AWAITING_PAYMENT) são cancelados (CANCELLED, endedBy SELLER).' })
-    @ApiUnauthorizedResponse({ type: ErrorResponseDto, description: 'Token ausente, inválido ou expirado' })
-    @ApiForbiddenResponse({ type: ErrorResponseDto, description: 'Este anúncio não pertence a você' })
-    @ApiNotFoundResponse({ type: ErrorResponseDto, description: 'Anúncio não encontrado' })
-    @ApiConflictResponse({ type: ErrorResponseDto, description: 'Anúncio já arquivado, ou o status mudou durante a requisição, ou há avaliação paga em andamento (agendamento PAID)' })
+    @ApiUuidParam()
+    @ApiNoContentResponse({ description: `Anúncio arquivado (status ARCHIVED); não é apagado do banco. ${CANCELS_OPEN_APPOINTMENTS}` })
+    @ApiBadRequestResponse({ type: ErrorResponseDto, description: INVALID_UUID_DESCRIPTION })
+    @ApiUnauthorizedResponse({ type: ErrorResponseDto, description: UNAUTHORIZED_DESCRIPTION })
+    @ApiForbiddenResponse({ type: ErrorResponseDto, description: NOT_OWNER })
+    @ApiNotFoundResponse({ type: ErrorResponseDto, description: NOT_FOUND })
+    @ApiConflictResponse({ type: ErrorResponseDto, description: `Anúncio já arquivado, ou o status mudou durante a requisição, ou há avaliação paga em andamento (agendamento PAID), ${TRANSACTION_CONFLICT_DESCRIPTION}` })
     remove(
         @Param('id', ParseUUIDPipe) id: string,
         @CurrentUser() user: JwtPayload,

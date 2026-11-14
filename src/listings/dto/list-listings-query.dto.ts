@@ -6,6 +6,7 @@ import {
     LISTING_PRICE_MAX_CENTS,
     PRICE_FILTER_MIN_CENTS,
     VEHICLE_BRAND_MAX_LENGTH,
+    VEHICLE_YEAR_DESCRIPTION,
     VEHICLE_YEAR_MAX,
     VEHICLE_YEAR_MIN,
 } from '../../common/limits.js';
@@ -29,6 +30,7 @@ export class ListListingsQueryDto extends ListingsPageQueryDto {
     state?: string;
 
     @ApiPropertyOptional({
+        type: 'integer',
         description: 'Preço mínimo em centavos',
         minimum: PRICE_FILTER_MIN_CENTS,
         maximum: LISTING_PRICE_MAX_CENTS,
@@ -41,6 +43,7 @@ export class ListListingsQueryDto extends ListingsPageQueryDto {
     minPriceCents?: number;
 
     @ApiPropertyOptional({
+        type: 'integer',
         description: 'Preço máximo em centavos',
         minimum: PRICE_FILTER_MIN_CENTS,
         maximum: LISTING_PRICE_MAX_CENTS,
@@ -52,7 +55,8 @@ export class ListListingsQueryDto extends ListingsPageQueryDto {
     @Max(LISTING_PRICE_MAX_CENTS)
     maxPriceCents?: number;
 
-    @ApiPropertyOptional({ example: 2015, minimum: VEHICLE_YEAR_MIN, maximum: VEHICLE_YEAR_MAX })
+    // Sem maximum no Swagger (ver VehicleDto.year).
+    @ApiPropertyOptional({ type: 'integer', example: 2015, minimum: VEHICLE_YEAR_MIN, description: VEHICLE_YEAR_DESCRIPTION })
     @IsOptional()
     @Type(() => Number)
     @IsInt()
@@ -60,7 +64,7 @@ export class ListListingsQueryDto extends ListingsPageQueryDto {
     @Max(VEHICLE_YEAR_MAX)
     minYear?: number;
 
-    @ApiPropertyOptional({ example: 2022, minimum: VEHICLE_YEAR_MIN, maximum: VEHICLE_YEAR_MAX })
+    @ApiPropertyOptional({ type: 'integer', example: 2022, minimum: VEHICLE_YEAR_MIN, description: VEHICLE_YEAR_DESCRIPTION })
     @IsOptional()
     @Type(() => Number)
     @IsInt()

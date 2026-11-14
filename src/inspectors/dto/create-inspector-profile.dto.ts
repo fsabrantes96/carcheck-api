@@ -63,6 +63,7 @@ export class CreateInspectorProfileDto {
     state: string;
 
     @ApiProperty({
+        type: 'integer',
         example: 30,
         description: 'Raio de atendimento em km',
         minimum: SERVICE_RADIUS_MIN_KM,
@@ -74,6 +75,7 @@ export class CreateInspectorProfileDto {
     serviceRadiusKm: number;
 
     @ApiProperty({
+        type: 'integer',
         example: 15000,
         description:
             'Preço base em centavos (R$ 150,00 = 15000). Abaixo do mínimo da plataforma (MIN_INSPECTION_PRICE_CENTS, padrão R$ 50,00) responde 400',

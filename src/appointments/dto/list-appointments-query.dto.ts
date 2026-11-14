@@ -26,7 +26,7 @@ export class ListAppointmentsQueryDto {
 
     // Teto evita skip fora da faixa (page=1e20 virava 500). 10000 × 50 itens
     // cobre de sobra a lista de um usuário.
-    @ApiPropertyOptional({ default: PAGE_MIN, minimum: PAGE_MIN, maximum: APPOINTMENTS_PAGE_MAX })
+    @ApiPropertyOptional({ type: 'integer', default: PAGE_MIN, minimum: PAGE_MIN, maximum: APPOINTMENTS_PAGE_MAX })
     @IsOptional()
     @Type(() => Number)
     @IsInt()
@@ -34,7 +34,7 @@ export class ListAppointmentsQueryDto {
     @Max(APPOINTMENTS_PAGE_MAX)
     page: number = PAGE_MIN;
 
-    @ApiPropertyOptional({ default: PAGE_LIMIT_DEFAULT, minimum: PAGE_LIMIT_MIN, maximum: PAGE_LIMIT_MAX })
+    @ApiPropertyOptional({ type: 'integer', default: PAGE_LIMIT_DEFAULT, minimum: PAGE_LIMIT_MIN, maximum: PAGE_LIMIT_MAX })
     @IsOptional()
     @Type(() => Number)
     @IsInt()

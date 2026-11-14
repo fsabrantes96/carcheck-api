@@ -44,6 +44,7 @@ export class CreateListingDto {
     description: string;
 
     @ApiProperty({
+        type: 'integer',
         example: 4500000,
         description: 'Preço em centavos (R$ 45.000,00)',
         minimum: LISTING_PRICE_MIN_CENTS,
