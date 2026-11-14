@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { ApiBrazilianState } from '../../common/validation/brazilian-state.js';
 import { Specialty } from '../../generated/prisma/client.js';
 
 export type InspectorWithUser = {
@@ -20,7 +21,7 @@ export class InspectorResponseDto {
     @ApiProperty() bio: string;
     @ApiProperty({ enum: Specialty, isArray: true }) specialties: Specialty[];
     @ApiProperty() city: string;
-    @ApiProperty() state: string;
+    @ApiBrazilianState() state: string;
     @ApiProperty() serviceRadiusKm: number;
     @ApiProperty() basePriceCents: number;
     @ApiProperty() verified: boolean;

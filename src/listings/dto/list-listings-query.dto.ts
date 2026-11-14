@@ -1,15 +1,15 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsInt, IsOptional, IsString, Length, Max, MaxLength, Min } from 'class-validator';
+import { IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 import {
     CITY_MAX_LENGTH,
     LISTING_PRICE_MAX_CENTS,
     PRICE_FILTER_MIN_CENTS,
-    STATE_LENGTH,
     VEHICLE_BRAND_MAX_LENGTH,
     VEHICLE_YEAR_MAX,
     VEHICLE_YEAR_MIN,
 } from '../../common/limits.js';
+import { BrazilianStateField } from '../../common/validation/brazilian-state.js';
 import { ListingsPageQueryDto } from './listings-page-query.dto.js';
 
 export class ListListingsQueryDto extends ListingsPageQueryDto {
@@ -25,10 +25,7 @@ export class ListListingsQueryDto extends ListingsPageQueryDto {
     @MaxLength(CITY_MAX_LENGTH)
     city?: string;
 
-    @ApiPropertyOptional({ example: 'SP', minLength: STATE_LENGTH, maxLength: STATE_LENGTH })
-    @IsOptional()
-    @IsString()
-    @Length(STATE_LENGTH, STATE_LENGTH)
+    @BrazilianStateField({ optional: true })
     state?: string;
 
     @ApiPropertyOptional({

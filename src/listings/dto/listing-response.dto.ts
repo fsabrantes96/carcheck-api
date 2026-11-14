@@ -4,6 +4,7 @@ import {
     ListingStatus,
     Transmission,
 } from '../../generated/prisma/client.js';
+import { ApiBrazilianState } from '../../common/validation/brazilian-state.js';
 
 export type ListingWithRelations = {
     id: string;
@@ -48,7 +49,7 @@ export class ListingResponseDto {
     @ApiProperty() description: string;
     @ApiProperty() priceCents: number;
     @ApiProperty() city: string;
-    @ApiProperty() state: string;
+    @ApiBrazilianState() state: string;
     @ApiProperty({ type: VehicleResponseDto, nullable: true })
     vehicle: VehicleResponseDto | null;
     @ApiProperty() createdAt: Date;

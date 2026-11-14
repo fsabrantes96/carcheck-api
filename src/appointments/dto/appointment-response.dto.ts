@@ -1,4 +1,5 @@
 import { ApiProperty, getSchemaPath } from '@nestjs/swagger';
+import { ApiBrazilianState } from '../../common/validation/brazilian-state.js';
 import { AppointmentActor, AppointmentStatus } from '../../generated/prisma/client.js';
 import { availableActions, ROUTE_ACTIONS } from '../appointments.state-machine.js';
 import type { AppointmentAction, Participant } from '../appointments.state-machine.js';
@@ -27,7 +28,7 @@ export class AppointmentListingDto {
     @ApiProperty({ format: 'uuid' }) id: string;
     @ApiProperty() title: string;
     @ApiProperty() city: string;
-    @ApiProperty() state: string;
+    @ApiBrazilianState() state: string;
 }
 
 export class AppointmentInspectorDto {
