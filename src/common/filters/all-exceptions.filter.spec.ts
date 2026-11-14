@@ -793,6 +793,30 @@ describe('AllExceptionsFilter', () => {
     });
   });
 
+  describe('log do 500 sem query string (risco 18)', () => {
+    it('registra a URL sem a query string quando não há rota casada', () => {
+      const exception = new Error('falhou');
+
+      run(exception, '/listings?city=Boituva&email=maria@x.com');
+
+      expect(loggerError).toHaveBeenCalledWith('Erro não tratado em GET /listings', exception.stack);
+    });
+
+    it('registra o padrão da rota, sem ids, quando há rota casada', () => {
+      const { host } = createHost('/appointments/0b7c6f2e-3f4a-4d5b-9c8d-1e2f3a4b5c6d/accept?x=1', 'POST');
+      const request = host.switchToHttp().getRequest<Record<string, unknown>>();
+      request.route = { path: '/appointments/:id/accept' };
+      const exception = new Error('falhou');
+
+      new AllExceptionsFilter().catch(exception, host);
+
+      expect(loggerError).toHaveBeenCalledWith(
+        'Erro não tratado em POST /appointments/:id/accept',
+        exception.stack,
+      );
+    });
+  });
+
   describe('erro genérico', () => {
     it('responde 500 sem vazar a mensagem nem a stack e registra no Logger', () => {
       const exception = new Error('senha do banco: xyz');

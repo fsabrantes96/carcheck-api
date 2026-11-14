@@ -21,8 +21,8 @@ import {
  * Um caso por code genérico do contrato de erros (ErrorCode): status, code,
  * mensagem, Cache-Control e Content-Type. O 429 está em
  * test/throttler.e2e-spec.ts (storage real) e o 500 em
- * test/errors.e2e-spec.ts (banco indisponível). BAD_REQUEST e
- * METHOD_NOT_ALLOWED não têm gatilho pelo cliente hoje e ficam nos unitários.
+ * test/errors.e2e-spec.ts (banco indisponível). BAD_REQUEST não tem
+ * gatilho pelo cliente hoje e fica nos unitários.
  */
 describe('Codes genéricos de erro (e2e)', () => {
   let app: INestApplication<App>;

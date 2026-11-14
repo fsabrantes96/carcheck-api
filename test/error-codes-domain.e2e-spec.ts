@@ -92,12 +92,12 @@ describe('Codes de domínio (e2e)', () => {
       expectCoded(res, 409, 'EMAIL_ALREADY_REGISTERED', 'E-mail já cadastrado');
     });
 
-    it('USER_NOT_FOUND: /auth/me com token válido de uma conta que não existe mais', async () => {
+    it('UNAUTHENTICATED: /auth/me com token válido de uma conta que não existe mais (como o RolesGuard)', async () => {
       const token = app.get(JwtService).sign({ sub: UNKNOWN_ID, email: 'fantasma@x.com' });
 
       const res = await server().get('/auth/me').set('Authorization', `Bearer ${token}`);
 
-      expectCoded(res, 404, 'USER_NOT_FOUND', 'Usuário não encontrado');
+      expectCoded(res, 401, 'UNAUTHENTICATED', 'Token inválido ou expirado');
     });
   });
 

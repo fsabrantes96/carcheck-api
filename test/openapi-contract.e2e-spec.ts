@@ -93,6 +93,16 @@ describe('Contrato OpenAPI (e2e)', () => {
         expect.arrayContaining(['VALIDATION_FAILED', 'ROUTE_NOT_FOUND', 'INTERNAL_ERROR']),
       );
     });
+
+    it('o ErrorCode avisa que a lista pode crescer', () => {
+      expect(doc.components.schemas.ErrorCode.description).toContain(
+        'A lista pode crescer; trate code desconhecido pelo status HTTP.',
+      );
+    });
+
+    it.each(['USER_NOT_FOUND', 'METHOD_NOT_ALLOWED'])('o ErrorCode não tem %s (removido antes do front)', (code) => {
+      expect(doc.components.schemas.ErrorCode.enum).not.toContain(code);
+    });
   });
 
   describe('erros que valem para toda rota', () => {
@@ -157,9 +167,10 @@ describe('Contrato OpenAPI (e2e)', () => {
       expect(errorSchema(op(method, path), '400')).toEqual(ERROR_REF);
     });
 
-    it('GET /auth/me documenta o 404 de usuário inexistente', () => {
-      expect(errorSchema(op('get', '/auth/me'), '404')).toEqual(ERROR_REF);
-      expect(op('get', '/auth/me').responses['404'].description).toContain('Usuário não encontrado');
+    it('GET /auth/me documenta no 401 a conta que não existe mais, sem 404', () => {
+      expect(errorSchema(op('get', '/auth/me'), '401')).toEqual(ERROR_REF);
+      expect(op('get', '/auth/me').responses['401'].description).toContain('conta que não existe mais');
+      expect(op('get', '/auth/me').responses).not.toHaveProperty('404');
     });
 
     it.each([

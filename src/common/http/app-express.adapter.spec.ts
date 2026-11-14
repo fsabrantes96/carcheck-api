@@ -134,7 +134,6 @@ describe('AppExpressAdapter.mapException', () => {
       [400, 'Requisição inválida'],
       [403, 'Acesso negado'],
       [404, 'Recurso não encontrado'],
-      [405, 'Método não permitido'],
       [412, 'Pré-condição da requisição não atendida'],
       [413, 'Corpo da requisição muito grande'],
       [415, 'Formato da requisição não suportado'],
@@ -158,6 +157,13 @@ describe('AppExpressAdapter.mapException', () => {
 
       expect(mapped.getStatus()).toBe(412);
       expect(mapped.message).toBe('Pré-condição da requisição não atendida');
+    });
+
+    it('usa "Requisição inválida" num 405 (fora do mapa, o Express não o emite)', () => {
+      const mapped = mapToHttpException(httpError(405, 'Method Not Allowed'));
+
+      expect(mapped.getStatus()).toBe(405);
+      expect(mapped.message).toBe('Requisição inválida');
     });
 
     it('usa "Requisição inválida" num http-error de status fora do mapa, nunca error.message', () => {
@@ -289,7 +295,7 @@ describe('AppExpressAdapter: code dos erros da camada do Express', () => {
     [400, 'BAD_REQUEST'],
     [403, 'FORBIDDEN'],
     [404, 'NOT_FOUND'],
-    [405, 'METHOD_NOT_ALLOWED'],
+    [405, 'BAD_REQUEST'],
     [412, 'PRECONDITION_FAILED'],
     [413, 'PAYLOAD_TOO_LARGE'],
     [415, 'UNSUPPORTED_MEDIA_TYPE'],

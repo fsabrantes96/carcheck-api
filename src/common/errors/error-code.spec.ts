@@ -29,7 +29,6 @@ describe('ErrorCode', () => {
     'FORBIDDEN',
     'NOT_FOUND',
     'ROUTE_NOT_FOUND',
-    'METHOD_NOT_ALLOWED',
     'CONFLICT',
     'TRANSACTION_CONFLICT',
     'PRECONDITION_FAILED',
@@ -47,7 +46,6 @@ describe('ErrorCode de domínio', () => {
   it.each([
     'INVALID_CREDENTIALS',
     'EMAIL_ALREADY_REGISTERED',
-    'USER_NOT_FOUND',
     'LISTING_NOT_FOUND',
     'INSPECTOR_NOT_FOUND',
     'INSPECTOR_PROFILE_NOT_FOUND',
@@ -68,13 +66,18 @@ describe('ErrorCode de domínio', () => {
   });
 });
 
+describe('codes removidos antes de o front consumir o enum', () => {
+  it.each(['USER_NOT_FOUND', 'METHOD_NOT_ALLOWED'])('não tem %s', (code) => {
+    expect(ERROR_CODES).not.toContain(code);
+  });
+});
+
 describe('defaultCodeForStatus', () => {
   it.each([
     [400, 'BAD_REQUEST'],
     [401, 'UNAUTHENTICATED'],
     [403, 'FORBIDDEN'],
     [404, 'NOT_FOUND'],
-    [405, 'METHOD_NOT_ALLOWED'],
     [409, 'CONFLICT'],
     [412, 'PRECONDITION_FAILED'],
     [413, 'PAYLOAD_TOO_LARGE'],
@@ -86,7 +89,7 @@ describe('defaultCodeForStatus', () => {
     expect(defaultCodeForStatus(status)).toBe(code);
   });
 
-  it.each([402, 406, 418, 422, 451, 499])(
+  it.each([402, 405, 406, 418, 422, 451, 499])(
     'cai em BAD_REQUEST num 4xx fora do mapa (%i)',
     (status) => {
       expect(defaultCodeForStatus(status)).toBe('BAD_REQUEST');
