@@ -559,7 +559,7 @@ describe('Erro depois do envio dos cabeçalhos (e2e, risco 69)', () => {
 
   it('encerra a conexão sem tentar mandar o JSON de erro e registra o erro uma vez', async () => {
     const res = await rawGet('/teste-falha-no-meio');
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    await vi.waitFor(() => expect(loggerError).toHaveBeenCalled());
 
     // O status e o pedaço já escrito podem nem chegar: o destroy pode correr
     // antes de o Node descarregar o buffer. O que importa: a conexão termina

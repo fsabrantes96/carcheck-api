@@ -46,6 +46,9 @@ describe('Rate limit real de POST /auth/login (e2e)', () => {
     expect(Object.keys(res.body).sort()).toEqual(ERROR_KEYS);
   });
 
+  // O storage do throttler é o da app (compartilhado entre os testes do
+  // arquivo): se o teste anterior já estourou o limite, o laço abaixo também
+  // recebe 429; o que se confere é a sexta resposta, que é 429 nos dois casos.
   it('responde o 429 com o code TOO_MANY_REQUESTS, no-store e o Retry-After', async () => {
     const server = app.getHttpServer();
     const body = { email: 'ninguem@x.com', password: DEFAULT_PASSWORD };

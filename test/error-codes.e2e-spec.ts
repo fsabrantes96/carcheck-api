@@ -2,6 +2,7 @@ import { Logger } from '@nestjs/common';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
+import type { ErrorCode } from '../src/common/errors/error-code.js';
 import { Prisma } from '../src/generated/prisma/client.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import {
@@ -46,7 +47,7 @@ describe('Codes genéricos de erro (e2e)', () => {
   function expectCoded(
     res: request.Response,
     statusCode: number,
-    code: string,
+    code: ErrorCode,
     message: string,
     keys: string[] = ERROR_KEYS,
   ) {
@@ -111,7 +112,7 @@ describe('Codes genéricos de erro (e2e)', () => {
   it.each([
     ['NOT_FOUND', 'P2025', 404, 'Registro não encontrado'],
     ['CONFLICT', 'P2002', 409, 'Registro já existe'],
-  ])('%s: erro %s do Prisma', async (code, prismaCode, status, message) => {
+  ] as const)('%s: erro %s do Prisma', async (code, prismaCode, status, message) => {
     vi.spyOn(app.get(PrismaService), '$transaction').mockRejectedValueOnce(
       new Prisma.PrismaClientKnownRequestError('erro do prisma', {
         code: prismaCode,

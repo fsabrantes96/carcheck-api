@@ -2,6 +2,7 @@ import type { INestApplication } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
+import type { ErrorCode } from '../src/common/errors/error-code.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import {
   ERROR_KEYS,
@@ -46,10 +47,10 @@ describe('Codes de domínio (e2e)', () => {
   const server = () => request(app.getHttpServer());
   const auth = (user: TestUser) => ({ Authorization: `Bearer ${user.token}` });
 
-  function expectCoded(res: request.Response, statusCode: number, code: string, message?: string) {
+  function expectCoded(res: request.Response, statusCode: number, code: ErrorCode, message: string) {
     expect(res.status).toBe(statusCode);
     expect(res.body.code).toBe(code);
-    if (message !== undefined) expect(res.body.message).toBe(message);
+    expect(res.body.message).toBe(message);
     expect(res.headers['cache-control']).toBe('no-store');
     expect(Object.keys(res.body).sort()).toEqual(ERROR_KEYS);
   }
@@ -137,7 +138,12 @@ describe('Codes de domínio (e2e)', () => {
 
       const res = await server().post(`/listings/${listingId}/pause`).set(auth(seller));
 
-      expectCoded(res, 409, 'LISTING_HAS_PAID_APPOINTMENT');
+      expectCoded(
+        res,
+        409,
+        'LISTING_HAS_PAID_APPOINTMENT',
+        'O anúncio tem avaliação paga em andamento; não é possível pausar, vender ou arquivar',
+      );
     });
 
     it('FORBIDDEN: transição no anúncio de outro usuário', async () => {
@@ -173,8 +179,7 @@ describe('Codes de domínio (e2e)', () => {
         .set(auth(buyer))
         .send({ ...inspectorProfilePayload, basePriceCents: 100 });
 
-      expectCoded(res, 400, 'PRICE_BELOW_MINIMUM');
-      expect(res.body.message).toMatch(/^O preço base precisa ser de pelo menos/);
+      expectCoded(res, 400, 'PRICE_BELOW_MINIMUM', 'O preço base precisa ser de pelo menos 5000 centavos (R$ 50,00)');
     });
   });
 
@@ -207,7 +212,7 @@ describe('Codes de domínio (e2e)', () => {
 
       const res = await requestAppointment(listingId, buyer, hoursFromNow(1));
 
-      expectCoded(res, 400, 'INVALID_SCHEDULE');
+      expectCoded(res, 400, 'INVALID_SCHEDULE', 'O agendamento precisa de pelo menos 24 horas de antecedência');
     });
 
     it('INSPECTOR_UNAVAILABLE: avaliador é o vendedor do anúncio', async () => {
@@ -224,7 +229,12 @@ describe('Codes de domínio (e2e)', () => {
 
       const res = await requestAppointment(listingId, buyer, hoursFromNow(72));
 
-      expectCoded(res, 409, 'APPOINTMENT_DUPLICATE');
+      expectCoded(
+        res,
+        409,
+        'APPOINTMENT_DUPLICATE',
+        'Você já tem um agendamento em andamento para este anúncio com este avaliador',
+      );
     });
 
     it('SLOT_UNAVAILABLE: horário do avaliador já ocupado (checagem na criação)', async () => {
@@ -247,7 +257,7 @@ describe('Codes de domínio (e2e)', () => {
 
       const res = await act(inspector, second.body.id, 'accept');
 
-      expectCoded(res, 409, 'SLOT_UNAVAILABLE');
+      expectCoded(res, 409, 'SLOT_UNAVAILABLE', 'O agendamento mudou ou o horário não está mais disponível');
     });
 
     it('INSPECTOR_NOT_VERIFIED: aceitar com o perfil não verificado', async () => {
