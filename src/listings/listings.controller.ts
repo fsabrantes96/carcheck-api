@@ -31,7 +31,9 @@ import { CreateListingDto } from './dto/create-listing.dto.js';
 import { ListListingsQueryDto } from './dto/list-listings-query.dto.js';
 import { ListingResponseDto } from './dto/listing-response.dto.js';
 import { MyListingResponseDto } from './dto/my-listing-response.dto.js';
+import { ListingsPageQueryDto } from './dto/listings-page-query.dto.js';
 import { PaginatedListingsResponseDto } from './dto/paginated-listings-response.dto.js';
+import { PaginatedMyListingsResponseDto } from './dto/paginated-my-listings-response.dto.js';
 import { UpdateListingDto } from './dto/update-listing.dto.js';
 import { ListingsService } from './listings.service.js';
 
@@ -49,10 +51,14 @@ export class ListingsController {
     @Get('mine')
     @UseGuards(JwtAuthGuard)
     @ApiBearerAuth()
-    @ApiOkResponse({ type: MyListingResponseDto, isArray: true, description: 'Anúncios do usuário, sem os arquivados' })
+    @ApiOkResponse({ type: PaginatedMyListingsResponseDto, description: 'Anúncios do usuário, sem os arquivados, paginados' })
+    @ApiBadRequestResponse({ type: ErrorResponseDto, description: 'Paginação inválida (page de 1 a 200, limit de 1 a 50)' })
     @ApiUnauthorizedResponse({ type: ErrorResponseDto, description: 'Token ausente, inválido ou expirado' })
-    findMine(@CurrentUser() user: JwtPayload): Promise<MyListingResponseDto[]> {
-        return this.listings.findMine(user.sub);
+    findMine(
+        @CurrentUser() user: JwtPayload,
+        @Query() query: ListingsPageQueryDto,
+    ): Promise<PaginatedMyListingsResponseDto> {
+        return this.listings.findMine(user.sub, query);
     }
 
     @Get(':id')

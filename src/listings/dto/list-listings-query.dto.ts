@@ -4,19 +4,15 @@ import { IsInt, IsOptional, IsString, Length, Max, MaxLength, Min } from 'class-
 import {
     CITY_MAX_LENGTH,
     LISTING_PRICE_MAX_CENTS,
-    LISTINGS_PAGE_MAX,
-    PAGE_LIMIT_DEFAULT,
-    PAGE_LIMIT_MAX,
-    PAGE_LIMIT_MIN,
-    PAGE_MIN,
     PRICE_FILTER_MIN_CENTS,
     STATE_LENGTH,
     VEHICLE_BRAND_MAX_LENGTH,
     VEHICLE_YEAR_MAX,
     VEHICLE_YEAR_MIN,
 } from '../../common/limits.js';
+import { ListingsPageQueryDto } from './listings-page-query.dto.js';
 
-export class ListListingsQueryDto {
+export class ListListingsQueryDto extends ListingsPageQueryDto {
     @ApiPropertyOptional({ example: 'Volkswagen', maxLength: VEHICLE_BRAND_MAX_LENGTH })
     @IsOptional()
     @IsString()
@@ -74,22 +70,4 @@ export class ListListingsQueryDto {
     @Min(VEHICLE_YEAR_MIN)
     @Max(VEHICLE_YEAR_MAX)
     maxYear?: number;
-
-    // Teto evita skip fora da faixa (page=1e20 virava 500) e varreduras
-    // profundas: page × limit nunca passa de 10.000 registros pulados.
-    @ApiPropertyOptional({ default: PAGE_MIN, minimum: PAGE_MIN, maximum: LISTINGS_PAGE_MAX })
-    @IsOptional()
-    @Type(() => Number)
-    @IsInt()
-    @Min(PAGE_MIN)
-    @Max(LISTINGS_PAGE_MAX)
-    page: number = PAGE_MIN;
-
-    @ApiPropertyOptional({ default: PAGE_LIMIT_DEFAULT, minimum: PAGE_LIMIT_MIN, maximum: PAGE_LIMIT_MAX })
-    @IsOptional()
-    @Type(() => Number)
-    @IsInt()
-    @Min(PAGE_LIMIT_MIN)
-    @Max(PAGE_LIMIT_MAX)
-    limit: number = PAGE_LIMIT_DEFAULT;
 }
