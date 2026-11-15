@@ -2533,7 +2533,7 @@
           "INSPECTOR",
           "ADMIN"
         ],
-        "description": "Roles atuais do usuário, lidas do banco (uma mudança vale na hora, sem novo login)"
+        "description": "Papel global do usuário na plataforma. A lista pode crescer; trate valor desconhecido sem quebrar."
       },
       "CurrentUserResponseDto": {
         "type": "object",
@@ -2578,7 +2578,8 @@
           "ELECTRICAL",
           "BODYWORK",
           "AIR_CONDITIONING"
-        ]
+        ],
+        "description": "Especialidade do avaliador."
       },
       "BrazilianState": {
         "type": "string",
@@ -2895,7 +2896,8 @@
           "DIESEL",
           "ELECTRIC",
           "HYBRID"
-        ]
+        ],
+        "description": "Tipo de combustível do veículo."
       },
       "Transmission": {
         "type": "string",
@@ -2904,7 +2906,8 @@
           "AUTOMATIC",
           "CVT",
           "AUTOMATED"
-        ]
+        ],
+        "description": "Tipo de câmbio do veículo."
       },
       "VehicleResponseDto": {
         "type": "object",
@@ -3041,7 +3044,8 @@
           "SOLD",
           "PAUSED",
           "ARCHIVED"
-        ]
+        ],
+        "description": "Status do anúncio."
       },
       "MyListingResponseDto": {
         "type": "object",
@@ -3299,7 +3303,8 @@
           "DECLINED",
           "CANCELLED",
           "EXPIRED"
-        ]
+        ],
+        "description": "Estado do agendamento. A lista pode crescer; trate valor desconhecido sem quebrar."
       },
       "AppointmentListingDto": {
         "type": "object",
@@ -3370,7 +3375,7 @@
           "INSPECTOR",
           "SYSTEM"
         ],
-        "description": "Quem encerrou (recusa, cancelamento ou expiração)"
+        "description": "Quem executou uma ação no agendamento: comprador, vendedor, avaliador ou o sistema (expiração). A lista pode crescer; trate valor desconhecido sem quebrar."
       },
       "AppointmentAction": {
         "type": "string",
@@ -3380,7 +3385,7 @@
           "CONFIRM",
           "CANCEL"
         ],
-        "description": "Ações que quem chama pode executar agora"
+        "description": "Ação sobre o agendamento, uma por rota de intenção. A lista pode crescer; trate valor desconhecido sem quebrar."
       },
       "BuyerAppointmentResponseDto": {
         "type": "object",
@@ -3702,7 +3707,8 @@
           "BUYER",
           "SELLER",
           "INSPECTOR"
-        ]
+        ],
+        "description": "Papel de um usuário num agendamento."
       },
       "PaginatedAppointmentsResponseDto": {
         "type": "object",

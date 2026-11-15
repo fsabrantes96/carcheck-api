@@ -6,6 +6,7 @@ import {
   APPOINTMENT_RESPONSE_SCHEMA_NAME,
   appointmentResponseSchema,
 } from '../appointments/dto/appointment-response.dto.js';
+import { applyEnumDescriptions } from './enum-descriptions.js';
 
 /**
  * Documento OpenAPI da API. Uma única função para o /docs-json (configureApp)
@@ -30,6 +31,7 @@ export function buildOpenApiDocument(app: INestApplication): OpenAPIObject {
   document.components ??= {};
   document.components.schemas ??= {};
   document.components.schemas[APPOINTMENT_RESPONSE_SCHEMA_NAME] = appointmentResponseSchema();
+  applyEnumDescriptions(document);
   return document;
 }
 
