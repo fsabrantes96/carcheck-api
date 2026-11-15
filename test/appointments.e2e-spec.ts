@@ -361,7 +361,10 @@ describe('Appointments (e2e)', () => {
       it('o 200 de GET /appointments/{id} é oneOf dos 3 perfis com discriminador myRole', async () => {
         const res = await request(app.getHttpServer()).get('/docs-json').expect(200);
 
-        const schema = res.body.paths['/appointments/{id}'].get.responses['200'].content['application/json'].schema;
+        // A rota referencia o schema nomeado da união, que tem o oneOf e o discriminador.
+        const routeSchema = res.body.paths['/appointments/{id}'].get.responses['200'].content['application/json'].schema;
+        expect(routeSchema).toEqual({ $ref: ref('AppointmentResponseDto') });
+        const schema = res.body.components.schemas.AppointmentResponseDto;
         expect(schema.oneOf).toEqual([
           { $ref: ref('BuyerAppointmentResponseDto') },
           { $ref: ref('SellerAppointmentResponseDto') },
