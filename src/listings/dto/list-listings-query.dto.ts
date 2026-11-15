@@ -11,9 +11,9 @@ import {
     VEHICLE_YEAR_MIN,
 } from '../../common/limits.js';
 import { BrazilianStateField } from '../../common/validation/brazilian-state.js';
-import { ListingsPageQueryDto } from './listings-page-query.dto.js';
+import { PageQueryDto } from '../../common/dto/page-query.dto.js';
 
-export class ListListingsQueryDto extends ListingsPageQueryDto {
+export class ListListingsQueryDto extends PageQueryDto {
     @ApiPropertyOptional({ example: 'Volkswagen', maxLength: VEHICLE_BRAND_MAX_LENGTH })
     @IsOptional()
     @IsString()

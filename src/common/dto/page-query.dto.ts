@@ -2,26 +2,29 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsInt, IsOptional, Max, Min } from 'class-validator';
 import {
-    LISTINGS_PAGE_MAX,
     PAGE_LIMIT_DEFAULT,
     PAGE_LIMIT_MAX,
     PAGE_LIMIT_MIN,
+    PAGE_MAX,
     PAGE_MIN,
-} from '../../common/limits.js';
+} from '../limits.js';
+
+/** Regra de paginação para as descrições do 400 no Swagger. */
+export const PAGINATION_RULE = `page de ${PAGE_MIN} a ${PAGE_MAX}, limit de ${PAGE_LIMIT_MIN} a ${PAGE_LIMIT_MAX}`;
 
 /**
- * Paginação das listagens de anúncio (GET /listings e GET /listings/mine),
- * com os mesmos limites nas duas.
+ * Paginação comum (GET /listings, GET /listings/mine e GET /inspectors), com
+ * os mesmos limites em todas. GET /appointments tem a própria (teto maior).
  */
-export class ListingsPageQueryDto {
+export class PageQueryDto {
     // Teto evita skip fora da faixa (page=1e20 virava 500) e varreduras
     // profundas: page × limit nunca passa de 10.000 registros pulados.
-    @ApiPropertyOptional({ type: 'integer', default: PAGE_MIN, minimum: PAGE_MIN, maximum: LISTINGS_PAGE_MAX })
+    @ApiPropertyOptional({ type: 'integer', default: PAGE_MIN, minimum: PAGE_MIN, maximum: PAGE_MAX })
     @IsOptional()
     @Type(() => Number)
     @IsInt()
     @Min(PAGE_MIN)
-    @Max(LISTINGS_PAGE_MAX)
+    @Max(PAGE_MAX)
     page: number = PAGE_MIN;
 
     @ApiPropertyOptional({ type: 'integer', default: PAGE_LIMIT_DEFAULT, minimum: PAGE_LIMIT_MIN, maximum: PAGE_LIMIT_MAX })

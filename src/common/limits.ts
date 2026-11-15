@@ -84,8 +84,11 @@ export const PAGE_LIMIT_DEFAULT = 20;
 export const PAGE_LIMIT_MAX = 50;
 /** No máximo 10.000 registros pulados (`skip`) numa listagem pública. */
 export const MAX_SKIPPED_ROWS = 10_000;
-/** 10.000 ÷ 50 = 200: com qualquer `limit`, `skip` não passa de 10.000. */
-export const LISTINGS_PAGE_MAX = Math.floor(MAX_SKIPPED_ROWS / PAGE_LIMIT_MAX);
+/**
+ * Teto de `page` nas listagens públicas e do dono (PageQueryDto). 10.000 ÷ 50
+ * = 200: com qualquer `limit`, `skip` não passa de 10.000.
+ */
+export const PAGE_MAX = Math.floor(MAX_SKIPPED_ROWS / PAGE_LIMIT_MAX);
 /** Teto de GET /appointments (lista do próprio usuário), mantido desde o risco 49. */
 export const APPOINTMENTS_PAGE_MAX = 10_000;
 

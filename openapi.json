@@ -242,17 +242,47 @@
     "/inspectors": {
       "get": {
         "operationId": "listInspectors",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 200,
+              "default": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20,
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "",
+            "description": "Perfis verificados, paginados",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/InspectorResponseDto"
-                  }
+                  "$ref": "#/components/schemas/PaginatedInspectorsResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Paginação inválida (page de 1 a 200, limit de 1 a 50)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseDto"
                 }
               }
             }
@@ -2597,6 +2627,33 @@
           "serviceRadiusKm",
           "basePriceCents",
           "verified"
+        ]
+      },
+      "PaginatedInspectorsResponseDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InspectorResponseDto"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "description": "Total de perfis verificados, em todas as páginas"
+          },
+          "page": {
+            "type": "integer"
+          },
+          "limit": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "limit"
         ]
       },
       "CreateInspectorProfileDto": {

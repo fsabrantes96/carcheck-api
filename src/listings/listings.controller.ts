@@ -33,26 +33,19 @@ import {
     TRANSACTION_CONFLICT_DESCRIPTION,
     UNAUTHORIZED_DESCRIPTION,
 } from '../common/swagger/api-responses.js';
-import {
-    LISTINGS_PAGE_MAX,
-    PAGE_LIMIT_MAX,
-    PAGE_LIMIT_MIN,
-    PAGE_MIN,
-} from '../common/limits.js';
+import { PageQueryDto, PAGINATION_RULE } from '../common/dto/page-query.dto.js';
 import { CurrentUser } from '../auth/current-user.decorator.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import type { JwtPayload } from '../auth/types/jwt-payload.js';
 import { CreateListingDto } from './dto/create-listing.dto.js';
 import { ListListingsQueryDto } from './dto/list-listings-query.dto.js';
 import { ListingResponseDto } from './dto/listing-response.dto.js';
-import { ListingsPageQueryDto } from './dto/listings-page-query.dto.js';
 import { MyListingResponseDto } from './dto/my-listing-response.dto.js';
 import { PaginatedListingsResponseDto } from './dto/paginated-listings-response.dto.js';
 import { PaginatedMyListingsResponseDto } from './dto/paginated-my-listings-response.dto.js';
 import { UpdateListingDto } from './dto/update-listing.dto.js';
 import { ListingsService } from './listings.service.js';
 
-const PAGINATION_RULE = `page de ${PAGE_MIN} a ${LISTINGS_PAGE_MAX}, limit de ${PAGE_LIMIT_MIN} a ${PAGE_LIMIT_MAX}`;
 const NOT_OWNER = 'Este anúncio não pertence a você';
 const NOT_FOUND = 'Anúncio não encontrado';
 const CANCELS_OPEN_APPOINTMENTS =
@@ -81,7 +74,7 @@ export class ListingsController {
     @ApiUnauthorizedResponse({ type: ErrorResponseDto, description: UNAUTHORIZED_DESCRIPTION })
     findMine(
         @CurrentUser() user: JwtPayload,
-        @Query() query: ListingsPageQueryDto,
+        @Query() query: PageQueryDto,
     ): Promise<PaginatedMyListingsResponseDto> {
         return this.listings.findMine(user.sub, query);
     }
