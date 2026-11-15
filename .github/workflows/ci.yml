@@ -43,12 +43,22 @@ jobs:
           node-version-file: package.json
           cache: npm
       # O Node 24 traz o npm 11, em que o allowScripts só avisa.
+      # Só aceita versão exata (x.y.z): outro spec do npm (range, alias
+      # npm:, URL, github:) instalaria outro código no lugar do npm.
       - name: Instala o npm do devEngines
-        run: npm install -g "npm@$(node -p "require('./package.json').devEngines.packageManager.version")" --ignore-scripts
+        run: |
+          version="$(node -p "require('./package.json').devEngines.packageManager.version")"
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::devEngines.packageManager.version precisa ser x.y.z, veio '$version'"
+            exit 1
+          fi
+          npm install -g "npm@$version" --ignore-scripts
       # O npm ci não confere o devEngines (só o npm run), então a versão é
-      # conferida aqui, antes de instalar as dependências.
+      # conferida aqui, antes de instalar as dependências. O Node é conferido
+      # pelo devEngines no primeiro npm run; aqui só fica registrado no log.
       - name: Confere a versão exata do npm
         run: |
+          echo "node $(node -v), npm $(npm -v)"
           expected="$(node -p "require('./package.json').devEngines.packageManager.version")"
           actual="$(npm -v)"
           if [ "$actual" != "$expected" ]; then
@@ -63,7 +73,7 @@ jobs:
         env:
           NPM_CONFIG_STRICT_ALLOW_SCRIPTS: 'true'
       # Lista de scripts não revisados, em JSON: precisa estar vazia. Num npm
-      # sem allowScripts o comando nem existe e o passo falha.
+      # sem o comando install-scripts (ex.: npm 10) o passo falha.
       - name: Confere que nenhum script de instalação ficou sem revisão
         run: |
           unreviewed="$(npm install-scripts ls --json)"
