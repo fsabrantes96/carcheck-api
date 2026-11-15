@@ -1784,25 +1784,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "oneOf": [
-                    {
-                      "$ref": "#/components/schemas/BuyerAppointmentResponseDto"
-                    },
-                    {
-                      "$ref": "#/components/schemas/SellerAppointmentResponseDto"
-                    },
-                    {
-                      "$ref": "#/components/schemas/InspectorAppointmentResponseDto"
-                    }
-                  ],
-                  "discriminator": {
-                    "propertyName": "myRole",
-                    "mapping": {
-                      "BUYER": "#/components/schemas/BuyerAppointmentResponseDto",
-                      "SELLER": "#/components/schemas/SellerAppointmentResponseDto",
-                      "INSPECTOR": "#/components/schemas/InspectorAppointmentResponseDto"
-                    }
-                  }
+                  "$ref": "#/components/schemas/AppointmentResponseDto"
                 }
               }
             }
@@ -2236,25 +2218,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "oneOf": [
-                    {
-                      "$ref": "#/components/schemas/BuyerAppointmentResponseDto"
-                    },
-                    {
-                      "$ref": "#/components/schemas/SellerAppointmentResponseDto"
-                    },
-                    {
-                      "$ref": "#/components/schemas/InspectorAppointmentResponseDto"
-                    }
-                  ],
-                  "discriminator": {
-                    "propertyName": "myRole",
-                    "mapping": {
-                      "BUYER": "#/components/schemas/BuyerAppointmentResponseDto",
-                      "SELLER": "#/components/schemas/SellerAppointmentResponseDto",
-                      "INSPECTOR": "#/components/schemas/InspectorAppointmentResponseDto"
-                    }
-                  }
+                  "$ref": "#/components/schemas/AppointmentResponseDto"
                 }
               }
             }
@@ -3647,25 +3611,7 @@
           "items": {
             "type": "array",
             "items": {
-              "oneOf": [
-                {
-                  "$ref": "#/components/schemas/BuyerAppointmentResponseDto"
-                },
-                {
-                  "$ref": "#/components/schemas/SellerAppointmentResponseDto"
-                },
-                {
-                  "$ref": "#/components/schemas/InspectorAppointmentResponseDto"
-                }
-              ],
-              "discriminator": {
-                "propertyName": "myRole",
-                "mapping": {
-                  "BUYER": "#/components/schemas/BuyerAppointmentResponseDto",
-                  "SELLER": "#/components/schemas/SellerAppointmentResponseDto",
-                  "INSPECTOR": "#/components/schemas/InspectorAppointmentResponseDto"
-                }
-              }
+              "$ref": "#/components/schemas/AppointmentResponseDto"
             },
             "description": "Cada item vem no formato do seu papel naquele agendamento (myRole)"
           },
@@ -3699,6 +3645,27 @@
         "required": [
           "meetingAddress"
         ]
+      },
+      "AppointmentResponseDto": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/BuyerAppointmentResponseDto"
+          },
+          {
+            "$ref": "#/components/schemas/SellerAppointmentResponseDto"
+          },
+          {
+            "$ref": "#/components/schemas/InspectorAppointmentResponseDto"
+          }
+        ],
+        "discriminator": {
+          "propertyName": "myRole",
+          "mapping": {
+            "BUYER": "#/components/schemas/BuyerAppointmentResponseDto",
+            "SELLER": "#/components/schemas/SellerAppointmentResponseDto",
+            "INSPECTOR": "#/components/schemas/InspectorAppointmentResponseDto"
+          }
+        }
       }
     }
   }

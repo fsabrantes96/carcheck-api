@@ -164,6 +164,13 @@ export const APPOINTMENT_RESPONSE_MODELS = [
     InspectorAppointmentResponseDto,
 ] as const;
 
+/**
+ * Nome do schema nomeado da união em components.schemas (mesmo padrão dos
+ * outros schemas). Registrado em buildOpenApiDocument; as rotas e a página
+ * usam appointmentResponseRef().
+ */
+export const APPOINTMENT_RESPONSE_SCHEMA_NAME = 'AppointmentResponseDto';
+
 /** Schema OpenAPI da resposta por perfil: oneOf com discriminador em myRole. */
 export function appointmentResponseSchema() {
     return {
@@ -177,4 +184,9 @@ export function appointmentResponseSchema() {
             },
         },
     };
+}
+
+/** Referência ao schema nomeado da união (AppointmentResponseDto). */
+export function appointmentResponseRef() {
+    return { $ref: getSchemaPath(APPOINTMENT_RESPONSE_SCHEMA_NAME) };
 }

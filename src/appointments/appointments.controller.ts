@@ -33,7 +33,7 @@ import { parseIdPipe } from '../common/validation/parse-id.pipe.js';
 import { AppointmentsService } from './appointments.service.js';
 import {
     APPOINTMENT_RESPONSE_MODELS,
-    appointmentResponseSchema,
+    appointmentResponseRef,
     BuyerAppointmentResponseDto,
     InspectorAppointmentResponseDto,
     SellerAppointmentResponseDto,
@@ -91,7 +91,7 @@ export class AppointmentsController {
     @Get(':id')
     @ApiOperationId('getAppointment')
     @ApiUuidParam()
-    @ApiOkResponse({ schema: appointmentResponseSchema(), description: 'Formato conforme o seu papel (myRole)' })
+    @ApiOkResponse({ schema: appointmentResponseRef(), description: 'Formato conforme o seu papel (myRole)' })
     @ApiBadRequestResponse({ type: ErrorResponseDto, description: INVALID_UUID_DESCRIPTION })
     @ApiNotFoundResponse({ type: ErrorResponseDto, description: 'Agendamento não encontrado (ou você não participa dele)' })
     findOne(
@@ -155,7 +155,7 @@ export class AppointmentsController {
     @ApiOperationId('cancelAppointment')
     @ApiUuidParam()
     @HttpCode(200)
-    @ApiOkResponse({ schema: appointmentResponseSchema(), description: 'Cancelado (antes do pagamento); formato conforme o seu papel' })
+    @ApiOkResponse({ schema: appointmentResponseRef(), description: 'Cancelado (antes do pagamento); formato conforme o seu papel' })
     @ApiBadRequestResponse({ type: ErrorResponseDto, description: INVALID_UUID_DESCRIPTION })
     @ApiNotFoundResponse({ type: ErrorResponseDto, description: 'Agendamento não encontrado (ou você não participa dele)' })
     @ApiConflictResponse({ type: ErrorResponseDto, description: 'Estado não permite (ex.: já pago ou encerrado), prazo expirado ou estado mudou' })

@@ -1,6 +1,10 @@
 import type { INestApplication } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import type { OpenAPIObject } from '@nestjs/swagger';
+import {
+  APPOINTMENT_RESPONSE_SCHEMA_NAME,
+  appointmentResponseSchema,
+} from '../appointments/dto/appointment-response.dto.js';
 
 /**
  * Documento OpenAPI da API. Uma única função para o /docs-json (configureApp)
@@ -14,14 +18,20 @@ export function buildOpenApiDocument(app: INestApplication): OpenAPIObject {
     .setVersion('0.1')
     .addBearerAuth()
     .build();
-  return SwaggerModule.createDocument(app, config, {
+  const document = SwaggerModule.createDocument(app, config, {
     operationIdFactory: missingOperationId,
   });
+  // Uniões (oneOf) não são classes, então o Nest não as registra como schema
+  // nomeado: entram aqui e as rotas as referenciam por $ref.
+  document.components ??= {};
+  document.components.schemas ??= {};
+  document.components.schemas[APPOINTMENT_RESPONSE_SCHEMA_NAME] = appointmentResponseSchema();
+  return document;
 }
 
 /**
- * Toda rota declara o operationId em @ApiOperation({ operationId }) (verbo +
- * recurso em camelCase), desacoplado do nome do método. A lib chama esta
+ * Toda rota declara o operationId com @ApiOperationId('<verbo><Recurso>'),
+ * desacoplado do nome do método. A lib chama esta
  * factory em toda rota e o valor explícito a sobrescreve; uma rota sem ele
  * fica com este sentinela, que o teste de contrato reprova.
  */
