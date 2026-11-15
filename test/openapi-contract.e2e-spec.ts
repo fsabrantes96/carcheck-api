@@ -11,6 +11,7 @@ type Schema = Record<string, unknown> & {
 type Param = { name: string; in: string; schema: Schema };
 type Response = { description: string; content?: Record<string, { schema: Schema }> };
 type Operation = {
+  operationId?: string;
   parameters?: Param[];
   requestBody?: unknown;
   security?: unknown[];
@@ -102,6 +103,58 @@ describe('Contrato OpenAPI (e2e)', () => {
 
     it.each(['USER_NOT_FOUND', 'METHOD_NOT_ALLOWED'])('o ErrorCode não tem %s (removido antes do front)', (code) => {
       expect(doc.components.schemas.ErrorCode.enum).not.toContain(code);
+    });
+  });
+
+  describe('operationId', () => {
+    // Convenção: <verbo><Recurso> em camelCase, explícito em @ApiOperation.
+    // Sem ele, a operationIdFactory de buildOpenApiDocument devolve o
+    // sentinela MISSING_OPERATION_ID_<Controller>_<método>.
+    it('toda operação tem operationId explícito em camelCase (sem o sentinela nem o padrão Controller_método)', () => {
+      for (const [name, operation] of operations(doc)) {
+        expect({ name, operationId: operation.operationId }).toEqual({
+          name,
+          operationId: expect.stringMatching(/^[a-z][a-zA-Z0-9]*$/),
+        });
+      }
+    });
+
+    it('nenhum operationId se repete', () => {
+      const ids = operations(doc).map(([, operation]) => operation.operationId);
+
+      expect(new Set(ids).size).toBe(ids.length);
+    });
+
+    it.each([
+      ['post', '/auth/register', 'registerUser'],
+      ['post', '/auth/login', 'login'],
+      ['get', '/auth/me', 'getCurrentUser'],
+      ['get', '/inspectors', 'listInspectors'],
+      ['post', '/inspectors/me', 'createMyInspectorProfile'],
+      ['get', '/inspectors/me', 'getMyInspectorProfile'],
+      ['patch', '/inspectors/me', 'updateMyInspectorProfile'],
+      ['get', '/listings', 'listListings'],
+      ['post', '/listings', 'createListing'],
+      ['get', '/listings/mine', 'listMyListings'],
+      ['get', '/listings/{id}', 'getListing'],
+      ['patch', '/listings/{id}', 'updateListing'],
+      ['delete', '/listings/{id}', 'archiveListing'],
+      ['post', '/listings/{id}/pause', 'pauseListing'],
+      ['post', '/listings/{id}/activate', 'activateListing'],
+      ['post', '/listings/{id}/mark-sold', 'markListingSold'],
+      ['post', '/appointments', 'createAppointment'],
+      ['get', '/appointments', 'listAppointments'],
+      ['get', '/appointments/{id}', 'getAppointment'],
+      ['post', '/appointments/{id}/accept', 'acceptAppointment'],
+      ['post', '/appointments/{id}/decline', 'declineAppointment'],
+      ['post', '/appointments/{id}/confirm', 'confirmAppointment'],
+      ['post', '/appointments/{id}/cancel', 'cancelAppointment'],
+    ])('%s %s tem operationId %s', (method, path, operationId) => {
+      expect(op(method, path).operationId).toBe(operationId);
+    });
+
+    it('a tabela acima cobre todas as operações do documento', () => {
+      expect(operations(doc)).toHaveLength(23);
     });
   });
 
