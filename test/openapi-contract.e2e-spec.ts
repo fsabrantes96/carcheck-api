@@ -2,6 +2,14 @@ import { readFileSync } from 'node:fs';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
+import {
+  AppointmentActor,
+  AppointmentStatus,
+  FuelType,
+  ListingStatus,
+  Specialty,
+  Transmission,
+} from '../src/generated/prisma/client.js';
 import { closeTestApp, createTestApp } from './support/test-app.js';
 
 type Schema = Record<string, unknown> & {
@@ -47,6 +55,52 @@ function findSchemas(node: unknown, match: (s: Schema) => boolean, found: Schema
   }
   return found;
 }
+
+/** Cada `enum` do documento com o caminho até ele (ex.: components/schemas/X/properties/y). */
+function enumLocations(node: unknown, path: string[] = [], found: { path: string[]; values: unknown[] }[] = []) {
+  if (Array.isArray(node)) {
+    node.forEach((item, i) => enumLocations(item, [...path, String(i)], found));
+  } else if (node && typeof node === 'object') {
+    const values = (node as Schema).enum;
+    if (Array.isArray(values)) found.push({ path: [...path, 'enum'], values });
+    for (const [key, value] of Object.entries(node)) enumLocations(value, [...path, key], found);
+  }
+  return found;
+}
+
+/**
+ * Enum inline permitido: só a propriedade discriminadora de uma variante de
+ * oneOf (ex.: myRole), com um único valor, que é a chave do mapping que
+ * aponta para aquela variante. O OpenAPI 3.0 não tem const; trocar pelo enum
+ * nomeado faria os geradores perderem o estreitamento por variante.
+ */
+function isDiscriminatorLiteral(doc: Doc, path: string[], values: unknown[]): boolean {
+  const [c, s, schemaName, p, property, ...rest] = path;
+  if (c !== 'components' || s !== 'schemas' || p !== 'properties' || rest.length > 0) return false;
+  if (values.length !== 1) return false;
+  const ref = `#/components/schemas/${schemaName}`;
+  const discriminators = findSchemas(doc, (n) => Boolean(n.discriminator)).map(
+    (n) => n.discriminator as { propertyName: string; mapping: Record<string, string> },
+  );
+  return discriminators.some(
+    (d) => d.propertyName === property && d.mapping[values[0] as string] === ref,
+  );
+}
+
+const NAMED_ENUMS: Record<string, string[]> = {
+  ErrorCode: [],
+  BrazilianState: [],
+  AppointmentStatus: Object.values(AppointmentStatus),
+  AppointmentActor: Object.values(AppointmentActor),
+  AppointmentAction: ['ACCEPT', 'DECLINE', 'CONFIRM', 'CANCEL'],
+  AppointmentParticipant: ['BUYER', 'SELLER', 'INSPECTOR'],
+  Specialty: Object.values(Specialty),
+  FuelType: Object.values(FuelType),
+  Transmission: Object.values(Transmission),
+  ListingStatus: Object.values(ListingStatus),
+};
+
+const enumRef = (name: string) => ({ $ref: `#/components/schemas/${name}` });
 
 describe('Contrato OpenAPI (e2e)', () => {
   let app: INestApplication<App>;
@@ -155,6 +209,94 @@ describe('Contrato OpenAPI (e2e)', () => {
 
     it('a tabela acima cobre todas as operações do documento', () => {
       expect(operations(doc)).toHaveLength(23);
+    });
+  });
+
+  describe('enums nomeados', () => {
+    it('nenhum enum sai inline: todo enum é um schema de components.schemas (exceto o literal do discriminador)', () => {
+      const inline = enumLocations(doc)
+        .filter(({ path }) => !(path.length === 4 && path[0] === 'components' && path[1] === 'schemas' && path[3] === 'enum'))
+        .filter(({ path, values }) => !isDiscriminatorLiteral(doc, path.slice(0, -1), values))
+        .map(({ path }) => path.join('/'));
+
+      expect(inline).toEqual([]);
+    });
+
+    it('a isenção vale só para o myRole das três variantes de agendamento, cada uma com o próprio valor', () => {
+      const exempt = enumLocations(doc)
+        .filter(({ path, values }) => isDiscriminatorLiteral(doc, path.slice(0, -1), values))
+        .map(({ path, values }) => [path.join('/'), values]);
+
+      expect(exempt).toEqual([
+        ['components/schemas/BuyerAppointmentResponseDto/properties/myRole/enum', ['BUYER']],
+        ['components/schemas/SellerAppointmentResponseDto/properties/myRole/enum', ['SELLER']],
+        ['components/schemas/InspectorAppointmentResponseDto/properties/myRole/enum', ['INSPECTOR']],
+      ]);
+    });
+
+    it('a isenção não vale para enum de um valor fora do discriminador nem para o valor errado', () => {
+      expect(isDiscriminatorLiteral(doc, ['components', 'schemas', 'BuyerAppointmentResponseDto', 'properties', 'myRole'], ['SELLER'])).toBe(false);
+      expect(isDiscriminatorLiteral(doc, ['components', 'schemas', 'BuyerAppointmentResponseDto', 'properties', 'status'], ['BUYER'])).toBe(false);
+      expect(isDiscriminatorLiteral(doc, ['components', 'schemas', 'BuyerAppointmentResponseDto', 'properties', 'myRole'], ['BUYER', 'SELLER'])).toBe(false);
+    });
+
+    it.each(Object.keys(NAMED_ENUMS))('o enum nomeado %s existe como schema string e é referenciado', (name) => {
+      const schema = doc.components.schemas[name];
+
+      expect(schema).toMatchObject({ type: 'string' });
+      if (NAMED_ENUMS[name].length > 0) expect(schema.enum).toEqual(NAMED_ENUMS[name]);
+      expect(findSchemas(doc, (s) => s.$ref === enumRef(name).$ref).length).toBeGreaterThan(0);
+    });
+
+    it('todo schema de enum em components é referenciado em algum lugar (sem enum órfão)', () => {
+      const enumSchemas = Object.entries(doc.components.schemas)
+        .filter(([, schema]) => Array.isArray(schema.enum))
+        .map(([name]) => name);
+
+      expect(enumSchemas.sort()).toEqual(Object.keys(NAMED_ENUMS).sort());
+    });
+
+    it.each([
+      ['status', 'AppointmentStatus'],
+      ['as', 'AppointmentParticipant'],
+    ])('o parâmetro %s de GET /appointments referencia %s', (name, enumName) => {
+      const param = op('get', '/appointments').parameters?.find((p) => p.name === name);
+
+      expect(param?.schema).toEqual(enumRef(enumName));
+    });
+
+    it.each(['BuyerAppointmentResponseDto', 'SellerAppointmentResponseDto', 'InspectorAppointmentResponseDto'])(
+      '%s referencia AppointmentStatus, AppointmentAction e, anulável, AppointmentActor',
+      (name) => {
+        const props = doc.components.schemas[name].properties ?? {};
+
+        expect(props.status).toEqual(enumRef('AppointmentStatus'));
+        expect(props.availableActions).toMatchObject({ type: 'array', items: enumRef('AppointmentAction') });
+        // No 3.0, irmãos de $ref são ignorados: o nullable precisa do allOf.
+        expect(props.endedBy).toMatchObject({ allOf: [enumRef('AppointmentActor')], nullable: true });
+        expect(props.endedBy).not.toHaveProperty('$ref');
+      },
+    );
+
+    it.each(['InspectorResponseDto', 'MyInspectorProfileResponseDto', 'CreateInspectorProfileDto', 'UpdateInspectorProfileDto'])(
+      '%s.specialties é array de Specialty',
+      (name) => {
+        expect(doc.components.schemas[name].properties?.specialties).toMatchObject({
+          type: 'array',
+          items: enumRef('Specialty'),
+        });
+      },
+    );
+
+    it.each(['VehicleDto', 'VehicleResponseDto'])('%s referencia FuelType e Transmission', (name) => {
+      const props = doc.components.schemas[name].properties ?? {};
+
+      expect(props.fuel).toEqual(enumRef('FuelType'));
+      expect(props.transmission).toEqual(enumRef('Transmission'));
+    });
+
+    it('MyListingResponseDto.status referencia ListingStatus', () => {
+      expect(doc.components.schemas.MyListingResponseDto.properties?.status).toEqual(enumRef('ListingStatus'));
     });
   });
 
