@@ -1,3 +1,4 @@
+import SwaggerParser from '@apidevtools/swagger-parser';
 import { NestFactory } from '@nestjs/core';
 import type { INestApplication } from '@nestjs/common';
 import { buildOpenApiDocument, serializeOpenApiDocument } from './openapi-document.js';
@@ -50,5 +51,13 @@ describe('openapi.json', () => {
     await expect(serializeOpenApiDocument(buildOpenApiDocument(app))).toMatchFileSnapshot(
       '../../openapi.json',
     );
+  });
+
+  it('é um documento OpenAPI válido (schema do OAS e $refs resolvíveis, segundo o swagger-parser)', async () => {
+    // O validate desreferencia o objeto que recebe: valida uma cópia.
+    const document = structuredClone(buildOpenApiDocument(app));
+
+    type ApiDocument = Parameters<typeof SwaggerParser.validate>[0];
+    await expect(SwaggerParser.validate(document as unknown as ApiDocument)).resolves.toBeDefined();
   });
 });
