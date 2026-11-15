@@ -275,6 +275,41 @@ describe('Contrato OpenAPI (e2e)', () => {
       expect(enumSchemas.sort()).toEqual(Object.keys(NAMED_ENUMS).sort());
     });
 
+    const OPEN_ENUM = 'A lista pode crescer; trate valor desconhecido sem quebrar.';
+
+    // Descrição neutra do próprio enum; a do campo (ex.: "Quem encerrou...") fica no campo.
+    it.each([
+      ['AppointmentStatus', `Estado do agendamento. ${OPEN_ENUM}`],
+      ['AppointmentActor', `Quem executou uma ação no agendamento: comprador, vendedor, avaliador ou o sistema (expiração). ${OPEN_ENUM}`],
+      ['AppointmentAction', `Ação sobre o agendamento, uma por rota de intenção. ${OPEN_ENUM}`],
+      ['Role', `Papel global do usuário na plataforma. ${OPEN_ENUM}`],
+      ['AppointmentParticipant', 'Papel de um usuário num agendamento.'],
+      ['Specialty', 'Especialidade do avaliador.'],
+      ['FuelType', 'Tipo de combustível do veículo.'],
+      ['Transmission', 'Tipo de câmbio do veículo.'],
+      ['ListingStatus', 'Status do anúncio.'],
+    ])('o enum %s tem descrição própria e neutra', (name, description) => {
+      expect(doc.components.schemas[name].description).toBe(description);
+    });
+
+    it.each(['AppointmentStatus', 'AppointmentAction', 'AppointmentActor', 'Role'])(
+      'o enum de resposta %s avisa que a lista pode crescer',
+      (name) => {
+        expect(doc.components.schemas[name].description).toContain(OPEN_ENUM);
+      },
+    );
+
+    it.each([
+      ['BuyerAppointmentResponseDto', 'endedBy', 'AppointmentActor', 'Quem encerrou (recusa, cancelamento ou expiração)'],
+      ['BuyerAppointmentResponseDto', 'availableActions', 'AppointmentAction', 'Ações que quem chama pode executar agora'],
+      ['CurrentUserResponseDto', 'roles', 'Role', 'Roles atuais do usuário'],
+    ])('%s.%s mantém a descrição do campo, diferente da do enum %s', (schema, field, enumName, fieldDescription) => {
+      const description = doc.components.schemas[schema].properties?.[field]?.description as string;
+
+      expect(description).toContain(fieldDescription);
+      expect(doc.components.schemas[enumName].description).not.toContain(fieldDescription);
+    });
+
     it.each([
       ['status', 'AppointmentStatus'],
       ['as', 'AppointmentParticipant'],
