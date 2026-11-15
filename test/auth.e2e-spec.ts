@@ -182,18 +182,24 @@ describe('Auth (e2e)', () => {
       expect(res.body.roles).toEqual(['USER', 'ADMIN']);
     });
 
-    it('register e login continuam sem roles (só o /auth/me ganhou o campo)', async () => {
-      const registered = await request(app.getHttpServer())
+    it('POST /auth/register continua sem roles (só o /auth/me ganhou o campo)', async () => {
+      const res = await request(app.getHttpServer())
         .post('/auth/register')
         .send({ name: 'Maria', email: 'maria@x.com', password: DEFAULT_PASSWORD })
         .expect(201);
-      const logged = await request(app.getHttpServer())
+
+      expect(Object.keys(res.body).sort()).toEqual(['createdAt', 'email', 'id', 'name']);
+    });
+
+    it('POST /auth/login continua com user sem roles', async () => {
+      await registerAndLogin(app, 'maria@x.com', 'Maria');
+
+      const res = await request(app.getHttpServer())
         .post('/auth/login')
         .send({ email: 'maria@x.com', password: DEFAULT_PASSWORD })
         .expect(200);
 
-      expect(Object.keys(registered.body).sort()).toEqual(['createdAt', 'email', 'id', 'name']);
-      expect(Object.keys(logged.body.user).sort()).toEqual(['createdAt', 'email', 'id', 'name']);
+      expect(Object.keys(res.body.user).sort()).toEqual(['createdAt', 'email', 'id', 'name']);
     });
 
     it('responde 401 "Token inválido ou expirado" com a assinatura adulterada', async () => {

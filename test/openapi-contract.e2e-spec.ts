@@ -89,6 +89,33 @@ function isDiscriminatorLiteral(doc: Doc, path: string[], values: unknown[]): bo
   );
 }
 
+/** Tabela aprovada de operationIds: [método, caminho, operationId]. Rota nova entra aqui. */
+const OPERATION_IDS: [string, string, string][] = [
+  ['post', '/auth/register', 'registerUser'],
+  ['post', '/auth/login', 'login'],
+  ['get', '/auth/me', 'getCurrentUser'],
+  ['get', '/inspectors', 'listInspectors'],
+  ['post', '/inspectors/me', 'createMyInspectorProfile'],
+  ['get', '/inspectors/me', 'getMyInspectorProfile'],
+  ['patch', '/inspectors/me', 'updateMyInspectorProfile'],
+  ['get', '/listings', 'listListings'],
+  ['post', '/listings', 'createListing'],
+  ['get', '/listings/mine', 'listMyListings'],
+  ['get', '/listings/{id}', 'getListing'],
+  ['patch', '/listings/{id}', 'updateListing'],
+  ['delete', '/listings/{id}', 'archiveListing'],
+  ['post', '/listings/{id}/pause', 'pauseListing'],
+  ['post', '/listings/{id}/activate', 'activateListing'],
+  ['post', '/listings/{id}/mark-sold', 'markListingSold'],
+  ['post', '/appointments', 'createAppointment'],
+  ['get', '/appointments', 'listAppointments'],
+  ['get', '/appointments/{id}', 'getAppointment'],
+  ['post', '/appointments/{id}/accept', 'acceptAppointment'],
+  ['post', '/appointments/{id}/decline', 'declineAppointment'],
+  ['post', '/appointments/{id}/confirm', 'confirmAppointment'],
+  ['post', '/appointments/{id}/cancel', 'cancelAppointment'],
+];
+
 const NAMED_ENUMS: Record<string, string[]> = {
   ErrorCode: [],
   BrazilianState: [],
@@ -170,7 +197,7 @@ describe('Contrato OpenAPI (e2e)', () => {
   });
 
   describe('operationId', () => {
-    // Convenção: <verbo><Recurso> em camelCase, explícito em @ApiOperation.
+    // Convenção: <verbo><Recurso> em camelCase, explícito em @ApiOperationId.
     // Sem ele, a operationIdFactory de buildOpenApiDocument devolve o
     // sentinela MISSING_OPERATION_ID_<Controller>_<método>.
     it('toda operação tem operationId explícito em camelCase (sem o sentinela nem o padrão Controller_método)', () => {
@@ -188,36 +215,15 @@ describe('Contrato OpenAPI (e2e)', () => {
       expect(new Set(ids).size).toBe(ids.length);
     });
 
-    it.each([
-      ['post', '/auth/register', 'registerUser'],
-      ['post', '/auth/login', 'login'],
-      ['get', '/auth/me', 'getCurrentUser'],
-      ['get', '/inspectors', 'listInspectors'],
-      ['post', '/inspectors/me', 'createMyInspectorProfile'],
-      ['get', '/inspectors/me', 'getMyInspectorProfile'],
-      ['patch', '/inspectors/me', 'updateMyInspectorProfile'],
-      ['get', '/listings', 'listListings'],
-      ['post', '/listings', 'createListing'],
-      ['get', '/listings/mine', 'listMyListings'],
-      ['get', '/listings/{id}', 'getListing'],
-      ['patch', '/listings/{id}', 'updateListing'],
-      ['delete', '/listings/{id}', 'archiveListing'],
-      ['post', '/listings/{id}/pause', 'pauseListing'],
-      ['post', '/listings/{id}/activate', 'activateListing'],
-      ['post', '/listings/{id}/mark-sold', 'markListingSold'],
-      ['post', '/appointments', 'createAppointment'],
-      ['get', '/appointments', 'listAppointments'],
-      ['get', '/appointments/{id}', 'getAppointment'],
-      ['post', '/appointments/{id}/accept', 'acceptAppointment'],
-      ['post', '/appointments/{id}/decline', 'declineAppointment'],
-      ['post', '/appointments/{id}/confirm', 'confirmAppointment'],
-      ['post', '/appointments/{id}/cancel', 'cancelAppointment'],
-    ])('%s %s tem operationId %s', (method, path, operationId) => {
+    it.each(OPERATION_IDS)('%s %s tem operationId %s', (method, path, operationId) => {
       expect(op(method, path).operationId).toBe(operationId);
     });
 
-    it('a tabela acima cobre todas as operações do documento', () => {
-      expect(operations(doc)).toHaveLength(23);
+    it('a tabela OPERATION_IDS cobre exatamente as operações do documento', () => {
+      const documented = operations(doc).map(([name]) => name).sort();
+      const table = OPERATION_IDS.map(([method, path]) => `${method.toUpperCase()} ${path}`).sort();
+
+      expect(documented).toEqual(table);
     });
   });
 
@@ -243,10 +249,14 @@ describe('Contrato OpenAPI (e2e)', () => {
       ]);
     });
 
-    it('a isenção não vale para enum de um valor fora do discriminador nem para o valor errado', () => {
-      expect(isDiscriminatorLiteral(doc, ['components', 'schemas', 'BuyerAppointmentResponseDto', 'properties', 'myRole'], ['SELLER'])).toBe(false);
-      expect(isDiscriminatorLiteral(doc, ['components', 'schemas', 'BuyerAppointmentResponseDto', 'properties', 'status'], ['BUYER'])).toBe(false);
-      expect(isDiscriminatorLiteral(doc, ['components', 'schemas', 'BuyerAppointmentResponseDto', 'properties', 'myRole'], ['BUYER', 'SELLER'])).toBe(false);
+    it.each([
+      ['o valor de outra variante', 'myRole', ['SELLER']],
+      ['uma propriedade que não é a discriminadora', 'status', ['BUYER']],
+      ['um enum com mais de um valor', 'myRole', ['BUYER', 'SELLER']],
+    ])('a isenção não vale para %s', (_case, property, values) => {
+      const path = ['components', 'schemas', 'BuyerAppointmentResponseDto', 'properties', property as string];
+
+      expect(isDiscriminatorLiteral(doc, path, values as string[])).toBe(false);
     });
 
     it.each(Object.keys(NAMED_ENUMS))('o enum nomeado %s existe como schema string e é referenciado', (name) => {
@@ -455,14 +465,17 @@ describe('Contrato OpenAPI (e2e)', () => {
       expect(schema.required).toContain('roles');
     });
 
-    it('register e login continuam com UserResponseDto, sem roles', () => {
+    it('POST /auth/register continua respondendo UserResponseDto, que não tem roles', () => {
       expect(op('post', '/auth/register').responses['201'].content?.['application/json']?.schema).toEqual({
         $ref: '#/components/schemas/UserResponseDto',
       });
-      expect(doc.components.schemas.LoginResponseDto.properties?.user).toMatchObject({
+      expect(doc.components.schemas.UserResponseDto.properties).not.toHaveProperty('roles');
+    });
+
+    it('POST /auth/login continua com user do tipo UserResponseDto', () => {
+      expect(doc.components.schemas.LoginResponseDto.properties?.user).toEqual({
         $ref: '#/components/schemas/UserResponseDto',
       });
-      expect(doc.components.schemas.UserResponseDto.properties).not.toHaveProperty('roles');
     });
 
     it('GET /auth/me documenta no 401 a conta que não existe mais, sem 404', () => {
@@ -513,6 +526,25 @@ describe('Contrato OpenAPI (e2e)', () => {
   });
 
   describe('schemas', () => {
+    it('toda $ref do documento aponta para um schema existente em components.schemas', () => {
+      const dangling = findSchemas(doc, (s) => typeof s.$ref === 'string')
+        .map((s) => s.$ref as string)
+        .filter((ref) => !(ref.replace('#/components/schemas/', '') in doc.components.schemas));
+
+      expect(dangling).toEqual([]);
+    });
+
+    it('a mapping do discriminador também aponta para schemas existentes', () => {
+      const targets = findSchemas(doc, (s) => Boolean(s.discriminator)).flatMap((s) =>
+        Object.values((s.discriminator as { mapping: Record<string, string> }).mapping),
+      );
+
+      expect(targets.length).toBeGreaterThan(0);
+      for (const ref of targets) {
+        expect(doc.components.schemas).toHaveProperty([ref.replace('#/components/schemas/', '')]);
+      }
+    });
+
     it('nenhum schema nem parâmetro usa type number: a API só tem inteiros', () => {
       const numbers = findSchemas(doc, (s) => s.type === 'number');
 

@@ -491,6 +491,10 @@ describe('InspectorsService', () => {
 
       expect(prisma.inspectorProfile.count).toHaveBeenCalledWith({ where: { verified: true } });
       expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+      expect(prisma.$transaction).toHaveBeenCalledWith([
+        prisma.inspectorProfile.findMany.mock.results[0].value,
+        prisma.inspectorProfile.count.mock.results[0].value,
+      ]);
     });
 
     it('mapeia cada perfil para InspectorResponseDto e devolve { items, total, page, limit }', async () => {

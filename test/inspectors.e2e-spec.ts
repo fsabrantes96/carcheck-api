@@ -164,6 +164,7 @@ describe('Inspectors (e2e)', () => {
       ).toBe(0);
     });
   });
+
   describe('GET /inspectors paginado (risco 10)', () => {
     const SAME_INSTANT = new Date('2026-11-10T12:00:00.000Z');
 
