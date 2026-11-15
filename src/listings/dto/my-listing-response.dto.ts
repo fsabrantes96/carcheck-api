@@ -8,7 +8,7 @@ import type { ListingWithRelations } from './listing-response.dto.js';
  * PATCH, pause, activate e mark-sold): os campos públicos mais o status.
  */
 export class MyListingResponseDto extends ListingResponseDto {
-    @ApiProperty({ enum: ListingStatus }) status: ListingStatus;
+    @ApiProperty({ enum: ListingStatus, enumName: 'ListingStatus' }) status: ListingStatus;
 
     static override from(listing: ListingWithRelations): MyListingResponseDto {
         const dto = ListingResponseDto.fillPublicFields(new MyListingResponseDto(), listing);

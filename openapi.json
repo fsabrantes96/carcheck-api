@@ -1668,12 +1668,7 @@
             "in": "query",
             "description": "Só os agendamentos em que você tem este papel",
             "schema": {
-              "type": "string",
-              "enum": [
-                "BUYER",
-                "SELLER",
-                "INSPECTOR"
-              ]
+              "$ref": "#/components/schemas/AppointmentParticipant"
             }
           },
           {
@@ -1681,19 +1676,7 @@
             "required": false,
             "in": "query",
             "schema": {
-              "type": "string",
-              "enum": [
-                "REQUESTED",
-                "ACCEPTED",
-                "AWAITING_PAYMENT",
-                "PAID",
-                "REPORT_SUBMITTED",
-                "DISPUTED",
-                "COMPLETED",
-                "DECLINED",
-                "CANCELLED",
-                "EXPIRED"
-              ]
+              "$ref": "#/components/schemas/AppointmentStatus"
             }
           },
           {
@@ -2549,6 +2532,18 @@
           "user"
         ]
       },
+      "Specialty": {
+        "type": "string",
+        "enum": [
+          "ENGINE",
+          "TRANSMISSION",
+          "SUSPENSION",
+          "BRAKES",
+          "ELECTRICAL",
+          "BODYWORK",
+          "AIR_CONDITIONING"
+        ]
+      },
       "BrazilianState": {
         "type": "string",
         "enum": [
@@ -2599,16 +2594,7 @@
           "specialties": {
             "type": "array",
             "items": {
-              "type": "string",
-              "enum": [
-                "ENGINE",
-                "TRANSMISSION",
-                "SUSPENSION",
-                "BRAKES",
-                "ELECTRICAL",
-                "BODYWORK",
-                "AIR_CONDITIONING"
-              ]
+              "$ref": "#/components/schemas/Specialty"
             }
           },
           "city": {
@@ -2668,16 +2654,7 @@
             "maxItems": 7,
             "uniqueItems": true,
             "items": {
-              "type": "string",
-              "enum": [
-                "ENGINE",
-                "TRANSMISSION",
-                "SUSPENSION",
-                "BRAKES",
-                "ELECTRICAL",
-                "BODYWORK",
-                "AIR_CONDITIONING"
-              ]
+              "$ref": "#/components/schemas/Specialty"
             }
           },
           "city": {
@@ -2738,16 +2715,7 @@
           "specialties": {
             "type": "array",
             "items": {
-              "type": "string",
-              "enum": [
-                "ENGINE",
-                "TRANSMISSION",
-                "SUSPENSION",
-                "BRAKES",
-                "ELECTRICAL",
-                "BODYWORK",
-                "AIR_CONDITIONING"
-              ]
+              "$ref": "#/components/schemas/Specialty"
             }
           },
           "city": {
@@ -2819,16 +2787,7 @@
             "maxItems": 7,
             "uniqueItems": true,
             "items": {
-              "type": "string",
-              "enum": [
-                "ENGINE",
-                "TRANSMISSION",
-                "SUSPENSION",
-                "BRAKES",
-                "ELECTRICAL",
-                "BODYWORK",
-                "AIR_CONDITIONING"
-              ]
+              "$ref": "#/components/schemas/Specialty"
             }
           },
           "city": {
@@ -2864,6 +2823,26 @@
           }
         }
       },
+      "FuelType": {
+        "type": "string",
+        "enum": [
+          "GASOLINE",
+          "ETHANOL",
+          "FLEX",
+          "DIESEL",
+          "ELECTRIC",
+          "HYBRID"
+        ]
+      },
+      "Transmission": {
+        "type": "string",
+        "enum": [
+          "MANUAL",
+          "AUTOMATIC",
+          "CVT",
+          "AUTOMATED"
+        ]
+      },
       "VehicleResponseDto": {
         "type": "object",
         "properties": {
@@ -2883,23 +2862,17 @@
             "description": "Quilometragem"
           },
           "fuel": {
-            "type": "string",
-            "enum": [
-              "GASOLINE",
-              "ETHANOL",
-              "FLEX",
-              "DIESEL",
-              "ELECTRIC",
-              "HYBRID"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FuelType"
+              }
             ]
           },
           "transmission": {
-            "type": "string",
-            "enum": [
-              "MANUAL",
-              "AUTOMATIC",
-              "CVT",
-              "AUTOMATED"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Transmission"
+              }
             ]
           }
         },
@@ -2998,6 +2971,15 @@
           "limit"
         ]
       },
+      "ListingStatus": {
+        "type": "string",
+        "enum": [
+          "ACTIVE",
+          "SOLD",
+          "PAUSED",
+          "ARCHIVED"
+        ]
+      },
       "MyListingResponseDto": {
         "type": "object",
         "properties": {
@@ -3046,12 +3028,10 @@
             "type": "string"
           },
           "status": {
-            "type": "string",
-            "enum": [
-              "ACTIVE",
-              "SOLD",
-              "PAUSED",
-              "ARCHIVED"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ListingStatus"
+              }
             ]
           }
         },
@@ -3124,23 +3104,17 @@
             "maximum": 2000000
           },
           "fuel": {
-            "type": "string",
-            "enum": [
-              "GASOLINE",
-              "ETHANOL",
-              "FLEX",
-              "DIESEL",
-              "ELECTRIC",
-              "HYBRID"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FuelType"
+              }
             ]
           },
           "transmission": {
-            "type": "string",
-            "enum": [
-              "MANUAL",
-              "AUTOMATIC",
-              "CVT",
-              "AUTOMATED"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Transmission"
+              }
             ]
           }
         },
@@ -3249,6 +3223,21 @@
           }
         }
       },
+      "AppointmentStatus": {
+        "type": "string",
+        "enum": [
+          "REQUESTED",
+          "ACCEPTED",
+          "AWAITING_PAYMENT",
+          "PAID",
+          "REPORT_SUBMITTED",
+          "DISPUTED",
+          "COMPLETED",
+          "DECLINED",
+          "CANCELLED",
+          "EXPIRED"
+        ]
+      },
       "AppointmentListingDto": {
         "type": "object",
         "properties": {
@@ -3310,6 +3299,26 @@
           "name"
         ]
       },
+      "AppointmentActor": {
+        "type": "string",
+        "enum": [
+          "BUYER",
+          "SELLER",
+          "INSPECTOR",
+          "SYSTEM"
+        ],
+        "description": "Quem encerrou (recusa, cancelamento ou expiração)"
+      },
+      "AppointmentAction": {
+        "type": "string",
+        "enum": [
+          "ACCEPT",
+          "DECLINE",
+          "CONFIRM",
+          "CANCEL"
+        ],
+        "description": "Ações que quem chama pode executar agora"
+      },
       "BuyerAppointmentResponseDto": {
         "type": "object",
         "properties": {
@@ -3318,18 +3327,10 @@
             "format": "uuid"
           },
           "status": {
-            "type": "string",
-            "enum": [
-              "REQUESTED",
-              "ACCEPTED",
-              "AWAITING_PAYMENT",
-              "PAID",
-              "REPORT_SUBMITTED",
-              "DISPUTED",
-              "COMPLETED",
-              "DECLINED",
-              "CANCELLED",
-              "EXPIRED"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AppointmentStatus"
+              }
             ]
           },
           "listing": {
@@ -3363,27 +3364,19 @@
             "nullable": true
           },
           "endedBy": {
-            "type": "string",
-            "enum": [
-              "BUYER",
-              "SELLER",
-              "INSPECTOR",
-              "SYSTEM"
-            ],
             "nullable": true,
-            "description": "Quem encerrou (recusa, cancelamento ou expiração)"
+            "description": "Quem encerrou (recusa, cancelamento ou expiração)",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AppointmentActor"
+              }
+            ]
           },
           "availableActions": {
             "type": "array",
             "description": "Ações que quem chama pode executar agora",
             "items": {
-              "type": "string",
-              "enum": [
-                "ACCEPT",
-                "DECLINE",
-                "CONFIRM",
-                "CANCEL"
-              ]
+              "$ref": "#/components/schemas/AppointmentAction"
             }
           },
           "createdAt": {
@@ -3427,18 +3420,10 @@
             "format": "uuid"
           },
           "status": {
-            "type": "string",
-            "enum": [
-              "REQUESTED",
-              "ACCEPTED",
-              "AWAITING_PAYMENT",
-              "PAID",
-              "REPORT_SUBMITTED",
-              "DISPUTED",
-              "COMPLETED",
-              "DECLINED",
-              "CANCELLED",
-              "EXPIRED"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AppointmentStatus"
+              }
             ]
           },
           "listing": {
@@ -3472,27 +3457,19 @@
             "nullable": true
           },
           "endedBy": {
-            "type": "string",
-            "enum": [
-              "BUYER",
-              "SELLER",
-              "INSPECTOR",
-              "SYSTEM"
-            ],
             "nullable": true,
-            "description": "Quem encerrou (recusa, cancelamento ou expiração)"
+            "description": "Quem encerrou (recusa, cancelamento ou expiração)",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AppointmentActor"
+              }
+            ]
           },
           "availableActions": {
             "type": "array",
             "description": "Ações que quem chama pode executar agora",
             "items": {
-              "type": "string",
-              "enum": [
-                "ACCEPT",
-                "DECLINE",
-                "CONFIRM",
-                "CANCEL"
-              ]
+              "$ref": "#/components/schemas/AppointmentAction"
             }
           },
           "createdAt": {
@@ -3531,18 +3508,10 @@
             "format": "uuid"
           },
           "status": {
-            "type": "string",
-            "enum": [
-              "REQUESTED",
-              "ACCEPTED",
-              "AWAITING_PAYMENT",
-              "PAID",
-              "REPORT_SUBMITTED",
-              "DISPUTED",
-              "COMPLETED",
-              "DECLINED",
-              "CANCELLED",
-              "EXPIRED"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AppointmentStatus"
+              }
             ]
           },
           "listing": {
@@ -3576,27 +3545,19 @@
             "nullable": true
           },
           "endedBy": {
-            "type": "string",
-            "enum": [
-              "BUYER",
-              "SELLER",
-              "INSPECTOR",
-              "SYSTEM"
-            ],
             "nullable": true,
-            "description": "Quem encerrou (recusa, cancelamento ou expiração)"
+            "description": "Quem encerrou (recusa, cancelamento ou expiração)",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AppointmentActor"
+              }
+            ]
           },
           "availableActions": {
             "type": "array",
             "description": "Ações que quem chama pode executar agora",
             "items": {
-              "type": "string",
-              "enum": [
-                "ACCEPT",
-                "DECLINE",
-                "CONFIRM",
-                "CANCEL"
-              ]
+              "$ref": "#/components/schemas/AppointmentAction"
             }
           },
           "createdAt": {
@@ -3670,6 +3631,14 @@
           "listingId",
           "inspectorProfileId",
           "startsAt"
+        ]
+      },
+      "AppointmentParticipant": {
+        "type": "string",
+        "enum": [
+          "BUYER",
+          "SELLER",
+          "INSPECTOR"
         ]
       },
       "PaginatedAppointmentsResponseDto": {

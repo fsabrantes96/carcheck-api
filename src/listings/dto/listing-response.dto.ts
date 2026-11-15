@@ -33,8 +33,8 @@ export class VehicleResponseDto {
     @ApiProperty() model: string;
     @ApiProperty({ type: 'integer', minimum: VEHICLE_YEAR_MIN, description: VEHICLE_YEAR_DESCRIPTION }) year: number;
     @ApiProperty({ type: 'integer', description: 'Quilometragem' }) mileageKm: number;
-    @ApiProperty({ enum: FuelType }) fuel: FuelType;
-    @ApiProperty({ enum: Transmission }) transmission: Transmission;
+    @ApiProperty({ enum: FuelType, enumName: 'FuelType' }) fuel: FuelType;
+    @ApiProperty({ enum: Transmission, enumName: 'Transmission' }) transmission: Transmission;
 }
 
 /**

@@ -54,11 +54,11 @@ export class VehicleDto {
     @Max(VEHICLE_MILEAGE_MAX_KM)
     mileageKm: number;
 
-    @ApiProperty({ enum: FuelType })
+    @ApiProperty({ enum: FuelType, enumName: 'FuelType' })
     @IsEnum(FuelType)
     fuel: FuelType;
 
-    @ApiProperty({ enum: Transmission })
+    @ApiProperty({ enum: Transmission, enumName: 'Transmission' })
     @IsEnum(Transmission)
     transmission: Transmission;
 }
