@@ -142,6 +142,17 @@ describe('Auth (e2e)', () => {
       expect(res.body).not.toHaveProperty('passwordHash');
     });
 
+    it('responde 200 com Cache-Control: no-store (dados pessoais e roles não ficam em cache)', async () => {
+      const user = await registerAndLogin(app, 'maria@x.com', 'Maria');
+
+      const res = await request(app.getHttpServer())
+        .get('/auth/me')
+        .set('Authorization', `Bearer ${user.token}`)
+        .expect(200);
+
+      expect(res.headers['cache-control']).toBe('no-store');
+    });
+
     it('traz roles ["USER"] para o usuário comum', async () => {
       const user = await registerAndLogin(app, 'maria@x.com', 'Maria');
 

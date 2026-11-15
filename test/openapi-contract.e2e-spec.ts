@@ -513,6 +513,12 @@ describe('Contrato OpenAPI (e2e)', () => {
       });
     });
 
+    it('GET /auth/me documenta o header Cache-Control: no-store no 200', () => {
+      const ok = op('get', '/auth/me').responses['200'] as Response & { headers?: Record<string, { description: string }> };
+
+      expect(ok.headers?.['Cache-Control']?.description).toContain('no-store');
+    });
+
     it('GET /auth/me documenta no 401 a conta que não existe mais, sem 404', () => {
       expect(errorSchema(op('get', '/auth/me'), '401')).toEqual(ERROR_REF);
       expect(op('get', '/auth/me').responses['401'].description).toContain('conta que não existe mais');
