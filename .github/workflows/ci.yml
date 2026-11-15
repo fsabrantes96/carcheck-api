@@ -47,24 +47,33 @@ jobs:
         with:
           persist-credentials: false
       # Node e npm vêm só do devEngines do package.json.
+      # Sem cache do npm (risco 79): o cache do setup-node roda
+      # `npm config get cache` com o npm 11 do runner, e o npm 11 aplica o
+      # devEngines dentro da pasta do projeto (EBADDEVENGINES). O
+      # package-manager-cache: false é necessário porque o setup-node liga o
+      # cache sozinho quando há devEngines.packageManager.
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: package.json
-          cache: npm
+          package-manager-cache: false
       # O Node 24 traz o npm 11, em que o allowScripts só avisa.
       # Só aceita versão exata (x.y.z): outro spec do npm (range, alias
       # npm:, URL, github:) instalaria outro código no lugar do npm.
+      # Roda fora da pasta do projeto: lá dentro o npm 11 aplicaria o
+      # devEngines do package.json e falharia antes de instalar o npm 12.
+      # Nenhum passo antes deste pode rodar npm na pasta do projeto.
       - name: Instala o npm do devEngines
+        working-directory: ${{ runner.temp }}
         run: |
-          version="$(node -p "require('./package.json').devEngines.packageManager.version")"
+          version="$(node -p "require(process.env.GITHUB_WORKSPACE + '/package.json').devEngines.packageManager.version")"
           if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "::error::devEngines.packageManager.version precisa ser x.y.z, veio '$version'"
             exit 1
           fi
           npm install -g "npm@$version" --ignore-scripts
-      # O npm ci não confere o devEngines (só o npm run), então a versão é
-      # conferida aqui, antes de instalar as dependências. O Node é conferido
-      # pelo devEngines no primeiro npm run; aqui só fica registrado no log.
+      # A versão exata é conferida aqui, antes de instalar as dependências,
+      # sem depender de quais comandos do npm aplicam o devEngines. O Node é
+      # conferido pelo devEngines nos comandos do npm; aqui só fica no log.
       - name: Confere a versão exata do npm
         run: |
           echo "node $(node -v), npm $(npm -v)"
