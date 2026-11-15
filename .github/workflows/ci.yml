@@ -4,7 +4,13 @@ on:
   pull_request:
     branches: [main]
 
+# O token do workflow só lê o repositório.
+permissions:
+  contents: read
+
 jobs:
+  # O id `build` é o nome do check exigido pelo ruleset main-protection:
+  # não renomear, não pôr `name:` nem matriz (mudaria o nome do check).
   build:
     runs-on: ubuntu-latest
     env:
@@ -27,12 +33,47 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      # Actions fixadas pelo SHA do commit da tag (a versão fica no comentário).
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          node-version: 20
+          persist-credentials: false
+      # Node e npm vêm só do devEngines do package.json.
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: package.json
           cache: npm
-      - run: npm ci
+      # O Node 24 traz o npm 11, em que o allowScripts só avisa.
+      - name: Instala o npm do devEngines
+        run: npm install -g "npm@$(node -p "require('./package.json').devEngines.packageManager.version")" --ignore-scripts
+      # O npm ci não confere o devEngines (só o npm run), então a versão é
+      # conferida aqui, antes de instalar as dependências.
+      - name: Confere a versão exata do npm
+        run: |
+          expected="$(node -p "require('./package.json').devEngines.packageManager.version")"
+          actual="$(npm -v)"
+          if [ "$actual" != "$expected" ]; then
+            echo "::error::npm $actual, esperado $expected (devEngines)"
+            exit 1
+          fi
+      # Strict: um pacote com script de instalação fora do allowScripts
+      # derruba a instalação (ESTRICTALLOWSCRIPTS) em vez de só avisar. Os
+      # negados com false no allowScripts seguem pulados.
+      - name: Instala as dependências (allowScripts estrito)
+        run: npm ci
+        env:
+          NPM_CONFIG_STRICT_ALLOW_SCRIPTS: 'true'
+      # Lista de scripts não revisados, em JSON: precisa estar vazia. Num npm
+      # sem allowScripts o comando nem existe e o passo falha.
+      - name: Confere que nenhum script de instalação ficou sem revisão
+        run: |
+          unreviewed="$(npm install-scripts ls --json)"
+          UNREVIEWED="$unreviewed" node -e '
+            const { allowScripts } = JSON.parse(process.env.UNREVIEWED);
+            if (!Array.isArray(allowScripts) || allowScripts.length !== 0) {
+              console.error("::error::scripts de instalação sem revisão: " + JSON.stringify(allowScripts));
+              process.exit(1);
+            }
+          '
       - run: npm run lint
       - run: npm run build
       - run: npm test
