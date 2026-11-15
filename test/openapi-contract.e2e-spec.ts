@@ -102,6 +102,12 @@ const NAMED_ENUMS: Record<string, string[]> = {
 
 const enumRef = (name: string) => ({ $ref: `#/components/schemas/${name}` });
 
+/**
+ * Propriedade (não array) que aponta para um enum nomeado: o @nestjs/swagger
+ * sempre põe o $ref num allOf de um item (equivalente ao $ref direto).
+ */
+const enumProperty = (name: string) => ({ allOf: [enumRef(name)] });
+
 describe('Contrato OpenAPI (e2e)', () => {
   let app: INestApplication<App>;
   let doc: Doc;
@@ -270,7 +276,7 @@ describe('Contrato OpenAPI (e2e)', () => {
       (name) => {
         const props = doc.components.schemas[name].properties ?? {};
 
-        expect(props.status).toEqual(enumRef('AppointmentStatus'));
+        expect(props.status).toEqual(enumProperty('AppointmentStatus'));
         expect(props.availableActions).toMatchObject({ type: 'array', items: enumRef('AppointmentAction') });
         // No 3.0, irmãos de $ref são ignorados: o nullable precisa do allOf.
         expect(props.endedBy).toMatchObject({ allOf: [enumRef('AppointmentActor')], nullable: true });
@@ -291,12 +297,12 @@ describe('Contrato OpenAPI (e2e)', () => {
     it.each(['VehicleDto', 'VehicleResponseDto'])('%s referencia FuelType e Transmission', (name) => {
       const props = doc.components.schemas[name].properties ?? {};
 
-      expect(props.fuel).toEqual(enumRef('FuelType'));
-      expect(props.transmission).toEqual(enumRef('Transmission'));
+      expect(props.fuel).toEqual(enumProperty('FuelType'));
+      expect(props.transmission).toEqual(enumProperty('Transmission'));
     });
 
     it('MyListingResponseDto.status referencia ListingStatus', () => {
-      expect(doc.components.schemas.MyListingResponseDto.properties?.status).toEqual(enumRef('ListingStatus'));
+      expect(doc.components.schemas.MyListingResponseDto.properties?.status).toEqual(enumProperty('ListingStatus'));
     });
   });
 
