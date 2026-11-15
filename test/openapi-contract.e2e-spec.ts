@@ -418,8 +418,30 @@ describe('Contrato OpenAPI (e2e)', () => {
       ['get', '/listings'],
       ['post', '/listings'],
       ['get', '/listings/mine'],
+      ['get', '/inspectors'],
     ])('%s %s documenta o 400 de validação', (method, path) => {
       expect(errorSchema(op(method, path), '400')).toEqual(ERROR_REF);
+    });
+
+    it('GET /inspectors responde PaginatedInspectorsResponseDto com itens InspectorResponseDto', () => {
+      expect(op('get', '/inspectors').responses['200'].content?.['application/json']?.schema).toEqual({
+        $ref: '#/components/schemas/PaginatedInspectorsResponseDto',
+      });
+      const props = doc.components.schemas.PaginatedInspectorsResponseDto.properties ?? {};
+      expect(Object.keys(props).sort()).toEqual(['items', 'limit', 'page', 'total']);
+      expect(props.items).toEqual({
+        type: 'array',
+        items: { $ref: '#/components/schemas/InspectorResponseDto' },
+      });
+    });
+
+    it('GET /inspectors documenta page (1 a 200) e limit (1 a 50) inteiros e cita os limites no 400', () => {
+      const param = (name: string) =>
+        op('get', '/inspectors').parameters?.find((p) => p.name === name && p.in === 'query')?.schema;
+
+      expect(param('page')).toMatchObject({ type: 'integer', minimum: 1, maximum: 200, default: 1 });
+      expect(param('limit')).toMatchObject({ type: 'integer', minimum: 1, maximum: 50, default: 20 });
+      expect(op('get', '/inspectors').responses['400'].description).toContain('page de 1 a 200, limit de 1 a 50');
     });
 
     it('GET /auth/me documenta no 401 a conta que não existe mais, sem 404', () => {
@@ -507,6 +529,7 @@ describe('Contrato OpenAPI (e2e)', () => {
       ['PaginatedListingsResponseDto', 'total'],
       ['PaginatedMyListingsResponseDto', 'total'],
       ['PaginatedAppointmentsResponseDto', 'total'],
+      ['PaginatedInspectorsResponseDto', 'total'],
       ['ListingResponseDto', 'priceCents'],
       ['VehicleResponseDto', 'year'],
       ['InspectorResponseDto', 'basePriceCents'],
