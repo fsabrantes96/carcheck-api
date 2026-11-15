@@ -1,4 +1,4 @@
-import { isJobsEnabled, validateEnv } from './env.validation.js';
+import { isDocsEnabled, isJobsEnabled, validateEnv } from './env.validation.js';
 
 const valid = { PLATFORM_FEE_BPS: '1000', DATABASE_URL: 'postgresql://x' };
 
@@ -145,5 +145,64 @@ describe('isJobsEnabled (condição do módulo de jobs, lida do process.env)', (
 
   it('valor inválido não liga os jobs (o boot já falhou no validateEnv)', () => {
     expect(isJobsEnabled({ JOBS_ENABLED: 'sim' })).toBe(false);
+  });
+});
+
+describe('DOCS_ENABLED', () => {
+  const HINT =
+    'liga o Swagger UI (/docs) e o JSON do OpenAPI (/docs-json), true ou false (padrão true; desligue em produção).';
+
+  it('ausente vale true', () => {
+    expect(validateEnv(valid).DOCS_ENABLED).toBe(true);
+  });
+
+  it('vazia é tratada como ausente (true)', () => {
+    expect(validateEnv({ ...valid, DOCS_ENABLED: '  ' }).DOCS_ENABLED).toBe(true);
+  });
+
+  it.each([
+    ['true', true],
+    ['false', false],
+    ['TRUE', true],
+    [' False ', false],
+  ])('aceita %j como %s', (raw, expected) => {
+    expect(validateEnv({ ...valid, DOCS_ENABLED: raw }).DOCS_ENABLED).toBe(expected);
+  });
+
+  it('aceita boolean já convertido', () => {
+    expect(validateEnv({ ...valid, DOCS_ENABLED: false }).DOCS_ENABLED).toBe(false);
+  });
+
+  it.each(['sim', 'yes', '1', '0', 'off'])('rejeita DOCS_ENABLED = %s mostrando o valor recebido', (raw) => {
+    expect(messageOf({ ...valid, DOCS_ENABLED: raw })).toContain(
+      `DOCS_ENABLED inválida (recebido: "${raw}"): ${HINT}`,
+    );
+  });
+
+  it('lista o problema junto com os das outras variáveis', () => {
+    const message = messageOf({ ...valid, DOCS_ENABLED: 'sim', JOBS_ENABLED: 'nao' });
+
+    expect(message).toContain('DOCS_ENABLED inválida');
+    expect(message).toContain('JOBS_ENABLED inválida');
+  });
+});
+
+describe('isDocsEnabled (lida do process.env no configureApp)', () => {
+  it('ausente vale true, como no validateEnv', () => {
+    expect(isDocsEnabled({})).toBe(true);
+  });
+
+  it.each([
+    ['true', true],
+    ['false', false],
+    [' FALSE ', false],
+    ['', true],
+  ])('%j vale %s, como no validateEnv', (raw, expected) => {
+    expect(isDocsEnabled({ DOCS_ENABLED: raw })).toBe(expected);
+    expect(validateEnv({ ...valid, DOCS_ENABLED: raw }).DOCS_ENABLED).toBe(expected);
+  });
+
+  it('valor inválido não liga a documentação (o boot já falhou no validateEnv)', () => {
+    expect(isDocsEnabled({ DOCS_ENABLED: 'sim' })).toBe(false);
   });
 });

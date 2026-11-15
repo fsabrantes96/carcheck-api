@@ -5,6 +5,7 @@ import { PrismaService } from '../../src/prisma/prisma.service.js';
 
 /** Chaves do formato único de erro (sem `errors`). */
 export const ERROR_KEYS = [
+  'code',
   'error',
   'message',
   'path',

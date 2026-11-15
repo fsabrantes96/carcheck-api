@@ -1,4 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ERROR_CODES } from '../errors/error-code.js';
+import type { ErrorCode } from '../errors/error-code.js';
 
 /**
  * Formato único de erro devolvido por toda a API (ver AllExceptionsFilter).
@@ -6,6 +8,15 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 export class ErrorResponseDto {
   @ApiProperty({ type: 'integer', example: 404, description: 'Status HTTP' })
   statusCode: number;
+
+  @ApiProperty({
+    enum: ERROR_CODES,
+    enumName: 'ErrorCode',
+    example: 'LISTING_NOT_FOUND',
+    description:
+      'Código do erro, estável e legível por máquina. O cliente decide por ele, não pela mensagem, que é texto para pessoas e pode mudar. A lista pode crescer; trate code desconhecido pelo status HTTP.',
+  })
+  code: ErrorCode;
 
   @ApiProperty({ example: 'Not Found', description: 'Nome do status HTTP' })
   error: string;

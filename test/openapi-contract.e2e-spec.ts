@@ -70,6 +70,41 @@ describe('Contrato OpenAPI (e2e)', () => {
     expect(doc).toEqual(versioned);
   });
 
+  describe('code do erro', () => {
+    it('o ErrorResponseDto tem code obrigatório, referenciando o enum nomeado ErrorCode', () => {
+      const error = doc.components.schemas.ErrorResponseDto;
+
+      // Com description/example ao lado, o @nestjs/swagger põe o $ref num allOf.
+      expect(error.properties?.code?.allOf).toEqual([
+        { $ref: '#/components/schemas/ErrorCode' },
+      ]);
+      expect(error.required).toContain('code');
+    });
+
+    it('o ErrorCode é um enum de strings em SCREAMING_SNAKE_CASE', () => {
+      const errorCode = doc.components.schemas.ErrorCode;
+
+      expect(errorCode.type).toBe('string');
+      expect(Array.isArray(errorCode.enum)).toBe(true);
+      for (const value of errorCode.enum as string[]) {
+        expect(value).toMatch(/^[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$/);
+      }
+      expect(errorCode.enum).toEqual(
+        expect.arrayContaining(['VALIDATION_FAILED', 'ROUTE_NOT_FOUND', 'INTERNAL_ERROR']),
+      );
+    });
+
+    it('o ErrorCode avisa que a lista pode crescer', () => {
+      expect(doc.components.schemas.ErrorCode.description).toContain(
+        'A lista pode crescer; trate code desconhecido pelo status HTTP.',
+      );
+    });
+
+    it.each(['USER_NOT_FOUND', 'METHOD_NOT_ALLOWED'])('o ErrorCode não tem %s (removido antes do front)', (code) => {
+      expect(doc.components.schemas.ErrorCode.enum).not.toContain(code);
+    });
+  });
+
   describe('erros que valem para toda rota', () => {
     it('toda operação documenta 429 (limite global do throttler) e 500, no formato de erro', () => {
       for (const [name, operation] of operations(doc)) {
@@ -132,9 +167,10 @@ describe('Contrato OpenAPI (e2e)', () => {
       expect(errorSchema(op(method, path), '400')).toEqual(ERROR_REF);
     });
 
-    it('GET /auth/me documenta o 404 de usuário inexistente', () => {
-      expect(errorSchema(op('get', '/auth/me'), '404')).toEqual(ERROR_REF);
-      expect(op('get', '/auth/me').responses['404'].description).toContain('Usuário não encontrado');
+    it('GET /auth/me documenta no 401 a conta que não existe mais, sem 404', () => {
+      expect(errorSchema(op('get', '/auth/me'), '401')).toEqual(ERROR_REF);
+      expect(op('get', '/auth/me').responses['401'].description).toContain('conta que não existe mais');
+      expect(op('get', '/auth/me').responses).not.toHaveProperty('404');
     });
 
     it.each([

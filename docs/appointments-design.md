@@ -238,7 +238,7 @@ Horários vêm de um relógio injetável (`CLOCK`), nunca do `now()` do banco.
 
 ## 5. Rotas e contrato
 
-Todas com `@UseGuards(JwtAuthGuard)`, **sem `RolesGuard`** (vale o papel no agendamento, não a role global). `ParseUUIDPipe` em todo `:id`; 401 documentado em todas.
+Todas com `@UseGuards(JwtAuthGuard)`, **sem `RolesGuard`** (vale o papel no agendamento, não a role global). `parseIdPipe` (uuid) em todo `:id`; 401 documentado em todas.
 
 | Método e caminho | Quem | Entrada | 2xx |
 |---|---|---|---|

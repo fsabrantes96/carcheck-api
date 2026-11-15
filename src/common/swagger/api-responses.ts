@@ -7,7 +7,8 @@ import {
   ApiUnsupportedMediaTypeResponse,
 } from '@nestjs/swagger';
 import { ErrorResponseDto } from '../dto/error-response.dto.js';
-import { BODY_SIZE_LIMIT } from '../limits.js';
+import { UNSUPPORTED_MEDIA_TYPE_MESSAGE } from '../http/http-error-messages.js';
+import { ACCEPTED_BODY_CONTENT_TYPES, BODY_SIZE_LIMIT } from '../limits.js';
 import {
   GLOBAL_THROTTLE_LIMIT,
   THROTTLE_ERROR_MESSAGE,
@@ -18,10 +19,13 @@ import {
  * das constantes da configuração: se o limite mudar, a documentação muda junto.
  */
 export const UNAUTHORIZED_DESCRIPTION = 'Token ausente, inválido ou expirado';
-/** Rotas com RolesGuard: ele também responde 401 se a conta do token não existe mais. */
+/**
+ * Rotas que leem a conta do token (RolesGuard, GET /auth/me): também
+ * respondem 401 se a conta não existe mais.
+ */
 export const UNAUTHORIZED_OR_DELETED_ACCOUNT_DESCRIPTION =
   'Token ausente, inválido ou expirado, ou token válido de uma conta que não existe mais';
-export const INVALID_UUID_DESCRIPTION = 'Id inválido: precisa ser uuid';
+export const INVALID_UUID_DESCRIPTION = 'Identificador inválido: o id precisa ser uuid';
 /**
  * Deadlock ou falha de serialização no banco (AllExceptionsFilter): o cliente
  * repete. Só nas rotas que abrem transação ($transaction).
@@ -53,9 +57,10 @@ export function ApiCommonErrorResponses(): ClassDecorator & MethodDecorator {
 }
 
 /**
- * Erros do body-parser em rotas com corpo: 413 acima do limite do corpo e 415
- * com Content-Encoding ou charset não suportado. O 400 (validação ou JSON
- * malformado) fica em cada rota, com a descrição dela.
+ * Erros do corpo em rotas com corpo: 413 acima do limite do corpo e 415 com
+ * Content-Type fora de ACCEPTED_BODY_CONTENT_TYPES, Content-Encoding ou
+ * charset não suportado. O 400 (validação ou JSON malformado) fica em cada
+ * rota, com a descrição dela.
  */
 export function ApiBodyErrorResponses(): MethodDecorator {
   return applyDecorators(
@@ -65,12 +70,12 @@ export function ApiBodyErrorResponses(): MethodDecorator {
     }),
     ApiUnsupportedMediaTypeResponse({
       type: ErrorResponseDto,
-      description: 'Content-Encoding ou charset do corpo não suportado',
+      description: `${UNSUPPORTED_MEDIA_TYPE_MESSAGE}: Content-Type diferente de ${ACCEPTED_BODY_CONTENT_TYPES.join(' ou ')}, ou Content-Encoding/charset não suportado. Vem antes da autenticação`,
     }),
   );
 }
 
-/** Parâmetro de rota :id, validado pelo ParseUUIDPipe (400 se não for uuid). */
+/** Parâmetro de rota :id, validado pelo parseIdPipe (400 INVALID_ID se não for uuid). */
 export function ApiUuidParam(): MethodDecorator {
   return ApiParam({ name: 'id', type: String, format: 'uuid' });
 }

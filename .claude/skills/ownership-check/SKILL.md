@@ -84,6 +84,6 @@ Limitações do `updateMany`: não aceita escrita aninhada (`vehicle: { update }
 ## Checklist da rota
 
 - [ ] Recurso classificado como público ou privado.
-- [ ] `ParseUUIDPipe` no `:id`.
+- [ ] `parseIdPipe` no `:id` (400 `INVALID_ID`), nunca o `ParseUUIDPipe` cru.
 - [ ] Swagger: `@ApiNotFoundResponse` e, quando aplicável, `@ApiForbiddenResponse`.
 - [ ] Testes: não existe, não é dono/participante (403 ou 404, conforme a tabela), participante sem permissão (privado) e sucesso.

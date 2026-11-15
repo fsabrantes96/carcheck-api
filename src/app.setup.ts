@@ -6,7 +6,9 @@ import { SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 import { AppModule } from './app.module.js';
 import { AppExpressAdapter } from './common/http/app-express.adapter.js';
+import { rejectUnsupportedContentType } from './common/http/unsupported-content-type.middleware.js';
 import { BODY_SIZE_LIMIT } from './common/limits.js';
+import { isDocsEnabled } from './config/env.validation.js';
 import { buildOpenApiDocument } from './openapi/openapi-document.js';
 
 /**
@@ -36,6 +38,11 @@ export function configureApp(app: INestApplication): void {
   expressApp.disable('x-powered-by');
   app.use(helmet());
 
+  // Corpo de tipo que a API não lê → 415 no formato global, antes dos parsers
+  // e do roteamento (logo, antes da autenticação). Lista em
+  // ACCEPTED_BODY_CONTENT_TYPES.
+  app.use(rejectUnsupportedContentType);
+
   // Limite do corpo explícito (o mesmo padrão de 100kb do body-parser), para
   // não depender de padrão implícito. Precisa vir antes do init: o Nest só
   // registra os parsers padrão que ainda não foram registrados. Acima do
@@ -55,7 +62,12 @@ export function configureApp(app: INestApplication): void {
   );
 
   // O mesmo documento do openapi.json versionado (buildOpenApiDocument).
-  SwaggerModule.setup('docs', app, buildOpenApiDocument(app));
+  // Com DOCS_ENABLED=false (produção), /docs, /docs-json e os assets não são
+  // registrados e caem no 404 de rota. O validateEnv já validou o valor; o
+  // openapi.json não passa por aqui e não depende da flag.
+  if (isDocsEnabled(process.env)) {
+    SwaggerModule.setup('docs', app, buildOpenApiDocument(app));
+  }
 }
 
 /** Cria a aplicação do jeito que ela roda em produção. */

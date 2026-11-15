@@ -32,7 +32,7 @@ Crie os arquivos à mão. O `nest g resource` gera imports sem `.js` e specs no 
 3. **DTOs de entrada**: `class-validator` + `@ApiProperty` em todo campo; strings com tamanho mínimo e máximo; números de query com `@Type(() => Number)`.
 4. **DTOs de resposta**: classe com `@ApiProperty` e `static from(entity)`. Nunca exponha a entidade do Prisma nem campos sensíveis.
 5. **Service**: injeta `PrismaService`; retorna sempre Response DTOs; ownership pela skill `ownership-check`; listagens paginadas `{ items, total, page, limit }` com `limit` máximo de 50 e `$transaction([findMany, count])`; fluxo com estados pela skill `state-machine-pattern`.
-6. **Controller**: `@ApiTags`; `@UseGuards(JwtAuthGuard)` ou `@UseGuards(JwtAuthGuard, RolesGuard)` + `@Roles(...)`, nessa ordem; `@ApiBearerAuth()` nas rotas protegidas; tipo de retorno declarado; `@ApiOkResponse`/`@ApiCreatedResponse` e as respostas de erro; `ParseUUIDPipe` nos `:id`.
+6. **Controller**: `@ApiTags`; `@UseGuards(JwtAuthGuard)` ou `@UseGuards(JwtAuthGuard, RolesGuard)` + `@Roles(...)`, nessa ordem; `@ApiBearerAuth()` nas rotas protegidas; tipo de retorno declarado; `@ApiOkResponse`/`@ApiCreatedResponse` e as respostas de erro; `@Param('id', parseIdPipe)` (de `src/common/validation/parse-id.pipe.ts`, nunca o `ParseUUIDPipe` cru) e `@ApiUuidParam()` nos `:id`; erros de domínio com `withCode(ErrorCode.X, mensagem)` (ver "Error contract" no CLAUDE.md).
 7. **Testes** do service: agente `test-engineer`.
 
 ## DTO aninhado

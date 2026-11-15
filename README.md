@@ -50,6 +50,25 @@ Contrato OpenAPI em JSON: `http://localhost:3000/docs-json`
 
 O mesmo contrato fica versionado em [openapi.json](openapi.json), na raiz, para o front gerar os tipos sem subir a API. Mudou um endpoint ou um DTO? Rode `npm run openapi` e versione o arquivo junto. O CI falha se ele estiver desatualizado.
 
+Em produção, desligue `/docs` e `/docs-json` com `DOCS_ENABLED=false` (as rotas passam a responder 404). O `openapi.json` não muda.
+
+### Erros
+
+Toda resposta de erro tem o mesmo formato (`ErrorResponseDto`), com `Cache-Control: no-store`:
+
+```json
+{
+  "statusCode": 404,
+  "code": "LISTING_NOT_FOUND",
+  "error": "Not Found",
+  "message": "Anúncio não encontrado",
+  "path": "/listings/0b7c6f2e-3f4a-4d5b-9c8d-1e2f3a4b5c6d",
+  "timestamp": "2026-11-14T12:00:00.000Z"
+}
+```
+
+O front decide pelo `code` (enum `ErrorCode` no `openapi.json`), nunca pela `message`, que é texto em pt-BR para pessoas e pode mudar. Erros de validação trazem também `errors`.
+
 ## Scripts úteis
 
 | Comando | O que faz |
@@ -126,6 +145,7 @@ Variáveis novas (ver `.env.example`): `PLATFORM_FEE_BPS` (obrigatória), `MIN_I
 - [x] Ciclo de vida do anúncio (pausar, reativar, vender, arquivar)
 - [x] Agendamento de avaliação (pedido, aceite, recusa, confirmação e cancelamento; termina em "aguardando pagamento")
 - [x] Expiração automática dos prazos (job a cada minuto)
+- [x] Contrato de erros (`code` em toda resposta de erro, mensagens em pt-BR, `no-store`)
 - [ ] Pagamento retido
 - [ ] Laudo e avaliações
 - [ ] Busca por proximidade

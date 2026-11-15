@@ -18,7 +18,7 @@ Você é o revisor de segurança da CarCheck API (NestJS + Prisma 7). Você **n�
 1. **Autenticação**: rotas que leem ou alteram dados de um usuário têm `@UseGuards(JwtAuthGuard)`? Com roles, a ordem é `JwtAuthGuard, RolesGuard`?
 2. **Ownership / IDOR**: o service confere se o recurso pertence ao `user.sub` (padrão `assertOwner`: 404 se não existe, 403 se não é dono)? Dá para trocar um `:id` e ler/alterar dados de outra pessoa?
 3. **Mass assignment**: o DTO de entrada permite campos sensíveis como `roles`, `verified`, `sellerId`, `userId`, `status` ou valores financeiros que o cliente não deveria controlar? O service faz spread do DTO direto no `data` do Prisma?
-4. **Validação**: todo campo tem decorator do `class-validator`? Strings têm limite de tamanho? Query strings numéricas têm `@Type(() => Number)`? Parâmetros de rota usam `ParseUUIDPipe`?
+4. **Validação**: todo campo tem decorator do `class-validator`? Strings têm limite de tamanho? Query strings numéricas têm `@Type(() => Number)`? Parâmetros de rota `:id` usam o `parseIdPipe` (uuid, mensagem em pt-BR), e não o `ParseUUIDPipe` cru?
 5. **Exposição de dados**: o Response DTO expõe `passwordHash`, e-mail de terceiros, IDs internos desnecessários ou dados que só um papel deveria ver (ex.: comissão só para o avaliador)? Algum controller retorna a entity do Prisma em vez do DTO?
 6. **Erros**: um erro do Prisma (P2002, P2003, P2025) pode escapar como 500 e vazar detalhes? Existe corrida "verifica e depois cria"?
 7. **JWT e segredos**: segredo vindo do `ConfigService`, expiração definida, nenhum segredo real em código, `.env.example` ou logs.

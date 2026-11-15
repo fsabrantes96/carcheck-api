@@ -1,4 +1,8 @@
-import { BadRequestException, HttpException } from '@nestjs/common';
+import {
+  BadRequestException,
+  HttpException,
+  NotFoundException,
+} from '@nestjs/common';
 import { ExpressAdapter } from '@nestjs/platform-express';
 import { AppExpressAdapter } from './app-express.adapter.js';
 
@@ -130,10 +134,9 @@ describe('AppExpressAdapter.mapException', () => {
       [400, 'Requisição inválida'],
       [403, 'Acesso negado'],
       [404, 'Recurso não encontrado'],
-      [405, 'Método não permitido'],
       [412, 'Pré-condição da requisição não atendida'],
       [413, 'Corpo da requisição muito grande'],
-      [415, 'Tipo de conteúdo não suportado'],
+      [415, 'Formato da requisição não suportado'],
       [416, 'Intervalo solicitado inválido'],
     ])(
       'responde ao http-error %i com a mensagem do mapa em português',
@@ -154,6 +157,13 @@ describe('AppExpressAdapter.mapException', () => {
 
       expect(mapped.getStatus()).toBe(412);
       expect(mapped.message).toBe('Pré-condição da requisição não atendida');
+    });
+
+    it('usa "Requisição inválida" num 405 (fora do mapa, o Express não o emite)', () => {
+      const mapped = mapToHttpException(httpError(405, 'Method Not Allowed'));
+
+      expect(mapped.getStatus()).toBe(405);
+      expect(mapped.message).toBe('Requisição inválida');
     });
 
     it('usa "Requisição inválida" num http-error de status fora do mapa, nunca error.message', () => {
@@ -220,6 +230,98 @@ describe('AppExpressAdapter.mapException', () => {
       );
 
       expect(adapter.mapException(error)).toBe(error);
+    });
+  });
+});
+
+describe('AppExpressAdapter.setNotFoundHandler (risco 68)', () => {
+  /** Registra o handler e devolve o middleware que o adapter montou no Express. */
+  function registeredMiddleware(original: () => void) {
+    const adapter = new AppExpressAdapter();
+    const use = vi.spyOn(adapter, 'use').mockReturnValue(undefined);
+    adapter.setNotFoundHandler(original);
+    expect(use).toHaveBeenCalledTimes(1);
+    return use.mock.calls[0][0] as (
+      req: unknown,
+      res: unknown,
+      next: (error?: unknown) => void,
+    ) => void;
+  }
+
+  it('passa adiante um 404 "Rota não encontrada", sem repetir o método nem a URL', () => {
+    const original = vi.fn();
+    const next = vi.fn();
+    const middleware = registeredMiddleware(original);
+
+    middleware({ originalUrl: '/docs/swagger-ui.css%00', method: 'GET' }, {}, next);
+
+    expect(original).not.toHaveBeenCalled();
+    expect(next).toHaveBeenCalledTimes(1);
+    const error = next.mock.calls[0][0] as NotFoundException;
+    expect(error).toBeInstanceOf(NotFoundException);
+    expect(error.message).toBe('Rota não encontrada');
+    expect(JSON.stringify(error.getResponse())).not.toMatch(/GET|swagger|%00/);
+  });
+
+  it('o 404 de rota passa intacto pelo mapException', () => {
+    const adapter = new AppExpressAdapter();
+    const error = new NotFoundException('Rota não encontrada');
+
+    expect(adapter.mapException(error)).toBe(error);
+  });
+});
+
+describe('AppExpressAdapter: code dos erros da camada do Express', () => {
+  const adapter = new AppExpressAdapter();
+
+  function codeOf(error: unknown): unknown {
+    const mapped = adapter.mapException(error) as HttpException;
+    return (mapped.getResponse() as { code?: unknown }).code;
+  }
+
+  it('responde INVALID_URL_PARAM ao URIError do router', () => {
+    expect(
+      codeOf(Object.assign(new URIError("Failed to decode param '%FF'"), { status: 400 })),
+    ).toBe('INVALID_URL_PARAM');
+  });
+
+  it('responde INVALID_BODY ao erro de descompressão', () => {
+    expect(codeOf(decompressionError('Z_DATA_ERROR', 'incorrect header check'))).toBe(
+      'INVALID_BODY',
+    );
+  });
+
+  it.each([
+    [400, 'BAD_REQUEST'],
+    [403, 'FORBIDDEN'],
+    [404, 'NOT_FOUND'],
+    [405, 'BAD_REQUEST'],
+    [412, 'PRECONDITION_FAILED'],
+    [413, 'PAYLOAD_TOO_LARGE'],
+    [415, 'UNSUPPORTED_MEDIA_TYPE'],
+    [416, 'RANGE_NOT_SATISFIABLE'],
+    [418, 'BAD_REQUEST'],
+  ])('responde ao http-error %i com o code %s', (status, code) => {
+    expect(codeOf(httpError(status, 'texto cru'))).toBe(code);
+  });
+
+  it('responde ROUTE_NOT_FOUND à rota inexistente', () => {
+    const local = new AppExpressAdapter();
+    const use = vi.spyOn(local, 'use').mockReturnValue(undefined);
+    local.setNotFoundHandler(vi.fn());
+    const middleware = use.mock.calls[0][0] as (
+      req: unknown,
+      res: unknown,
+      next: (error?: unknown) => void,
+    ) => void;
+    const next = vi.fn();
+
+    middleware({ originalUrl: '/nao-existe', method: 'GET' }, {}, next);
+
+    const error = next.mock.calls[0][0] as NotFoundException;
+    expect(error.getResponse()).toEqual({
+      code: 'ROUTE_NOT_FOUND',
+      message: 'Rota não encontrada',
     });
   });
 });

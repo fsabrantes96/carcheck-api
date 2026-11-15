@@ -1,11 +1,11 @@
 import {
   ConflictException,
   Injectable,
-  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
+import { ErrorCode, withCode } from '../common/errors/error-code.js';
 import {
   isPrismaError,
   PRISMA_UNIQUE_VIOLATION,
@@ -15,6 +15,7 @@ import { LoginDto } from './dto/login.dto.js';
 import { LoginResponseDto } from './dto/login-response.dto.js';
 import { RegisterDto } from './dto/register.dto.js';
 import { UserResponseDto } from './dto/user-response.dto.js';
+import { INVALID_TOKEN_MESSAGE } from './jwt-auth.guard.js';
 import type { JwtPayload } from './types/jwt-payload.js';
 
 const BCRYPT_ROUNDS = 10;
@@ -37,7 +38,7 @@ export class AuthService {
     const exists = await this.prisma.user.findUnique({
       where: { email: dto.email },
     });
-    if (exists) throw new ConflictException('E-mail já cadastrado');
+    if (exists) throw new ConflictException(withCode(ErrorCode.EMAIL_ALREADY_REGISTERED, 'E-mail já cadastrado'));
 
     const passwordHash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
     let user;
@@ -48,7 +49,7 @@ export class AuthService {
     } catch (error) {
       // Corrida: outra requisição criou o mesmo e-mail depois da checagem.
       if (isPrismaError(error, PRISMA_UNIQUE_VIOLATION)) {
-        throw new ConflictException('E-mail já cadastrado');
+        throw new ConflictException(withCode(ErrorCode.EMAIL_ALREADY_REGISTERED, 'E-mail já cadastrado'));
       }
       throw error;
     }
@@ -64,12 +65,12 @@ export class AuthService {
     if (!user) {
       // Tempo constante: compara com o hash fixo e descarta o resultado.
       await bcrypt.compare(dto.password, DUMMY_HASH);
-      throw new UnauthorizedException('E-mail ou senha inválidos');
+      throw new UnauthorizedException(withCode(ErrorCode.INVALID_CREDENTIALS, 'E-mail ou senha inválidos'));
     }
 
     const passwordOk = await bcrypt.compare(dto.password, user.passwordHash);
     if (!passwordOk) {
-      throw new UnauthorizedException('E-mail ou senha inválidos');
+      throw new UnauthorizedException(withCode(ErrorCode.INVALID_CREDENTIALS, 'E-mail ou senha inválidos'));
     }
 
     const payload: JwtPayload = { sub: user.id, email: user.email };
@@ -80,7 +81,11 @@ export class AuthService {
 
   async me(userId: string): Promise<UserResponseDto> {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user) throw new NotFoundException('Usuário não encontrado');
+    // Token válido de uma conta que não existe mais: para o cliente é o mesmo
+    // caso de um token inválido (precisa entrar de novo), como no RolesGuard.
+    if (!user) {
+      throw new UnauthorizedException(withCode(ErrorCode.UNAUTHENTICATED, INVALID_TOKEN_MESSAGE));
+    }
     return UserResponseDto.from(user);
   }
 }

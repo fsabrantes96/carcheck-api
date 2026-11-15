@@ -3,6 +3,7 @@ import {
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
+import { rejectionCode } from '../../test/support/error-code.js';
 import { FakeClock } from '../../test/support/fake-clock.js';
 import { Prisma } from '../generated/prisma/client.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
@@ -681,6 +682,43 @@ describe('ListingsService', () => {
         expect(JSON.stringify(result)).not.toContain('passwordHash');
       },
     );
+  });
+
+  describe('code dos erros de transição', () => {
+    it('anúncio inexistente: LISTING_NOT_FOUND', async () => {
+      prisma.listing.findUnique.mockResolvedValue(null);
+
+      expect(await rejectionCode(service.pause('l1', 'u1'))).toBe('LISTING_NOT_FOUND');
+    });
+
+    it('transição inválida: INVALID_STATE', async () => {
+      prisma.listing.findUnique.mockResolvedValue({ sellerId: 'u1', status: 'SOLD' });
+
+      expect(await rejectionCode(service.pause('l1', 'u1'))).toBe('INVALID_STATE');
+    });
+
+    it('status mudou antes da gravação: STATE_CHANGED', async () => {
+      prisma.listing.findUnique.mockResolvedValue({ sellerId: 'u1', status: 'ACTIVE' });
+      prisma.listing.updateMany.mockResolvedValue({ count: 0 });
+
+      expect(await rejectionCode(service.pause('l1', 'u1'))).toBe('STATE_CHANGED');
+    });
+
+    it('agendamento pago em andamento: LISTING_HAS_PAID_APPOINTMENT', async () => {
+      prisma.listing.findUnique.mockResolvedValue({ sellerId: 'u1', status: 'ACTIVE' });
+      prisma.listing.updateMany.mockResolvedValue({ count: 1 });
+      prisma.appointment.findFirst.mockResolvedValue({ id: 'pago' });
+
+      expect(await rejectionCode(service.pause('l1', 'u1'))).toBe(
+        'LISTING_HAS_PAID_APPOINTMENT',
+      );
+    });
+
+    it('anúncio de outro usuário: FORBIDDEN', async () => {
+      prisma.listing.findUnique.mockResolvedValue({ sellerId: 'outro', status: 'ACTIVE' });
+
+      expect(await rejectionCode(service.pause('l1', 'u1'))).toBe('FORBIDDEN');
+    });
   });
 
   describe('saída de ACTIVE com agendamentos em aberto', () => {

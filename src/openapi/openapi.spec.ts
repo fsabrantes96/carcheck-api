@@ -31,6 +31,10 @@ describe('openapi.json', () => {
     vi.stubEnv('APPOINTMENT_DURATION_MINUTES', '60');
     vi.stubEnv('APPOINTMENT_MIN_NOTICE_HOURS', '24');
     vi.stubEnv('JOBS_ENABLED', 'false');
+    // Gera com /docs desligado, como em produção: o documento não passa pelo
+    // configureApp. A igualdade com o /docs-json servido (flag ligada) é
+    // conferida em test/openapi-contract.e2e-spec.ts.
+    vi.stubEnv('DOCS_ENABLED', 'false');
     // Import dinâmico: o ConfigModule.forRoot valida o ambiente ao carregar o AppModule.
     const { AppModule } = await import('../app.module.js');
     const { createHttpAdapter } = await import('../app.setup.js');

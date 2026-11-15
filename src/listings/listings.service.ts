@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { CLOCK, SystemClock } from '../common/clock/clock.js';
 import type { Clock } from '../common/clock/clock.js';
+import { ErrorCode, withCode } from '../common/errors/error-code.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import {
     isPrismaError,
@@ -119,7 +120,7 @@ export class ListingsService {
             where: { id, status: 'ACTIVE' },
             include,
         });
-        if (!listing) throw new NotFoundException('Anúncio não encontrado');
+        if (!listing) throw new NotFoundException(withCode(ErrorCode.LISTING_NOT_FOUND, 'Anúncio não encontrado'));
         return ListingResponseDto.from(listing);
     }
 
@@ -182,7 +183,7 @@ export class ListingsService {
                     select: { status: true },
                 });
                 if (current?.status === 'ARCHIVED') {
-                    throw new ConflictException('Anúncio arquivado não pode ser alterado');
+                    throw new ConflictException(withCode(ErrorCode.INVALID_STATE, 'Anúncio arquivado não pode ser alterado'));
                 }
             }
             throw error;
@@ -233,13 +234,13 @@ export class ListingsService {
             where: { id },
             select: { sellerId: true, status: true },
         });
-        if (!listing) throw new NotFoundException('Anúncio não encontrado');
+        if (!listing) throw new NotFoundException(withCode(ErrorCode.LISTING_NOT_FOUND, 'Anúncio não encontrado'));
         if (listing.sellerId !== userId) {
-            throw new ForbiddenException('Este anúncio não pertence a você');
+            throw new ForbiddenException(withCode(ErrorCode.FORBIDDEN, 'Este anúncio não pertence a você'));
         }
         const decision = decideListingTransition(action, listing.status);
         if (!decision.ok) {
-            throw new ConflictException('Ação não permitida no status atual do anúncio');
+            throw new ConflictException(withCode(ErrorCode.INVALID_STATE, 'Ação não permitida no status atual do anúncio'));
         }
 
         const to = decision.to;
@@ -252,7 +253,7 @@ export class ListingsService {
                 data: { status: to },
             });
             if (count === 0) {
-                throw new ConflictException('O anúncio mudou de status; recarregue e tente novamente');
+                throw new ConflictException(withCode(ErrorCode.STATE_CHANGED, 'O anúncio mudou de status; recarregue e tente novamente'));
             }
             if (to === 'ACTIVE') return;
 
@@ -264,7 +265,10 @@ export class ListingsService {
             });
             if (paid) {
                 throw new ConflictException(
-                    'O anúncio tem avaliação paga em andamento; não é possível pausar, vender ou arquivar',
+                    withCode(
+                        ErrorCode.LISTING_HAS_PAID_APPOINTMENT,
+                        'O anúncio tem avaliação paga em andamento; não é possível pausar, vender ou arquivar',
+                    ),
                 );
             }
 
@@ -282,9 +286,9 @@ export class ListingsService {
             where: { id },
             select: { sellerId: true },
         });
-        if (!listing) throw new NotFoundException('Anúncio não encontrado');
+        if (!listing) throw new NotFoundException(withCode(ErrorCode.LISTING_NOT_FOUND, 'Anúncio não encontrado'));
         if (listing.sellerId !== userId) {
-            throw new ForbiddenException('Este anúncio não pertence a você');
+            throw new ForbiddenException(withCode(ErrorCode.FORBIDDEN, 'Este anúncio não pertence a você'));
         }
     }
 }

@@ -652,7 +652,7 @@ describe('Listings (e2e)', () => {
       async (route) => {
         const res = await runAction('nao-e-uuid', route).expect(400);
 
-        expect(res.body.message).toBe('Validation failed (uuid is expected)');
+        expect(res.body.message).toBe('Identificador inválido');
         expect(Object.keys(res.body).sort()).toEqual(ERROR_KEYS);
       },
     );

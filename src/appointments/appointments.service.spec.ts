@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
+import { rejectionCode } from '../../test/support/error-code.js';
 import { FakeClock } from '../../test/support/fake-clock.js';
 import {
   exclusionViolationFromModelQuery,
@@ -556,6 +557,40 @@ describe('AppointmentsService: ações (accept, decline, confirm, cancel)', () =
     ['confirm', 'seller', 'ACCEPTED'],
     ['cancel', 'buyer', 'AWAITING_PAYMENT'],
   ] as const;
+
+  describe('code dos erros das ações', () => {
+    it('agendamento inexistente: APPOINTMENT_NOT_FOUND', async () => {
+      prisma.appointment.findUnique.mockResolvedValue(null);
+
+      expect(await rejectionCode(call.accept(service, 'inspector'))).toBe('APPOINTMENT_NOT_FOUND');
+    });
+
+    it('estado errado: INVALID_STATE', async () => {
+      prisma.appointment.findUnique.mockResolvedValue(snapshot('CANCELLED', { expiresAt: null }));
+
+      expect(await rejectionCode(call.accept(service, 'inspector'))).toBe('INVALID_STATE');
+    });
+
+    it('prazo vencido: APPOINTMENT_EXPIRED, diferente do estado errado', async () => {
+      prisma.appointment.findUnique.mockResolvedValue(snapshot('REQUESTED'));
+      clock.set('2030-01-02T12:00:00.000Z');
+
+      expect(await rejectionCode(call.accept(service, 'inspector'))).toBe('APPOINTMENT_EXPIRED');
+    });
+
+    it('estado mudou antes da gravação: STATE_CHANGED', async () => {
+      prisma.appointment.findUnique.mockResolvedValue(snapshot('ACCEPTED'));
+      prisma.appointment.updateMany.mockResolvedValue({ count: 0 });
+
+      expect(await rejectionCode(call.confirm(service, 'seller'))).toBe('STATE_CHANGED');
+    });
+
+    it('papel sem permissão: FORBIDDEN', async () => {
+      prisma.appointment.findUnique.mockResolvedValue(snapshot('REQUESTED'));
+
+      expect(await rejectionCode(call.accept(service, 'buyer'))).toBe('FORBIDDEN');
+    });
+  });
 
   describe('checagens comuns, na ordem do desenho', () => {
     it.each(valid)('%s: 404 quando o agendamento não existe', async (action, user) => {

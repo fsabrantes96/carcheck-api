@@ -9,7 +9,18 @@ import type { ExceptionFilter } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { Prisma } from '../../generated/prisma/client.js';
 import type { ErrorResponseDto } from '../dto/error-response.dto.js';
+import {
+  defaultCodeForStatus,
+  ErrorCode,
+  isErrorCode,
+} from '../errors/error-code.js';
 import { isBodyParserError } from '../http/body-parser-error.js';
+import {
+  BODY_PARSER_ERRORS,
+  httpLayerMessage,
+  INTERNAL_ERROR_MESSAGE,
+  VALIDATION_MESSAGE,
+} from '../http/http-error-messages.js';
 import {
   isPgError,
   PG_EXCLUSION_VIOLATION,
@@ -19,31 +30,32 @@ import {
 /** Erros conhecidos do Prisma que viram respostas HTTP previsíveis. */
 const PRISMA_ERROR_MAP: Record<
   string,
-  { status: HttpStatus; message: string }
+  { status: HttpStatus; code: ErrorCode; message: string }
 > = {
-  P2002: { status: HttpStatus.CONFLICT, message: 'Registro já existe' },
-  P2025: { status: HttpStatus.NOT_FOUND, message: 'Registro não encontrado' },
+  P2002: {
+    status: HttpStatus.CONFLICT,
+    code: ErrorCode.CONFLICT,
+    message: 'Registro já existe',
+  },
+  P2025: {
+    status: HttpStatus.NOT_FOUND,
+    code: ErrorCode.NOT_FOUND,
+    message: 'Registro não encontrado',
+  },
   P2003: {
     status: HttpStatus.CONFLICT,
+    code: ErrorCode.CONFLICT,
     message: 'Operação viola uma relação com outro registro',
   },
 };
-
-/** Mensagens dos erros 4xx do body-parser, no lugar das mensagens internas. */
-const BODY_PARSER_MESSAGES: Record<string, string> = {
-  'entity.too.large': 'Corpo da requisição muito grande',
-  'entity.parse.failed': 'Corpo da requisição inválido',
-  'querystring.parse.rangeError': 'Corpo da requisição inválido',
-};
-const BODY_PARSER_DEFAULT_MESSAGE = 'Requisição inválida';
 
 /**
  * Cabeçalhos que descrevem um arquivo estático. O send (assets do /docs)
  * grava esses cabeçalhos antes de emitir o 412/416; sem removê-los, o JSON de
  * erro sairia como text/css, com o ETag e o Last-Modified do arquivo. O
  * Content-Range fica (o 416 o exige) e o res.json recalcula Content-Type e
- * Content-Length. Vale para todo erro: um Cache-Control definido antes da
- * exceção (ex.: no-store por um interceptor) também sai da resposta de erro.
+ * Content-Length. O Cache-Control do arquivo sai e o filtro grava o no-store
+ * de toda resposta de erro.
  */
 const FILE_HEADERS = [
   'Content-Type',
@@ -65,10 +77,13 @@ const EXCLUSION_VIOLATION_MESSAGE =
 /** Deadlock (40P01) ou falha de serialização (40001): o cliente pode repetir. */
 const TRANSACTION_CONFLICT_MESSAGE = 'Conflito ao processar, tente novamente';
 
-const INTERNAL_ERROR_MESSAGE = 'Erro interno do servidor';
-const VALIDATION_MESSAGE = 'Dados inválidos';
+/** Resposta de erro não vai para cache (navegador, proxy, CDN). */
+const ERROR_CACHE_CONTROL = 'no-store';
 
-type ErrorBody = Pick<ErrorResponseDto, 'statusCode' | 'message' | 'errors'>;
+type ErrorBody = Pick<
+  ErrorResponseDto,
+  'statusCode' | 'code' | 'message' | 'errors'
+>;
 
 /**
  * Filtro global: toda exceção sai no formato de ErrorResponseDto.
@@ -83,10 +98,24 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const request = http.getRequest<Request>();
     const response = http.getResponse<Response>();
 
+    // Cabeçalhos já enviados (ex.: um asset do /docs que falha no meio do
+    // stream): não há como mandar o JSON de erro, e status().json() lançaria
+    // ERR_HTTP_HEADERS_SENT aqui dentro (risco 69). Registra e encerra a
+    // conexão, como o finalhandler do Express faria.
+    if (response.headersSent) {
+      this.logger.error(
+        `Erro depois do envio dos cabeçalhos em ${request.method} ${this.routeOf(request)}`,
+        exception instanceof Error ? exception.stack : String(exception),
+      );
+      response.destroy();
+      return;
+    }
+
     const body = this.toBody(exception, request);
 
     const payload: ErrorResponseDto = {
       statusCode: body.statusCode,
+      code: body.code,
       error: this.statusName(body.statusCode),
       message: body.message,
       ...(body.errors && { errors: body.errors }),
@@ -94,9 +123,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
       timestamp: new Date().toISOString(),
     };
 
-    if (!response.headersSent) {
-      for (const header of FILE_HEADERS) response.removeHeader(header);
-    }
+    for (const header of FILE_HEADERS) response.removeHeader(header);
+    response.setHeader('Cache-Control', ERROR_CACHE_CONTROL);
     response.status(body.statusCode).json(payload);
   }
 
@@ -111,10 +139,11 @@ export class AllExceptionsFilter implements ExceptionFilter {
       exception.status >= 400 &&
       exception.status <= 499
     ) {
+      const known = BODY_PARSER_ERRORS[exception.type];
       return {
         statusCode: exception.status,
-        message:
-          BODY_PARSER_MESSAGES[exception.type] ?? BODY_PARSER_DEFAULT_MESSAGE,
+        code: known?.code ?? defaultCodeForStatus(exception.status),
+        message: known?.message ?? httpLayerMessage(exception.status),
       };
     }
 
@@ -123,6 +152,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     if (isPgError(exception, PG_EXCLUSION_VIOLATION)) {
       return {
         statusCode: HttpStatus.CONFLICT,
+        code: ErrorCode.SLOT_UNAVAILABLE,
         message: EXCLUSION_VIOLATION_MESSAGE,
       };
     }
@@ -137,6 +167,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       );
       return {
         statusCode: HttpStatus.CONFLICT,
+        code: ErrorCode.TRANSACTION_CONFLICT,
         message: TRANSACTION_CONFLICT_MESSAGE,
       };
     }
@@ -144,16 +175,21 @@ export class AllExceptionsFilter implements ExceptionFilter {
     if (exception instanceof Prisma.PrismaClientKnownRequestError) {
       const mapped = PRISMA_ERROR_MAP[exception.code];
       if (mapped) {
-        return { statusCode: mapped.status, message: mapped.message };
+        return {
+          statusCode: mapped.status,
+          code: mapped.code,
+          message: mapped.message,
+        };
       }
     }
 
     this.logger.error(
-      `Erro não tratado em ${request.method} ${request.url}`,
+      `Erro não tratado em ${request.method} ${this.routeOf(request)}`,
       exception instanceof Error ? exception.stack : String(exception),
     );
     return {
       statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+      code: ErrorCode.INTERNAL_ERROR,
       message: INTERNAL_ERROR_MESSAGE,
     };
   }
@@ -162,15 +198,14 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const statusCode = exception.getStatus();
     const res = exception.getResponse();
 
-    const rawMessage =
-      typeof res === 'string'
-        ? res
-        : ((res as { message?: unknown }).message ?? exception.message);
+    const body = typeof res === 'string' ? {} : (res as { message?: unknown; code?: unknown });
+    const rawMessage = typeof res === 'string' ? res : (body.message ?? exception.message);
 
     // O ValidationPipe devolve a lista de problemas em "message".
     if (Array.isArray(rawMessage)) {
       return {
         statusCode,
+        code: ErrorCode.VALIDATION_FAILED,
         message: VALIDATION_MESSAGE,
         errors: rawMessage.map(String),
       };
@@ -178,6 +213,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     return {
       statusCode,
+      // Code do throw (withCode) se for do enum; senão, o padrão do status.
+      code: isErrorCode(body.code) ? body.code : defaultCodeForStatus(statusCode),
       message: typeof rawMessage === 'string' ? rawMessage : exception.message,
     };
   }

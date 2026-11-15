@@ -1,10 +1,10 @@
 import {
   ConflictException,
-  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import type { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
+import { rejectionCode } from '../../test/support/error-code.js';
 import { Prisma } from '../generated/prisma/client.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import { AuthService } from './auth.service.js';
@@ -251,13 +251,14 @@ describe('AuthService', () => {
       });
     });
 
-    it('lança NotFoundException quando o usuário não existe', async () => {
+    it('lança 401 "Token inválido ou expirado" quando o usuário do token não existe mais', async () => {
       prisma.user.findUnique.mockResolvedValue(null);
 
       const promise = service.me('u1');
 
-      await expect(promise).rejects.toBeInstanceOf(NotFoundException);
-      await expect(promise).rejects.toThrow('Usuário não encontrado');
+      await expect(promise).rejects.toBeInstanceOf(UnauthorizedException);
+      await expect(promise).rejects.toThrow('Token inválido ou expirado');
+      expect(await rejectionCode(service.me('u1'))).toBe('UNAUTHENTICATED');
     });
   });
 });

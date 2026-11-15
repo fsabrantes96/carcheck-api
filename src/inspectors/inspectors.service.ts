@@ -5,6 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { ErrorCode, withCode } from '../common/errors/error-code.js';
 import {
   isPrismaError,
   PRISMA_UNIQUE_VIOLATION,
@@ -33,7 +34,7 @@ export class InspectorsService {
       where: { userId },
     });
     if (exists)
-      throw new ConflictException('Você já possui perfil de avaliador');
+      throw new ConflictException(withCode(ErrorCode.INSPECTOR_PROFILE_EXISTS, 'Você já possui perfil de avaliador'));
 
     let profile;
     try {
@@ -59,7 +60,7 @@ export class InspectorsService {
     } catch (error) {
       // Corrida: outra requisição criou o perfil depois da checagem.
       if (isPrismaError(error, PRISMA_UNIQUE_VIOLATION)) {
-        throw new ConflictException('Você já possui perfil de avaliador');
+        throw new ConflictException(withCode(ErrorCode.INSPECTOR_PROFILE_EXISTS, 'Você já possui perfil de avaliador'));
       }
       throw error;
     }
@@ -73,7 +74,7 @@ export class InspectorsService {
       include: { user: true },
     });
     if (!profile)
-      throw new NotFoundException('Perfil de avaliador não encontrado');
+      throw new NotFoundException(withCode(ErrorCode.INSPECTOR_PROFILE_NOT_FOUND, 'Perfil de avaliador não encontrado'));
     return MyInspectorProfileResponseDto.fromOwnProfile(profile, this.rules.platformFeeBps);
   }
 
@@ -88,7 +89,7 @@ export class InspectorsService {
       where: { userId },
     });
     if (!exists)
-      throw new NotFoundException('Perfil de avaliador não encontrado');
+      throw new NotFoundException(withCode(ErrorCode.INSPECTOR_PROFILE_NOT_FOUND, 'Perfil de avaliador não encontrado'));
 
     // Campo a campo: só o que o DTO declara chega ao Prisma. Campos ausentes
     // ficam undefined, e o Prisma não os altera (update parcial).
@@ -122,7 +123,10 @@ export class InspectorsService {
     if (basePriceCents < min) {
       const reais = (min / 100).toFixed(2).replace('.', ',');
       throw new BadRequestException(
-        `O preço base precisa ser de pelo menos ${min} centavos (R$ ${reais})`,
+        withCode(
+          ErrorCode.PRICE_BELOW_MINIMUM,
+          `O preço base precisa ser de pelo menos ${min} centavos (R$ ${reais})`,
+        ),
       );
     }
   }

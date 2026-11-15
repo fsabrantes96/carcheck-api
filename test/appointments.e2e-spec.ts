@@ -719,7 +719,7 @@ describe('Appointments (e2e)', () => {
     it('responde 400 quando o id não é uuid', async () => {
       const res = await getOne(buyer, 'nao-e-uuid').expect(400);
 
-      expect(res.body.message).toBe('Validation failed (uuid is expected)');
+      expect(res.body.message).toBe('Identificador inválido');
       expect(Object.keys(res.body).sort()).toEqual(ERROR_KEYS);
     });
 
