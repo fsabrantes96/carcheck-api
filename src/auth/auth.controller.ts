@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Header, HttpCode, Post, UseGuards } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
@@ -70,7 +70,15 @@ export class AuthController {
   @ApiOperationId('getCurrentUser')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOkResponse({ type: CurrentUserResponseDto })
+  // Dados pessoais e roles: não ficam em cache (o filtro de erros já faz o
+  // mesmo nas respostas de erro).
+  @Header('Cache-Control', 'no-store')
+  @ApiOkResponse({
+    type: CurrentUserResponseDto,
+    headers: {
+      'Cache-Control': { description: 'no-store: a resposta não deve ser guardada em cache', schema: { type: 'string' } },
+    },
+  })
   @ApiUnauthorizedResponse({ type: ErrorResponseDto, description: UNAUTHORIZED_OR_DELETED_ACCOUNT_DESCRIPTION })
   me(@CurrentUser() user: JwtPayload): Promise<CurrentUserResponseDto> {
     return this.auth.me(user.sub);

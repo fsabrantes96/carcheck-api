@@ -189,6 +189,14 @@
         "parameters": [],
         "responses": {
           "200": {
+            "headers": {
+              "Cache-Control": {
+                "description": "no-store: a resposta não deve ser guardada em cache",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "description": "",
             "content": {
               "application/json": {
