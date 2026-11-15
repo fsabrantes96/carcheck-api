@@ -19,7 +19,7 @@ a avaliação do carro com um **avaliador** (mecânico/especialista) antes de fe
 
 ## Pré-requisitos
 
-- Node.js 20+
+- Node.js 24 e npm 12.2.1 (versões em `devEngines` no `package.json`; o Node 24 traz o npm 11, então instale o npm com `npm i -g npm@12.2.1`)
 - Docker
 
 ## Como rodar localmente
