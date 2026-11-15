@@ -193,7 +193,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/UserResponseDto"
+                  "$ref": "#/components/schemas/CurrentUserResponseDto"
                 }
               }
             }
@@ -2524,6 +2524,48 @@
         "required": [
           "accessToken",
           "user"
+        ]
+      },
+      "Role": {
+        "type": "string",
+        "enum": [
+          "USER",
+          "INSPECTOR",
+          "ADMIN"
+        ],
+        "description": "Roles atuais do usuário, lidas do banco (uma mudança vale na hora, sem novo login)"
+      },
+      "CurrentUserResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "roles": {
+            "type": "array",
+            "description": "Roles atuais do usuário, lidas do banco (uma mudança vale na hora, sem novo login)",
+            "items": {
+              "$ref": "#/components/schemas/Role"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "email",
+          "createdAt",
+          "roles"
         ]
       },
       "Specialty": {

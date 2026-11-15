@@ -21,6 +21,7 @@ import {
 import { AUTH_THROTTLE } from '../common/throttler/throttler.config.js';
 import { AuthService } from './auth.service.js';
 import { CurrentUser } from './current-user.decorator.js';
+import { CurrentUserResponseDto } from './dto/current-user-response.dto.js';
 import { LoginDto } from './dto/login.dto.js';
 import { LoginResponseDto } from './dto/login-response.dto.js';
 import { RegisterDto } from './dto/register.dto.js';
@@ -69,9 +70,9 @@ export class AuthController {
   @ApiOperationId('getCurrentUser')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOkResponse({ type: UserResponseDto })
+  @ApiOkResponse({ type: CurrentUserResponseDto })
   @ApiUnauthorizedResponse({ type: ErrorResponseDto, description: UNAUTHORIZED_OR_DELETED_ACCOUNT_DESCRIPTION })
-  me(@CurrentUser() user: JwtPayload): Promise<UserResponseDto> {
+  me(@CurrentUser() user: JwtPayload): Promise<CurrentUserResponseDto> {
     return this.auth.me(user.sub);
   }
 }

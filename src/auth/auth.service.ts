@@ -11,6 +11,7 @@ import {
   PRISMA_UNIQUE_VIOLATION,
 } from '../common/prisma/prisma-errors.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { CurrentUserResponseDto } from './dto/current-user-response.dto.js';
 import { LoginDto } from './dto/login.dto.js';
 import { LoginResponseDto } from './dto/login-response.dto.js';
 import { RegisterDto } from './dto/register.dto.js';
@@ -79,13 +80,13 @@ export class AuthService {
     return { accessToken, user: UserResponseDto.from(user) };
   }
 
-  async me(userId: string): Promise<UserResponseDto> {
+  async me(userId: string): Promise<CurrentUserResponseDto> {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     // Token válido de uma conta que não existe mais: para o cliente é o mesmo
     // caso de um token inválido (precisa entrar de novo), como no RolesGuard.
     if (!user) {
       throw new UnauthorizedException(withCode(ErrorCode.UNAUTHENTICATED, INVALID_TOKEN_MESSAGE));
     }
-    return UserResponseDto.from(user);
+    return CurrentUserResponseDto.fromUser(user);
   }
 }
