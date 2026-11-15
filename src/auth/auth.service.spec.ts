@@ -8,6 +8,7 @@ import { rejectionCode } from '../../test/support/error-code.js';
 import { Prisma } from '../generated/prisma/client.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import { AuthService } from './auth.service.js';
+import { CurrentUserResponseDto } from './dto/current-user-response.dto.js';
 import { UserResponseDto } from './dto/user-response.dto.js';
 
 // bcrypt.hash é lento: o mock evita o custo nos testes. No Windows, quando o
@@ -238,11 +239,12 @@ describe('AuthService', () => {
 
       const result = await service.me('u1');
 
-      expect(result).toBeInstanceOf(UserResponseDto);
+      expect(result).toBeInstanceOf(CurrentUserResponseDto);
       expect(result).toEqual({
         id: 'u1',
         name: 'Maria Silva',
         email: 'maria@x.com',
+        roles: ['USER'],
         createdAt,
       });
       expect(result).not.toHaveProperty('passwordHash');

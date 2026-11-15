@@ -2,7 +2,11 @@ import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
-import { DEFAULT_PASSWORD, registerAndLogin } from './support/fixtures.js';
+import {
+  DEFAULT_PASSWORD,
+  inspectorProfilePayload,
+  registerAndLogin,
+} from './support/fixtures.js';
 import {
   closeTestApp,
   createTestApp,
@@ -136,6 +140,60 @@ describe('Auth (e2e)', () => {
         email: 'maria@x.com',
       });
       expect(res.body).not.toHaveProperty('passwordHash');
+    });
+
+    it('traz roles ["USER"] para o usuário comum', async () => {
+      const user = await registerAndLogin(app, 'maria@x.com', 'Maria');
+
+      const res = await request(app.getHttpServer())
+        .get('/auth/me')
+        .set('Authorization', `Bearer ${user.token}`)
+        .expect(200);
+
+      expect(res.body.roles).toEqual(['USER']);
+      expect(Object.keys(res.body).sort()).toEqual(['createdAt', 'email', 'id', 'name', 'roles']);
+    });
+
+    it('traz INSPECTOR em roles com o mesmo token logo depois de criar o perfil (lido do banco, não do token)', async () => {
+      const user = await registerAndLogin(app, 'avaliador@x.com', 'João');
+      await request(app.getHttpServer())
+        .post('/inspectors/me')
+        .set('Authorization', `Bearer ${user.token}`)
+        .send(inspectorProfilePayload)
+        .expect(201);
+
+      const res = await request(app.getHttpServer())
+        .get('/auth/me')
+        .set('Authorization', `Bearer ${user.token}`)
+        .expect(200);
+
+      expect(res.body.roles).toEqual(['USER', 'INSPECTOR']);
+    });
+
+    it('reflete na hora uma mudança de roles feita no banco', async () => {
+      const user = await registerAndLogin(app, 'maria@x.com', 'Maria');
+      await prisma.user.update({ where: { id: user.id }, data: { roles: ['USER', 'ADMIN'] } });
+
+      const res = await request(app.getHttpServer())
+        .get('/auth/me')
+        .set('Authorization', `Bearer ${user.token}`)
+        .expect(200);
+
+      expect(res.body.roles).toEqual(['USER', 'ADMIN']);
+    });
+
+    it('register e login continuam sem roles (só o /auth/me ganhou o campo)', async () => {
+      const registered = await request(app.getHttpServer())
+        .post('/auth/register')
+        .send({ name: 'Maria', email: 'maria@x.com', password: DEFAULT_PASSWORD })
+        .expect(201);
+      const logged = await request(app.getHttpServer())
+        .post('/auth/login')
+        .send({ email: 'maria@x.com', password: DEFAULT_PASSWORD })
+        .expect(200);
+
+      expect(Object.keys(registered.body).sort()).toEqual(['createdAt', 'email', 'id', 'name']);
+      expect(Object.keys(logged.body.user).sort()).toEqual(['createdAt', 'email', 'id', 'name']);
     });
 
     it('responde 401 "Token inválido ou expirado" com a assinatura adulterada', async () => {

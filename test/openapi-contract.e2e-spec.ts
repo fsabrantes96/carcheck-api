@@ -7,6 +7,7 @@ import {
   AppointmentStatus,
   FuelType,
   ListingStatus,
+  Role,
   Specialty,
   Transmission,
 } from '../src/generated/prisma/client.js';
@@ -99,6 +100,7 @@ const NAMED_ENUMS: Record<string, string[]> = {
   FuelType: Object.values(FuelType),
   Transmission: Object.values(Transmission),
   ListingStatus: Object.values(ListingStatus),
+  Role: Object.values(Role),
 };
 
 const enumRef = (name: string) => ({ $ref: `#/components/schemas/${name}` });
@@ -442,6 +444,25 @@ describe('Contrato OpenAPI (e2e)', () => {
       expect(param('page')).toMatchObject({ type: 'integer', minimum: 1, maximum: 200, default: 1 });
       expect(param('limit')).toMatchObject({ type: 'integer', minimum: 1, maximum: 50, default: 20 });
       expect(op('get', '/inspectors').responses['400'].description).toContain('page de 1 a 200, limit de 1 a 50');
+    });
+
+    it('GET /auth/me responde CurrentUserResponseDto, com roles obrigatório como array de Role', () => {
+      expect(op('get', '/auth/me').responses['200'].content?.['application/json']?.schema).toEqual({
+        $ref: '#/components/schemas/CurrentUserResponseDto',
+      });
+      const schema = doc.components.schemas.CurrentUserResponseDto;
+      expect(schema.properties?.roles).toMatchObject({ type: 'array', items: enumRef('Role') });
+      expect(schema.required).toContain('roles');
+    });
+
+    it('register e login continuam com UserResponseDto, sem roles', () => {
+      expect(op('post', '/auth/register').responses['201'].content?.['application/json']?.schema).toEqual({
+        $ref: '#/components/schemas/UserResponseDto',
+      });
+      expect(doc.components.schemas.LoginResponseDto.properties?.user).toMatchObject({
+        $ref: '#/components/schemas/UserResponseDto',
+      });
+      expect(doc.components.schemas.UserResponseDto.properties).not.toHaveProperty('roles');
     });
 
     it('GET /auth/me documenta no 401 a conta que não existe mais, sem 404', () => {
