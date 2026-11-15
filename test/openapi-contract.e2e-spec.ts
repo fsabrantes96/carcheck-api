@@ -10,6 +10,7 @@ import {
   Specialty,
   Transmission,
 } from '../src/generated/prisma/client.js';
+import { appointmentResponseSchema } from '../src/appointments/dto/appointment-response.dto.js';
 import { closeTestApp, createTestApp } from './support/test-app.js';
 
 type Schema = Record<string, unknown> & {
@@ -303,6 +304,59 @@ describe('Contrato OpenAPI (e2e)', () => {
 
     it('MyListingResponseDto.status referencia ListingStatus', () => {
       expect(doc.components.schemas.MyListingResponseDto.properties?.status).toEqual(enumProperty('ListingStatus'));
+    });
+  });
+
+  describe('união de agendamento (AppointmentResponseDto)', () => {
+    const UNION_REF = { $ref: '#/components/schemas/AppointmentResponseDto' };
+    const okSchema = (method: string, path: string) =>
+      op(method, path).responses['200'].content?.['application/json']?.schema;
+
+    it('é um schema nomeado: oneOf das três variantes com discriminator em myRole', () => {
+      expect(doc.components.schemas.AppointmentResponseDto).toEqual({
+        oneOf: [
+          { $ref: '#/components/schemas/BuyerAppointmentResponseDto' },
+          { $ref: '#/components/schemas/SellerAppointmentResponseDto' },
+          { $ref: '#/components/schemas/InspectorAppointmentResponseDto' },
+        ],
+        discriminator: {
+          propertyName: 'myRole',
+          mapping: {
+            BUYER: '#/components/schemas/BuyerAppointmentResponseDto',
+            SELLER: '#/components/schemas/SellerAppointmentResponseDto',
+            INSPECTOR: '#/components/schemas/InspectorAppointmentResponseDto',
+          },
+        },
+      });
+    });
+
+    it('o schema registrado em buildOpenApiDocument é idêntico no /docs-json e no openapi.json', () => {
+      const versioned = JSON.parse(
+        readFileSync(new URL('../openapi.json', import.meta.url), 'utf8'),
+      ) as Doc;
+
+      expect(doc.components.schemas.AppointmentResponseDto).toEqual(appointmentResponseSchema());
+      expect(versioned.components.schemas.AppointmentResponseDto).toEqual(appointmentResponseSchema());
+    });
+
+    it.each([
+      ['get', '/appointments/{id}'],
+      ['post', '/appointments/{id}/cancel'],
+    ])('o 200 de %s %s referencia AppointmentResponseDto', (method, path) => {
+      expect(okSchema(method, path)).toEqual(UNION_REF);
+    });
+
+    it('os itens de PaginatedAppointmentsResponseDto referenciam AppointmentResponseDto', () => {
+      expect(doc.components.schemas.PaginatedAppointmentsResponseDto.properties?.items).toMatchObject({
+        type: 'array',
+        items: UNION_REF,
+      });
+    });
+
+    it('nenhum oneOf fica inline: o único é o do schema nomeado', () => {
+      expect(findSchemas(doc, (s) => Array.isArray(s.oneOf))).toEqual([
+        doc.components.schemas.AppointmentResponseDto,
+      ]);
     });
   });
 
