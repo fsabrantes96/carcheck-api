@@ -8,14 +8,23 @@ on:
 permissions:
   contents: read
 
+# Um push novo no mesmo PR cancela a run anterior.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   # O id `build` é o nome do check exigido pelo ruleset main-protection:
   # não renomear, não pôr `name:` nem matriz (mudaria o nome do check).
   build:
     runs-on: ubuntu-latest
+    # Limite para um passo travado (o padrão do GitHub é 360 minutos).
+    timeout-minutes: 20
     env:
       DATABASE_URL: postgresql://app:app@localhost:5432/carcheck
       JWT_SECRET: segredo-apenas-para-ci
+      # Desliga a telemetria (checkpoint) do CLI do Prisma.
+      CHECKPOINT_DISABLE: '1'
     # Postgres só para os e2e, na mesma imagem do docker-compose.yml. Ele
     # roda dentro do runner do GitHub, que não enxerga a máquina de ninguém.
     services:
@@ -84,6 +93,10 @@ jobs:
               process.exit(1);
             }
           '
+      # Confere as assinaturas do registry e as atestações das dependências
+      # instaladas (não cobre o npm global do passo acima).
+      - name: Confere as assinaturas das dependências
+        run: npm audit signatures
       - run: npm run lint
       - run: npm run build
       - run: npm test
