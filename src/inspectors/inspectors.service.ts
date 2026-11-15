@@ -5,6 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import type { PageQueryDto } from '../common/dto/page-query.dto.js';
 import { ErrorCode, withCode } from '../common/errors/error-code.js';
 import {
   isPrismaError,
@@ -12,11 +13,19 @@ import {
 } from '../common/prisma/prisma-errors.js';
 import { BUSINESS_RULES } from '../config/business-rules.js';
 import type { BusinessRules } from '../config/business-rules.js';
+import type { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CreateInspectorProfileDto } from './dto/create-inspector-profile.dto.js';
 import { InspectorResponseDto } from './dto/inspector-response.dto.js';
 import { MyInspectorProfileResponseDto } from './dto/my-inspector-profile-response.dto.js';
+import type { PaginatedInspectorsResponseDto } from './dto/paginated-inspectors-response.dto.js';
 import { UpdateInspectorProfileDto } from './dto/update-inspector-profile.dto.js';
+
+/** Desempate por id: sem ele, perfis com o mesmo createdAt repetem ou somem entre páginas. */
+const STABLE_ORDER: Prisma.InspectorProfileOrderByWithRelationInput[] = [
+  { createdAt: 'desc' },
+  { id: 'desc' },
+];
 
 @Injectable()
 export class InspectorsService {
@@ -108,13 +117,27 @@ export class InspectorsService {
     return InspectorResponseDto.from(profile);
   }
 
-  async findAllVerified(): Promise<InspectorResponseDto[]> {
-    const profiles = await this.prisma.inspectorProfile.findMany({
-      where: { verified: true },
-      include: { user: true },
-      orderBy: { createdAt: 'desc' },
-    });
-    return profiles.map((p) => InspectorResponseDto.from(p));
+  async findAllVerified(query: PageQueryDto): Promise<PaginatedInspectorsResponseDto> {
+    const { page, limit } = query;
+    const where: Prisma.InspectorProfileWhereInput = { verified: true };
+
+    const [profiles, total] = await this.prisma.$transaction([
+      this.prisma.inspectorProfile.findMany({
+        where,
+        include: { user: true },
+        orderBy: STABLE_ORDER,
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.inspectorProfile.count({ where }),
+    ]);
+
+    return {
+      items: profiles.map((p) => InspectorResponseDto.from(p)),
+      total,
+      page,
+      limit,
+    };
   }
 
   /** 400 se o preço base estiver abaixo de MIN_INSPECTION_PRICE_CENTS. */

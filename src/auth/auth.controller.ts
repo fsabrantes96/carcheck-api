@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Header, HttpCode, Post, UseGuards } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
@@ -14,12 +14,14 @@ import { ErrorResponseDto } from '../common/dto/error-response.dto.js';
 import {
   ApiBodyErrorResponses,
   ApiCommonErrorResponses,
+  ApiOperationId,
   throttleDescription,
   UNAUTHORIZED_OR_DELETED_ACCOUNT_DESCRIPTION,
 } from '../common/swagger/api-responses.js';
 import { AUTH_THROTTLE } from '../common/throttler/throttler.config.js';
 import { AuthService } from './auth.service.js';
 import { CurrentUser } from './current-user.decorator.js';
+import { CurrentUserResponseDto } from './dto/current-user-response.dto.js';
 import { LoginDto } from './dto/login.dto.js';
 import { LoginResponseDto } from './dto/login-response.dto.js';
 import { RegisterDto } from './dto/register.dto.js';
@@ -34,6 +36,7 @@ export class AuthController {
   constructor(private readonly auth: AuthService) { }
 
   @Post('register')
+  @ApiOperationId('registerUser')
   @Throttle(AUTH_THROTTLE)
   @ApiTooManyRequestsResponse({
     type: ErrorResponseDto,
@@ -48,6 +51,7 @@ export class AuthController {
   }
 
   @Post('login')
+  @ApiOperationId('login')
   @Throttle(AUTH_THROTTLE)
   @ApiTooManyRequestsResponse({
     type: ErrorResponseDto,
@@ -63,11 +67,20 @@ export class AuthController {
   }
 
   @Get('me')
+  @ApiOperationId('getCurrentUser')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOkResponse({ type: UserResponseDto })
+  // Dados pessoais e roles: não ficam em cache (o filtro de erros já faz o
+  // mesmo nas respostas de erro).
+  @Header('Cache-Control', 'no-store')
+  @ApiOkResponse({
+    type: CurrentUserResponseDto,
+    headers: {
+      'Cache-Control': { description: 'no-store: a resposta não deve ser guardada em cache', schema: { type: 'string' } },
+    },
+  })
   @ApiUnauthorizedResponse({ type: ErrorResponseDto, description: UNAUTHORIZED_OR_DELETED_ACCOUNT_DESCRIPTION })
-  me(@CurrentUser() user: JwtPayload): Promise<UserResponseDto> {
+  me(@CurrentUser() user: JwtPayload): Promise<CurrentUserResponseDto> {
     return this.auth.me(user.sub);
   }
 }

@@ -47,7 +47,7 @@ export class AppointmentPersonDto {
  */
 export abstract class AppointmentBaseResponseDto {
     @ApiProperty({ format: 'uuid' }) id: string;
-    @ApiProperty({ enum: AppointmentStatus }) status: AppointmentStatus;
+    @ApiProperty({ enum: AppointmentStatus, enumName: 'AppointmentStatus' }) status: AppointmentStatus;
     @ApiProperty({ type: AppointmentListingDto }) listing: AppointmentListingDto;
     @ApiProperty({ type: AppointmentInspectorDto }) inspector: AppointmentInspectorDto;
     @ApiProperty({ type: AppointmentPersonDto }) buyer: AppointmentPersonDto;
@@ -56,9 +56,9 @@ export abstract class AppointmentBaseResponseDto {
     @ApiProperty() endsAt: Date;
     @ApiProperty({ nullable: true, type: Date, description: 'Prazo da etapa atual' }) expiresAt: Date | null;
     @ApiProperty({ nullable: true, type: String }) meetingAddress: string | null;
-    @ApiProperty({ enum: AppointmentActor, nullable: true, description: 'Quem encerrou (recusa, cancelamento ou expiração)' })
+    @ApiProperty({ enum: AppointmentActor, enumName: 'AppointmentActor', nullable: true, description: 'Quem encerrou (recusa, cancelamento ou expiração)' })
     endedBy: AppointmentActor | null;
-    @ApiProperty({ enum: ROUTE_ACTIONS, isArray: true, description: 'Ações que quem chama pode executar agora' })
+    @ApiProperty({ enum: ROUTE_ACTIONS, enumName: 'AppointmentAction', isArray: true, description: 'Ações que quem chama pode executar agora' })
     availableActions: AppointmentAction[];
     @ApiProperty() createdAt: Date;
 
@@ -164,6 +164,13 @@ export const APPOINTMENT_RESPONSE_MODELS = [
     InspectorAppointmentResponseDto,
 ] as const;
 
+/**
+ * Nome do schema nomeado da união em components.schemas (mesmo padrão dos
+ * outros schemas). Registrado em buildOpenApiDocument; as rotas e a página
+ * usam appointmentResponseRef().
+ */
+export const APPOINTMENT_RESPONSE_SCHEMA_NAME = 'AppointmentResponseDto';
+
 /** Schema OpenAPI da resposta por perfil: oneOf com discriminador em myRole. */
 export function appointmentResponseSchema() {
     return {
@@ -177,4 +184,9 @@ export function appointmentResponseSchema() {
             },
         },
     };
+}
+
+/** Referência ao schema nomeado da união (AppointmentResponseDto). */
+export function appointmentResponseRef() {
+    return { $ref: getSchemaPath(APPOINTMENT_RESPONSE_SCHEMA_NAME) };
 }

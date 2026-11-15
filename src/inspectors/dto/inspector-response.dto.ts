@@ -19,7 +19,7 @@ export class InspectorResponseDto {
     @ApiProperty({ format: 'uuid', description: 'Id do perfil do avaliador (não é id de usuário)' }) id: string;
     @ApiProperty() name: string;
     @ApiProperty() bio: string;
-    @ApiProperty({ enum: Specialty, isArray: true }) specialties: Specialty[];
+    @ApiProperty({ enum: Specialty, enumName: 'Specialty', isArray: true }) specialties: Specialty[];
     @ApiProperty() city: string;
     @ApiBrazilianState() state: string;
     @ApiProperty({ type: 'integer', description: 'Raio de atendimento em km' }) serviceRadiusKm: number;

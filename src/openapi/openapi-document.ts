@@ -1,6 +1,12 @@
 import type { INestApplication } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import type { OpenAPIObject } from '@nestjs/swagger';
+import {
+  APPOINTMENT_RESPONSE_MODELS,
+  APPOINTMENT_RESPONSE_SCHEMA_NAME,
+  appointmentResponseSchema,
+} from '../appointments/dto/appointment-response.dto.js';
+import { applyEnumDescriptions } from './enum-descriptions.js';
 
 /**
  * Documento OpenAPI da API. Uma única função para o /docs-json (configureApp)
@@ -14,7 +20,29 @@ export function buildOpenApiDocument(app: INestApplication): OpenAPIObject {
     .setVersion('0.1')
     .addBearerAuth()
     .build();
-  return SwaggerModule.createDocument(app, config);
+  const document = SwaggerModule.createDocument(app, config, {
+    operationIdFactory: missingOperationId,
+    // As variantes que a união referencia entram aqui também, para o documento
+    // não depender do @ApiExtraModels do controller.
+    extraModels: [...APPOINTMENT_RESPONSE_MODELS],
+  });
+  // Uniões (oneOf) não são classes, então o Nest não as registra como schema
+  // nomeado: entram aqui e as rotas as referenciam por $ref.
+  document.components ??= {};
+  document.components.schemas ??= {};
+  document.components.schemas[APPOINTMENT_RESPONSE_SCHEMA_NAME] = appointmentResponseSchema();
+  applyEnumDescriptions(document);
+  return document;
+}
+
+/**
+ * Toda rota declara o operationId com @ApiOperationId('<verbo><Recurso>'),
+ * desacoplado do nome do método. A lib chama esta
+ * factory em toda rota e o valor explícito a sobrescreve; uma rota sem ele
+ * fica com este sentinela, que o teste de contrato reprova.
+ */
+export function missingOperationId(controllerKey: string, methodKey: string): string {
+  return `MISSING_OPERATION_ID_${controllerKey}_${methodKey}`;
 }
 
 /** Formato do openapi.json: 2 espaços e quebra de linha no fim. */

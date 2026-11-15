@@ -1,11 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { appointmentResponseSchema } from './appointment-response.dto.js';
+import { appointmentResponseRef } from './appointment-response.dto.js';
 import type { AppointmentResponseDto } from './appointment-response.dto.js';
 
 export class PaginatedAppointmentsResponseDto {
     @ApiProperty({
         type: 'array',
-        items: appointmentResponseSchema(),
+        items: appointmentResponseRef(),
         description: 'Cada item vem no formato do seu papel naquele agendamento (myRole)',
     })
     items: AppointmentResponseDto[];

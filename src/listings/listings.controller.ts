@@ -27,31 +27,25 @@ import { parseIdPipe } from '../common/validation/parse-id.pipe.js';
 import {
     ApiBodyErrorResponses,
     ApiCommonErrorResponses,
+    ApiOperationId,
     ApiUuidParam,
     INVALID_UUID_DESCRIPTION,
     TRANSACTION_CONFLICT_DESCRIPTION,
     UNAUTHORIZED_DESCRIPTION,
 } from '../common/swagger/api-responses.js';
-import {
-    LISTINGS_PAGE_MAX,
-    PAGE_LIMIT_MAX,
-    PAGE_LIMIT_MIN,
-    PAGE_MIN,
-} from '../common/limits.js';
+import { PageQueryDto, PAGINATION_RULE } from '../common/dto/page-query.dto.js';
 import { CurrentUser } from '../auth/current-user.decorator.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import type { JwtPayload } from '../auth/types/jwt-payload.js';
 import { CreateListingDto } from './dto/create-listing.dto.js';
 import { ListListingsQueryDto } from './dto/list-listings-query.dto.js';
 import { ListingResponseDto } from './dto/listing-response.dto.js';
-import { ListingsPageQueryDto } from './dto/listings-page-query.dto.js';
 import { MyListingResponseDto } from './dto/my-listing-response.dto.js';
 import { PaginatedListingsResponseDto } from './dto/paginated-listings-response.dto.js';
 import { PaginatedMyListingsResponseDto } from './dto/paginated-my-listings-response.dto.js';
 import { UpdateListingDto } from './dto/update-listing.dto.js';
 import { ListingsService } from './listings.service.js';
 
-const PAGINATION_RULE = `page de ${PAGE_MIN} a ${LISTINGS_PAGE_MAX}, limit de ${PAGE_LIMIT_MIN} a ${PAGE_LIMIT_MAX}`;
 const NOT_OWNER = 'Este anúncio não pertence a você';
 const NOT_FOUND = 'Anúncio não encontrado';
 const CANCELS_OPEN_APPOINTMENTS =
@@ -64,6 +58,7 @@ export class ListingsController {
     constructor(private readonly listings: ListingsService) { }
 
     @Get()
+    @ApiOperationId('listListings')
     @ApiOkResponse({ type: PaginatedListingsResponseDto })
     @ApiBadRequestResponse({ type: ErrorResponseDto, description: `Filtros inválidos (lista em errors): UF fora das 27, ${PAGINATION_RULE}, faixas de preço e ano` })
     findAll(@Query() query: ListListingsQueryDto): Promise<PaginatedListingsResponseDto> {
@@ -71,6 +66,7 @@ export class ListingsController {
     }
 
     @Get('mine')
+    @ApiOperationId('listMyListings')
     @UseGuards(JwtAuthGuard)
     @ApiBearerAuth()
     @ApiOkResponse({ type: PaginatedMyListingsResponseDto, description: 'Anúncios do usuário, sem os arquivados, paginados' })
@@ -78,12 +74,13 @@ export class ListingsController {
     @ApiUnauthorizedResponse({ type: ErrorResponseDto, description: UNAUTHORIZED_DESCRIPTION })
     findMine(
         @CurrentUser() user: JwtPayload,
-        @Query() query: ListingsPageQueryDto,
+        @Query() query: PageQueryDto,
     ): Promise<PaginatedMyListingsResponseDto> {
         return this.listings.findMine(user.sub, query);
     }
 
     @Get(':id')
+    @ApiOperationId('getListing')
     @ApiUuidParam()
     @ApiOkResponse({ type: ListingResponseDto })
     @ApiBadRequestResponse({ type: ErrorResponseDto, description: INVALID_UUID_DESCRIPTION })
@@ -93,6 +90,7 @@ export class ListingsController {
     }
 
     @Post()
+    @ApiOperationId('createListing')
     @UseGuards(JwtAuthGuard)
     @ApiBearerAuth()
     @ApiCreatedResponse({ type: MyListingResponseDto })
@@ -107,6 +105,7 @@ export class ListingsController {
     }
 
     @Patch(':id')
+    @ApiOperationId('updateListing')
     @UseGuards(JwtAuthGuard)
     @ApiBearerAuth()
     @ApiUuidParam()
@@ -126,6 +125,7 @@ export class ListingsController {
     }
 
     @Post(':id/pause')
+    @ApiOperationId('pauseListing')
     @HttpCode(200)
     @UseGuards(JwtAuthGuard)
     @ApiBearerAuth()
@@ -144,6 +144,7 @@ export class ListingsController {
     }
 
     @Post(':id/activate')
+    @ApiOperationId('activateListing')
     @HttpCode(200)
     @UseGuards(JwtAuthGuard)
     @ApiBearerAuth()
@@ -162,6 +163,7 @@ export class ListingsController {
     }
 
     @Post(':id/mark-sold')
+    @ApiOperationId('markListingSold')
     @HttpCode(200)
     @UseGuards(JwtAuthGuard)
     @ApiBearerAuth()
@@ -180,6 +182,7 @@ export class ListingsController {
     }
 
     @Delete(':id')
+    @ApiOperationId('archiveListing')
     @HttpCode(204)
     @UseGuards(JwtAuthGuard)
     @ApiBearerAuth()

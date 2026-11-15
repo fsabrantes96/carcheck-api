@@ -40,6 +40,7 @@ export class CreateInspectorProfileDto {
 
     @ApiProperty({
         enum: Specialty,
+        enumName: 'Specialty',
         isArray: true,
         example: ['ENGINE', 'BRAKES'],
         minItems: SPECIALTIES_MIN_ITEMS,

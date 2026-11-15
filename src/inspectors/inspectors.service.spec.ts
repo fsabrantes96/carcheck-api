@@ -40,6 +40,7 @@ type PrismaMock = {
   inspectorProfile: {
     findUnique: ReturnType<typeof vi.fn>;
     findMany: ReturnType<typeof vi.fn>;
+    count: ReturnType<typeof vi.fn>;
     create: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
   };
@@ -56,14 +57,19 @@ describe('InspectorsService', () => {
       inspectorProfile: {
         findUnique: vi.fn(),
         findMany: vi.fn(),
+        count: vi.fn(),
         create: vi.fn(),
         update: vi.fn(),
       },
       user: { update: vi.fn() },
       $transaction: vi.fn(),
     };
-    prisma.$transaction.mockImplementation(
-      (callback: (tx: PrismaMock) => Promise<unknown>) => callback(prisma),
+    // Forma com callback (transação interativa): chama com o próprio mock.
+    // Forma de array: as "queries" já são as promises devolvidas pelos mocks.
+    prisma.$transaction.mockImplementation((arg: unknown) =>
+      typeof arg === 'function'
+        ? (arg as (tx: PrismaMock) => Promise<unknown>)(prisma)
+        : Promise.all(arg as Promise<unknown>[]),
     );
     service = new InspectorsService(prisma as unknown as PrismaService, rules);
   });
@@ -430,6 +436,8 @@ describe('InspectorsService', () => {
   });
 
   describe('findAllVerified', () => {
+    const PAGE = { page: 1, limit: 20 };
+
     function verifiedProfile(id: string, name: string) {
       return {
         id,
@@ -442,10 +450,13 @@ describe('InspectorsService', () => {
       };
     }
 
-    it('filtra por verified: true no where do findMany', async () => {
+    beforeEach(() => {
       prisma.inspectorProfile.findMany.mockResolvedValue([]);
+      prisma.inspectorProfile.count.mockResolvedValue(0);
+    });
 
-      await service.findAllVerified();
+    it('filtra por verified: true no where do findMany', async () => {
+      await service.findAllVerified(PAGE);
 
       expect(prisma.inspectorProfile.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -455,21 +466,57 @@ describe('InspectorsService', () => {
       );
     });
 
-    it('mapeia cada perfil para InspectorResponseDto', async () => {
+    it('pagina com desempate por id (createdAt desc, id desc)', async () => {
+      await service.findAllVerified(PAGE);
+
+      expect(prisma.inspectorProfile.findMany).toHaveBeenCalledWith({
+        where: { verified: true },
+        include: { user: true },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        skip: 0,
+        take: 20,
+      });
+    });
+
+    it('calcula o skip a partir de page e limit', async () => {
+      await service.findAllVerified({ page: 3, limit: 2 });
+
+      expect(prisma.inspectorProfile.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ skip: 4, take: 2 }),
+      );
+    });
+
+    it('conta com o mesmo where do findMany, na mesma transação', async () => {
+      await service.findAllVerified(PAGE);
+
+      expect(prisma.inspectorProfile.count).toHaveBeenCalledWith({ where: { verified: true } });
+      expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+      expect(prisma.$transaction).toHaveBeenCalledWith([
+        prisma.inspectorProfile.findMany.mock.results[0].value,
+        prisma.inspectorProfile.count.mock.results[0].value,
+      ]);
+    });
+
+    it('mapeia cada perfil para InspectorResponseDto e devolve { items, total, page, limit }', async () => {
       prisma.inspectorProfile.findMany.mockResolvedValue([
         verifiedProfile('p1', 'João'),
         verifiedProfile('p2', 'Ana'),
       ]);
+      prisma.inspectorProfile.count.mockResolvedValue(7);
 
-      const result = await service.findAllVerified();
+      const result = await service.findAllVerified({ page: 2, limit: 2 });
 
-      expect(result).toHaveLength(2);
-      expect(result[0]).toBeInstanceOf(InspectorResponseDto);
-      expect(result[1]).toBeInstanceOf(InspectorResponseDto);
-      expect(result).toEqual([
-        { id: 'p1', name: 'João', ...dto, verified: true },
-        { id: 'p2', name: 'Ana', ...dto, verified: true },
-      ]);
+      expect(result.items[0]).toBeInstanceOf(InspectorResponseDto);
+      expect(result.items[1]).toBeInstanceOf(InspectorResponseDto);
+      expect(result).toEqual({
+        items: [
+          { id: 'p1', name: 'João', ...dto, verified: true },
+          { id: 'p2', name: 'Ana', ...dto, verified: true },
+        ],
+        total: 7,
+        page: 2,
+        limit: 2,
+      });
       expect(JSON.stringify(result)).not.toContain('passwordHash');
     });
 
@@ -477,18 +524,24 @@ describe('InspectorsService', () => {
       prisma.inspectorProfile.findMany.mockResolvedValue([
         { id: 'p1', userId: 'u1', ...dto, verified: true, user: { id: 'u1', name: 'João' } },
       ]);
+      prisma.inspectorProfile.count.mockResolvedValue(1);
 
-      const [item] = await service.findAllVerified();
+      const {
+        items: [item],
+      } = await service.findAllVerified(PAGE);
 
       expect(item).not.toBeInstanceOf(MyInspectorProfileResponseDto);
       expect(item).not.toHaveProperty('platformFeeBps');
       expect(item).not.toHaveProperty('estimatedPayoutCents');
     });
 
-    it('devolve lista vazia quando não há perfis verificados', async () => {
-      prisma.inspectorProfile.findMany.mockResolvedValue([]);
-
-      await expect(service.findAllVerified()).resolves.toEqual([]);
+    it('devolve página vazia quando não há perfis verificados', async () => {
+      await expect(service.findAllVerified(PAGE)).resolves.toEqual({
+        items: [],
+        total: 0,
+        page: 1,
+        limit: 20,
+      });
     });
   });
 });

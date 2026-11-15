@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import {
     ApiBadRequestResponse,
     ApiBearerAuth,
@@ -11,9 +11,11 @@ import {
     ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { ErrorResponseDto } from '../common/dto/error-response.dto.js';
+import { PageQueryDto, PAGINATION_RULE } from '../common/dto/page-query.dto.js';
 import {
     ApiBodyErrorResponses,
     ApiCommonErrorResponses,
+    ApiOperationId,
     TRANSACTION_CONFLICT_DESCRIPTION,
     UNAUTHORIZED_DESCRIPTION,
     UNAUTHORIZED_OR_DELETED_ACCOUNT_DESCRIPTION,
@@ -26,6 +28,7 @@ import type { JwtPayload } from '../auth/types/jwt-payload.js';
 import { CreateInspectorProfileDto } from './dto/create-inspector-profile.dto.js';
 import { InspectorResponseDto } from './dto/inspector-response.dto.js';
 import { MyInspectorProfileResponseDto } from './dto/my-inspector-profile-response.dto.js';
+import { PaginatedInspectorsResponseDto } from './dto/paginated-inspectors-response.dto.js';
 import { UpdateInspectorProfileDto } from './dto/update-inspector-profile.dto.js';
 import { InspectorsService } from './inspectors.service.js';
 
@@ -40,12 +43,15 @@ export class InspectorsController {
 
 
     @Get()
-    @ApiOkResponse({ type: InspectorResponseDto, isArray: true })
-    findAll(): Promise<InspectorResponseDto[]> {
-        return this.inspectors.findAllVerified();
+    @ApiOperationId('listInspectors')
+    @ApiOkResponse({ type: PaginatedInspectorsResponseDto, description: 'Perfis verificados, paginados' })
+    @ApiBadRequestResponse({ type: ErrorResponseDto, description: `Paginação inválida (${PAGINATION_RULE})` })
+    findAll(@Query() query: PageQueryDto): Promise<PaginatedInspectorsResponseDto> {
+        return this.inspectors.findAllVerified(query);
     }
 
     @Post('me')
+    @ApiOperationId('createMyInspectorProfile')
     @UseGuards(JwtAuthGuard)
     @ApiBearerAuth()
     @ApiCreatedResponse({ type: InspectorResponseDto })
@@ -61,6 +67,7 @@ export class InspectorsController {
     }
 
     @Get('me')
+    @ApiOperationId('getMyInspectorProfile')
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles('INSPECTOR')
     @ApiBearerAuth()
@@ -73,6 +80,7 @@ export class InspectorsController {
     }
 
     @Patch('me')
+    @ApiOperationId('updateMyInspectorProfile')
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles('INSPECTOR')
     @ApiBearerAuth()

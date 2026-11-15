@@ -14,12 +14,12 @@ import type { Participant } from '../appointments.state-machine.js';
 const PARTICIPANTS: Participant[] = ['BUYER', 'SELLER', 'INSPECTOR'];
 
 export class ListAppointmentsQueryDto {
-    @ApiPropertyOptional({ enum: PARTICIPANTS, description: 'Só os agendamentos em que você tem este papel' })
+    @ApiPropertyOptional({ enum: PARTICIPANTS, enumName: 'AppointmentParticipant', description: 'Só os agendamentos em que você tem este papel' })
     @IsOptional()
     @IsIn(PARTICIPANTS)
     as?: Participant;
 
-    @ApiPropertyOptional({ enum: AppointmentStatus })
+    @ApiPropertyOptional({ enum: AppointmentStatus, enumName: 'AppointmentStatus' })
     @IsOptional()
     @IsEnum(AppointmentStatus)
     status?: AppointmentStatus;

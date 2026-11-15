@@ -18,7 +18,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { CreateListingDto } from './dto/create-listing.dto.js';
 import { ListListingsQueryDto } from './dto/list-listings-query.dto.js';
 import { ListingResponseDto } from './dto/listing-response.dto.js';
-import type { ListingsPageQueryDto } from './dto/listings-page-query.dto.js';
+import type { PageQueryDto } from '../common/dto/page-query.dto.js';
 import { MyListingResponseDto } from './dto/my-listing-response.dto.js';
 import { PaginatedListingsResponseDto } from './dto/paginated-listings-response.dto.js';
 import type { PaginatedMyListingsResponseDto } from './dto/paginated-my-listings-response.dto.js';
@@ -126,7 +126,7 @@ export class ListingsService {
 
     async findMine(
         sellerId: string,
-        query: ListingsPageQueryDto,
+        query: PageQueryDto,
     ): Promise<PaginatedMyListingsResponseDto> {
         const { page, limit } = query;
         const where: Prisma.ListingWhereInput = { sellerId, status: { not: 'ARCHIVED' } };

@@ -146,6 +146,7 @@ Variáveis novas (ver `.env.example`): `PLATFORM_FEE_BPS` (obrigatória), `MIN_I
 - [x] Agendamento de avaliação (pedido, aceite, recusa, confirmação e cancelamento; termina em "aguardando pagamento")
 - [x] Expiração automática dos prazos (job a cada minuto)
 - [x] Contrato de erros (`code` em toda resposta de erro, mensagens em pt-BR, `no-store`)
+- [x] Contrato para o front (operationId explícito, enums nomeados, listagem de avaliadores paginada, `roles` no `/auth/me`)
 - [ ] Pagamento retido
 - [ ] Laudo e avaliações
 - [ ] Busca por proximidade

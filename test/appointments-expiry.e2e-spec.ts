@@ -274,9 +274,13 @@ describe('Appointments: job de expiração (e2e com FakeClock)', () => {
       async (name) => {
         const res = await request(app.getHttpServer()).get('/docs-json').expect(200);
 
-        const { properties } = res.body.components.schemas[name];
-        expect(properties.status.enum).toContain('EXPIRED');
-        expect(properties.endedBy.enum).toContain('SYSTEM');
+        // Os valores ficam nos enums nomeados, referenciados pelas propriedades.
+        const { schemas } = res.body.components;
+        const { properties } = schemas[name];
+        expect(properties.status.allOf).toEqual([{ $ref: '#/components/schemas/AppointmentStatus' }]);
+        expect(properties.endedBy.allOf).toEqual([{ $ref: '#/components/schemas/AppointmentActor' }]);
+        expect(schemas.AppointmentStatus.enum).toContain('EXPIRED');
+        expect(schemas.AppointmentActor.enum).toContain('SYSTEM');
       },
     );
   });
