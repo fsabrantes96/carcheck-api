@@ -16,7 +16,8 @@ export class CurrentUserResponseDto extends UserResponseDto {
     })
     roles: Role[];
 
-    static fromUser(user: { id: string; name: string; email: string; roles: Role[]; createdAt: Date }): CurrentUserResponseDto {
+    /** override: sem ele, CurrentUserResponseDto.from herdado devolveria um UserResponseDto sem roles. */
+    static override from(user: { id: string; name: string; email: string; roles: Role[]; createdAt: Date }): CurrentUserResponseDto {
         const dto = new CurrentUserResponseDto();
         dto.id = user.id;
         dto.name = user.name;

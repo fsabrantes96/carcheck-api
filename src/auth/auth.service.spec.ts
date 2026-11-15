@@ -226,7 +226,7 @@ describe('AuthService', () => {
   });
 
   describe('me', () => {
-    it('devolve o UserResponseDto sem passwordHash', async () => {
+    it('devolve o CurrentUserResponseDto com as roles do banco, sem passwordHash', async () => {
       const createdAt = new Date('2026-11-10T12:00:00.000Z');
       prisma.user.findUnique.mockResolvedValue({
         id: 'u1',

@@ -87,6 +87,6 @@ export class AuthService {
     if (!user) {
       throw new UnauthorizedException(withCode(ErrorCode.UNAUTHENTICATED, INVALID_TOKEN_MESSAGE));
     }
-    return CurrentUserResponseDto.fromUser(user);
+    return CurrentUserResponseDto.from(user);
   }
 }
