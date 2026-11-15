@@ -172,10 +172,12 @@ describe('Erros da camada do Express (e2e, riscos 65 e 67)', () => {
 
   // O body-parser repassa o erro do zlib num http-error 400 sem `type`. Um
   // e2e por formato, para um upgrade do Node ou do body-parser aparecer aqui.
+  // zstd exige Node 23+ (zlib.createZstdDecompress); o CI roda em Node 24.
   it.each([
     ['gzip', 'incorrect header check'],
     ['deflate', 'incorrect header check'],
     ['br', 'Decompression failed'],
+    ['zstd', 'Unknown frame descriptor'],
   ])(
     'responde 400 "Corpo da requisição inválido" a um corpo %s corrompido',
     async (encoding, rawMessage) => {
@@ -193,6 +195,8 @@ describe('Erros da camada do Express (e2e, riscos 65 e 67)', () => {
         'Corpo da requisição inválido',
         '/auth/login',
       );
+      expect(res.body.code).toBe('INVALID_BODY');
+      expect(res.headers['cache-control']).toBe('no-store');
       expect(JSON.stringify(res.body)).not.toContain(rawMessage);
     },
   );
