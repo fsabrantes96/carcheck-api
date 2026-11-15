@@ -27,6 +27,7 @@ import { parseIdPipe } from '../common/validation/parse-id.pipe.js';
 import {
     ApiBodyErrorResponses,
     ApiCommonErrorResponses,
+    ApiOperationId,
     ApiUuidParam,
     INVALID_UUID_DESCRIPTION,
     TRANSACTION_CONFLICT_DESCRIPTION,
@@ -64,6 +65,7 @@ export class ListingsController {
     constructor(private readonly listings: ListingsService) { }
 
     @Get()
+    @ApiOperationId('listListings')
     @ApiOkResponse({ type: PaginatedListingsResponseDto })
     @ApiBadRequestResponse({ type: ErrorResponseDto, description: `Filtros inválidos (lista em errors): UF fora das 27, ${PAGINATION_RULE}, faixas de preço e ano` })
     findAll(@Query() query: ListListingsQueryDto): Promise<PaginatedListingsResponseDto> {
@@ -71,6 +73,7 @@ export class ListingsController {
     }
 
     @Get('mine')
+    @ApiOperationId('listMyListings')
     @UseGuards(JwtAuthGuard)
     @ApiBearerAuth()
     @ApiOkResponse({ type: PaginatedMyListingsResponseDto, description: 'Anúncios do usuário, sem os arquivados, paginados' })
@@ -84,6 +87,7 @@ export class ListingsController {
     }
 
     @Get(':id')
+    @ApiOperationId('getListing')
     @ApiUuidParam()
     @ApiOkResponse({ type: ListingResponseDto })
     @ApiBadRequestResponse({ type: ErrorResponseDto, description: INVALID_UUID_DESCRIPTION })
@@ -93,6 +97,7 @@ export class ListingsController {
     }
 
     @Post()
+    @ApiOperationId('createListing')
     @UseGuards(JwtAuthGuard)
     @ApiBearerAuth()
     @ApiCreatedResponse({ type: MyListingResponseDto })
@@ -107,6 +112,7 @@ export class ListingsController {
     }
 
     @Patch(':id')
+    @ApiOperationId('updateListing')
     @UseGuards(JwtAuthGuard)
     @ApiBearerAuth()
     @ApiUuidParam()
@@ -126,6 +132,7 @@ export class ListingsController {
     }
 
     @Post(':id/pause')
+    @ApiOperationId('pauseListing')
     @HttpCode(200)
     @UseGuards(JwtAuthGuard)
     @ApiBearerAuth()
@@ -144,6 +151,7 @@ export class ListingsController {
     }
 
     @Post(':id/activate')
+    @ApiOperationId('activateListing')
     @HttpCode(200)
     @UseGuards(JwtAuthGuard)
     @ApiBearerAuth()
@@ -162,6 +170,7 @@ export class ListingsController {
     }
 
     @Post(':id/mark-sold')
+    @ApiOperationId('markListingSold')
     @HttpCode(200)
     @UseGuards(JwtAuthGuard)
     @ApiBearerAuth()
@@ -180,6 +189,7 @@ export class ListingsController {
     }
 
     @Delete(':id')
+    @ApiOperationId('archiveListing')
     @HttpCode(204)
     @UseGuards(JwtAuthGuard)
     @ApiBearerAuth()

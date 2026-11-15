@@ -20,6 +20,7 @@ import { ErrorResponseDto } from '../common/dto/error-response.dto.js';
 import {
     ApiBodyErrorResponses,
     ApiCommonErrorResponses,
+    ApiOperationId,
     ApiUuidParam,
     INVALID_UUID_DESCRIPTION,
     throttleDescription,
@@ -59,6 +60,7 @@ export class AppointmentsController {
     constructor(private readonly appointments: AppointmentsService) { }
 
     @Post()
+    @ApiOperationId('createAppointment')
     @Throttle(APPOINTMENT_CREATE_THROTTLE)
     @ApiCreatedResponse({ type: BuyerAppointmentResponseDto, description: 'Pedido criado (REQUESTED); quem pede vira o comprador' })
     @ApiBadRequestResponse({ type: ErrorResponseDto, description: 'Dados inválidos (inclusive campos não permitidos como status, preço, comprador ou vendedor), antecedência mínima ou horizonte de 60 dias, ou corpo malformado' })
@@ -76,6 +78,7 @@ export class AppointmentsController {
 
     // Rotas estáticas antes de ':id'.
     @Get()
+    @ApiOperationId('listAppointments')
     @ApiOkResponse({ type: PaginatedAppointmentsResponseDto })
     @ApiBadRequestResponse({ type: ErrorResponseDto, description: 'Filtros inválidos (as, status, page, limit <= 50)' })
     list(
@@ -86,6 +89,7 @@ export class AppointmentsController {
     }
 
     @Get(':id')
+    @ApiOperationId('getAppointment')
     @ApiUuidParam()
     @ApiOkResponse({ schema: appointmentResponseSchema(), description: 'Formato conforme o seu papel (myRole)' })
     @ApiBadRequestResponse({ type: ErrorResponseDto, description: INVALID_UUID_DESCRIPTION })
@@ -98,6 +102,7 @@ export class AppointmentsController {
     }
 
     @Post(':id/accept')
+    @ApiOperationId('acceptAppointment')
     @ApiUuidParam()
     @HttpCode(200)
     @ApiOkResponse({ type: InspectorAppointmentResponseDto, description: 'Aceito (REQUESTED → ACCEPTED); ocupa o horário do avaliador' })
@@ -113,6 +118,7 @@ export class AppointmentsController {
     }
 
     @Post(':id/decline')
+    @ApiOperationId('declineAppointment')
     @ApiUuidParam()
     @HttpCode(200)
     @ApiOkResponse({ type: InspectorAppointmentResponseDto, description: 'Recusado (REQUESTED → DECLINED)' })
@@ -128,6 +134,7 @@ export class AppointmentsController {
     }
 
     @Post(':id/confirm')
+    @ApiOperationId('confirmAppointment')
     @ApiUuidParam()
     @HttpCode(200)
     @ApiOkResponse({ type: SellerAppointmentResponseDto, description: 'Confirmado (ACCEPTED → AWAITING_PAYMENT); abre a janela de 30 min para pagar' })
@@ -145,6 +152,7 @@ export class AppointmentsController {
     }
 
     @Post(':id/cancel')
+    @ApiOperationId('cancelAppointment')
     @ApiUuidParam()
     @HttpCode(200)
     @ApiOkResponse({ schema: appointmentResponseSchema(), description: 'Cancelado (antes do pagamento); formato conforme o seu papel' })

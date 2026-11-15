@@ -14,7 +14,19 @@ export function buildOpenApiDocument(app: INestApplication): OpenAPIObject {
     .setVersion('0.1')
     .addBearerAuth()
     .build();
-  return SwaggerModule.createDocument(app, config);
+  return SwaggerModule.createDocument(app, config, {
+    operationIdFactory: missingOperationId,
+  });
+}
+
+/**
+ * Toda rota declara o operationId em @ApiOperation({ operationId }) (verbo +
+ * recurso em camelCase), desacoplado do nome do método. A lib chama esta
+ * factory em toda rota e o valor explícito a sobrescreve; uma rota sem ele
+ * fica com este sentinela, que o teste de contrato reprova.
+ */
+export function missingOperationId(controllerKey: string, methodKey: string): string {
+  return `MISSING_OPERATION_ID_${controllerKey}_${methodKey}`;
 }
 
 /** Formato do openapi.json: 2 espaços e quebra de linha no fim. */

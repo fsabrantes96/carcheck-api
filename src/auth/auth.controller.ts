@@ -14,6 +14,7 @@ import { ErrorResponseDto } from '../common/dto/error-response.dto.js';
 import {
   ApiBodyErrorResponses,
   ApiCommonErrorResponses,
+  ApiOperationId,
   throttleDescription,
   UNAUTHORIZED_OR_DELETED_ACCOUNT_DESCRIPTION,
 } from '../common/swagger/api-responses.js';
@@ -34,6 +35,7 @@ export class AuthController {
   constructor(private readonly auth: AuthService) { }
 
   @Post('register')
+  @ApiOperationId('registerUser')
   @Throttle(AUTH_THROTTLE)
   @ApiTooManyRequestsResponse({
     type: ErrorResponseDto,
@@ -48,6 +50,7 @@ export class AuthController {
   }
 
   @Post('login')
+  @ApiOperationId('login')
   @Throttle(AUTH_THROTTLE)
   @ApiTooManyRequestsResponse({
     type: ErrorResponseDto,
@@ -63,6 +66,7 @@ export class AuthController {
   }
 
   @Get('me')
+  @ApiOperationId('getCurrentUser')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOkResponse({ type: UserResponseDto })

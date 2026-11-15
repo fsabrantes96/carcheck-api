@@ -1,6 +1,7 @@
 import { applyDecorators } from '@nestjs/common';
 import {
   ApiInternalServerErrorResponse,
+  ApiOperation,
   ApiParam,
   ApiPayloadTooLargeResponse,
   ApiTooManyRequestsResponse,
@@ -78,4 +79,15 @@ export function ApiBodyErrorResponses(): MethodDecorator {
 /** Parâmetro de rota :id, validado pelo parseIdPipe (400 INVALID_ID se não for uuid). */
 export function ApiUuidParam(): MethodDecorator {
   return ApiParam({ name: 'id', type: String, format: 'uuid' });
+}
+
+/**
+ * operationId explícito da rota (verbo + recurso em camelCase, ex.:
+ * listListings). É o nome da função nos tipos gerados pelo front: não muda
+ * quando o método do controller é renomeado. Toda rota nova precisa de um
+ * (o teste de contrato reprova o sentinela de buildOpenApiDocument).
+ * `summary: undefined` evita o summary vazio que o ApiOperation põe por padrão.
+ */
+export function ApiOperationId(operationId: string): MethodDecorator {
+  return ApiOperation({ operationId, summary: undefined });
 }

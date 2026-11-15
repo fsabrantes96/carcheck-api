@@ -3,7 +3,7 @@
   "paths": {
     "/auth/register": {
       "post": {
-        "operationId": "AuthController_register",
+        "operationId": "registerUser",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -94,7 +94,7 @@
     },
     "/auth/login": {
       "post": {
-        "operationId": "AuthController_login",
+        "operationId": "login",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -185,7 +185,7 @@
     },
     "/auth/me": {
       "get": {
-        "operationId": "AuthController_me",
+        "operationId": "getCurrentUser",
         "parameters": [],
         "responses": {
           "200": {
@@ -241,7 +241,7 @@
     },
     "/inspectors": {
       "get": {
-        "operationId": "InspectorsController_findAll",
+        "operationId": "listInspectors",
         "parameters": [],
         "responses": {
           "200": {
@@ -285,7 +285,7 @@
     },
     "/inspectors/me": {
       "post": {
-        "operationId": "InspectorsController_create",
+        "operationId": "createMyInspectorProfile",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -389,7 +389,7 @@
         ]
       },
       "get": {
-        "operationId": "InspectorsController_findMine",
+        "operationId": "getMyInspectorProfile",
         "parameters": [],
         "responses": {
           "200": {
@@ -463,7 +463,7 @@
         ]
       },
       "patch": {
-        "operationId": "InspectorsController_update",
+        "operationId": "updateMyInspectorProfile",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -579,7 +579,7 @@
     },
     "/listings": {
       "get": {
-        "operationId": "ListingsController_findAll",
+        "operationId": "listListings",
         "parameters": [
           {
             "name": "page",
@@ -731,7 +731,7 @@
         ]
       },
       "post": {
-        "operationId": "ListingsController_create",
+        "operationId": "createListing",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -827,7 +827,7 @@
     },
     "/listings/mine": {
       "get": {
-        "operationId": "ListingsController_findMine",
+        "operationId": "listMyListings",
         "parameters": [
           {
             "name": "page",
@@ -916,7 +916,7 @@
     },
     "/listings/{id}": {
       "get": {
-        "operationId": "ListingsController_findOne",
+        "operationId": "getListing",
         "parameters": [
           {
             "name": "id",
@@ -985,7 +985,7 @@
         ]
       },
       "patch": {
-        "operationId": "ListingsController_update",
+        "operationId": "updateListing",
         "parameters": [
           {
             "name": "id",
@@ -1119,7 +1119,7 @@
         ]
       },
       "delete": {
-        "operationId": "ListingsController_remove",
+        "operationId": "archiveListing",
         "parameters": [
           {
             "name": "id",
@@ -1218,7 +1218,7 @@
     },
     "/listings/{id}/pause": {
       "post": {
-        "operationId": "ListingsController_pause",
+        "operationId": "pauseListing",
         "parameters": [
           {
             "name": "id",
@@ -1324,7 +1324,7 @@
     },
     "/listings/{id}/activate": {
       "post": {
-        "operationId": "ListingsController_activate",
+        "operationId": "activateListing",
         "parameters": [
           {
             "name": "id",
@@ -1430,7 +1430,7 @@
     },
     "/listings/{id}/mark-sold": {
       "post": {
-        "operationId": "ListingsController_markSold",
+        "operationId": "markListingSold",
         "parameters": [
           {
             "name": "id",
@@ -1536,7 +1536,7 @@
     },
     "/appointments": {
       "post": {
-        "operationId": "AppointmentsController_create",
+        "operationId": "createAppointment",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -1660,7 +1660,7 @@
         ]
       },
       "get": {
-        "operationId": "AppointmentsController_list",
+        "operationId": "listAppointments",
         "parameters": [
           {
             "name": "as",
@@ -1783,7 +1783,7 @@
     },
     "/appointments/{id}": {
       "get": {
-        "operationId": "AppointmentsController_findOne",
+        "operationId": "getAppointment",
         "parameters": [
           {
             "name": "id",
@@ -1887,7 +1887,7 @@
     },
     "/appointments/{id}/accept": {
       "post": {
-        "operationId": "AppointmentsController_accept",
+        "operationId": "acceptAppointment",
         "parameters": [
           {
             "name": "id",
@@ -1993,7 +1993,7 @@
     },
     "/appointments/{id}/decline": {
       "post": {
-        "operationId": "AppointmentsController_decline",
+        "operationId": "declineAppointment",
         "parameters": [
           {
             "name": "id",
@@ -2099,7 +2099,7 @@
     },
     "/appointments/{id}/confirm": {
       "post": {
-        "operationId": "AppointmentsController_confirm",
+        "operationId": "confirmAppointment",
         "parameters": [
           {
             "name": "id",
@@ -2235,7 +2235,7 @@
     },
     "/appointments/{id}/cancel": {
       "post": {
-        "operationId": "AppointmentsController_cancel",
+        "operationId": "cancelAppointment",
         "parameters": [
           {
             "name": "id",

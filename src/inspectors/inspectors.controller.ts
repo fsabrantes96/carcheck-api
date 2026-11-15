@@ -14,6 +14,7 @@ import { ErrorResponseDto } from '../common/dto/error-response.dto.js';
 import {
     ApiBodyErrorResponses,
     ApiCommonErrorResponses,
+    ApiOperationId,
     TRANSACTION_CONFLICT_DESCRIPTION,
     UNAUTHORIZED_DESCRIPTION,
     UNAUTHORIZED_OR_DELETED_ACCOUNT_DESCRIPTION,
@@ -40,12 +41,14 @@ export class InspectorsController {
 
 
     @Get()
+    @ApiOperationId('listInspectors')
     @ApiOkResponse({ type: InspectorResponseDto, isArray: true })
     findAll(): Promise<InspectorResponseDto[]> {
         return this.inspectors.findAllVerified();
     }
 
     @Post('me')
+    @ApiOperationId('createMyInspectorProfile')
     @UseGuards(JwtAuthGuard)
     @ApiBearerAuth()
     @ApiCreatedResponse({ type: InspectorResponseDto })
@@ -61,6 +64,7 @@ export class InspectorsController {
     }
 
     @Get('me')
+    @ApiOperationId('getMyInspectorProfile')
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles('INSPECTOR')
     @ApiBearerAuth()
@@ -73,6 +77,7 @@ export class InspectorsController {
     }
 
     @Patch('me')
+    @ApiOperationId('updateMyInspectorProfile')
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles('INSPECTOR')
     @ApiBearerAuth()
