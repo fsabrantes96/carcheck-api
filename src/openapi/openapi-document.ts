@@ -2,6 +2,7 @@ import type { INestApplication } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import type { OpenAPIObject } from '@nestjs/swagger';
 import {
+  APPOINTMENT_RESPONSE_MODELS,
   APPOINTMENT_RESPONSE_SCHEMA_NAME,
   appointmentResponseSchema,
 } from '../appointments/dto/appointment-response.dto.js';
@@ -20,6 +21,9 @@ export function buildOpenApiDocument(app: INestApplication): OpenAPIObject {
     .build();
   const document = SwaggerModule.createDocument(app, config, {
     operationIdFactory: missingOperationId,
+    // As variantes que a união referencia entram aqui também, para o documento
+    // não depender do @ApiExtraModels do controller.
+    extraModels: [...APPOINTMENT_RESPONSE_MODELS],
   });
   // Uniões (oneOf) não são classes, então o Nest não as registra como schema
   // nomeado: entram aqui e as rotas as referenciam por $ref.
