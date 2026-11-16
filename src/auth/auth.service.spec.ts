@@ -14,6 +14,8 @@ import { UserResponseDto } from './dto/user-response.dto.js';
 // bcrypt.hash é lento: o mock evita o custo nos testes. Mock de pacote de
 // node_modules depende do root canônico do vitest.config.ts (no Windows, com o
 // cwd em c:\ minúsculo, ele deixava de valer); a trava no beforeAll confere.
+// vi.spyOn não serve no lugar do vi.mock: o spy não alcança o import do
+// bcrypt feito pelo service.
 vi.mock('bcrypt', () => ({
   hash: vi.fn().mockResolvedValue('hash-falso'),
   // hashSync roda na importação do service (hash fixo do login): devolve
@@ -37,15 +39,6 @@ const dto = {
 };
 
 describe('AuthService', () => {
-  // Trava: sem o mock, os testes de register rodariam o bcrypt real em
-  // silêncio e os de login quebrariam com um erro que não aponta a causa.
-  beforeAll(() => {
-    const message =
-      "o vi.mock('bcrypt') não foi aplicado; veja o root no vitest.config.ts";
-    expect(vi.isMockFunction(bcrypt.hash), message).toBe(true);
-    expect(vi.isMockFunction(bcrypt.compare), message).toBe(true);
-  });
-
   let prisma: {
     user: {
       findUnique: ReturnType<typeof vi.fn>;
@@ -53,6 +46,15 @@ describe('AuthService', () => {
     };
   };
   let service: AuthService;
+
+  // Trava: sem o mock, os testes de register rodariam o bcrypt real em
+  // silêncio e os de login quebrariam com um erro que não aponta a causa.
+  beforeAll(() => {
+    const message =
+      "o vi.mock('bcrypt') não foi aplicado; veja o root no vitest.config.ts e 'Windows and the drive letter' no CLAUDE.md";
+    expect(vi.isMockFunction(bcrypt.hash), message).toBe(true);
+    expect(vi.isMockFunction(bcrypt.compare), message).toBe(true);
+  });
 
   beforeEach(() => {
     prisma = { user: { findUnique: vi.fn(), create: vi.fn() } };

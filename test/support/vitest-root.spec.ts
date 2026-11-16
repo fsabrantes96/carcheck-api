@@ -10,7 +10,7 @@ function slash(path: string): string {
 describe('root do Vitest', () => {
   it('resolve os arquivos de teste pela grafia canônica do caminho (realpath)', () => {
     const testPath = expect.getState().testPath;
-    expect(testPath).toBeDefined();
+    expect(testPath, 'expect.getState().testPath veio vazio').toBeDefined();
 
     expect(slash(testPath!)).toBe(slash(realpathSync.native(testPath!)));
   });

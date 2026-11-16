@@ -7,7 +7,9 @@ export default defineConfig({
   test: {
     globals: true,
     // Grafia canônica do cwd, pelo mesmo motivo do vitest.config.ts: sem
-    // ela, vi.mock de pacote falha quando o cwd vem com c: minúsculo.
+    // ela, vi.mock de pacote falha quando o cwd vem com c: minúsculo. As
+    // travas (vitest-root.spec.ts e o beforeAll do auth.service.spec.ts) só
+    // rodam nos unitários; aqui nada acusa uma volta para root: './'.
     root: realpathSync.native(process.cwd()),
     include: ['test/**/*.e2e-spec.ts'],
     globalSetup: ['./test/support/global-setup.ts'],
