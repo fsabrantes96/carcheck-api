@@ -1,3 +1,4 @@
+import { realpathSync } from 'node:fs';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
@@ -6,7 +7,11 @@ export default defineConfig({
   resolve: { tsconfigPaths: true },
   test: {
     globals: true,
-    root: './',
+    // Grafia canônica (realpath) do cwd: o resolvedor do Vite usa o realpath
+    // para os pacotes de node_modules e o mocker compara o id exato. Com
+    // root: './' e o cwd em c: minúsculo (Windows), vi.mock de pacote falha.
+    root: realpathSync.native(process.cwd()),
     include: ['**/*.spec.ts'],
+    setupFiles: ['./test/support/preload-nest.ts'],
   },
 });
