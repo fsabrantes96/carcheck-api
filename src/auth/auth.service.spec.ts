@@ -37,6 +37,15 @@ const dto = {
 };
 
 describe('AuthService', () => {
+  // Trava: sem o mock, os testes de register rodariam o bcrypt real em
+  // silêncio e os de login quebrariam com um erro que não aponta a causa.
+  beforeAll(() => {
+    const message =
+      "o vi.mock('bcrypt') não foi aplicado; veja o root no vitest.config.ts";
+    expect(vi.isMockFunction(bcrypt.hash), message).toBe(true);
+    expect(vi.isMockFunction(bcrypt.compare), message).toBe(true);
+  });
+
   let prisma: {
     user: {
       findUnique: ReturnType<typeof vi.fn>;
