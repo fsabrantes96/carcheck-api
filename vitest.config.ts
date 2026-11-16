@@ -12,5 +12,6 @@ export default defineConfig({
     // root: './' e o cwd em c: minúsculo (Windows), vi.mock de pacote falha.
     root: realpathSync.native(process.cwd()),
     include: ['**/*.spec.ts'],
+    setupFiles: ['./test/support/preload-nest.ts'],
   },
 });
