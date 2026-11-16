@@ -11,9 +11,9 @@ import { AuthService } from './auth.service.js';
 import { CurrentUserResponseDto } from './dto/current-user-response.dto.js';
 import { UserResponseDto } from './dto/user-response.dto.js';
 
-// bcrypt.hash é lento: o mock evita o custo nos testes. No Windows, quando o
-// cwd usa a letra do drive em minúsculo (c:\...), o Vitest não aplica o mock
-// de pacotes de node_modules; por isso as asserções não dependem do valor dele.
+// bcrypt.hash é lento: o mock evita o custo nos testes. Mock de pacote de
+// node_modules depende do root canônico do vitest.config.ts (no Windows, com o
+// cwd em c:\ minúsculo, ele deixava de valer); a trava no beforeAll confere.
 vi.mock('bcrypt', () => ({
   hash: vi.fn().mockResolvedValue('hash-falso'),
   // hashSync roda na importação do service (hash fixo do login): devolve
@@ -149,9 +149,7 @@ describe('AuthService', () => {
     });
   });
 
-  // Estes casos dependem do vi.mock('bcrypt') acima. No Windows, rode o
-  // Vitest com o cwd em maiúsculo (cd "C:/dev/carcheck-api"); com c:\ o mock
-  // não é aplicado e o vi.spyOn não alcança o import do service.
+  // Estes casos dependem do vi.mock('bcrypt') acima (conferido no beforeAll).
   describe('login', () => {
     const loginDto = { email: 'maria@x.com', password: 'senha12345' };
     const user = {

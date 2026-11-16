@@ -1,3 +1,4 @@
+import { realpathSync } from 'node:fs';
 import { defineConfig } from 'vitest/config';
 import { e2eDatabaseUrl } from './test/support/test-database.js';
 
@@ -5,7 +6,9 @@ export default defineConfig({
   resolve: { tsconfigPaths: true },
   test: {
     globals: true,
-    root: './',
+    // Grafia canônica do cwd, pelo mesmo motivo do vitest.config.ts: sem
+    // ela, vi.mock de pacote falha quando o cwd vem com c: minúsculo.
+    root: realpathSync.native(process.cwd()),
     include: ['test/**/*.e2e-spec.ts'],
     globalSetup: ['./test/support/global-setup.ts'],
     // Sem segredos reais: valores só para os testes. Sobrescrevem o .env.
