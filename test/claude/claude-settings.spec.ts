@@ -93,6 +93,13 @@ const NEW_DENY = [
   'gh auth status *--show-token*',
   'git push *refs/*',
   'git push * :',
+  'gh auth -*',
+  'git remote * add *',
+  'git remote * set-url*',
+  'git remote * rename*',
+  'git push * : *',
+  'gh auth status -*',
+  'gh auth status * -*',
 ];
 
 // Regras que saem do ask (o deny passa a cobri-las).
@@ -136,6 +143,9 @@ const EDIT_DENY = [
   'Edit(/.mcp.json)',
   'Edit(~/AppData/Roaming/Code/User/settings.json)',
   'Edit(//c/ProgramData/Git/**)',
+  'Edit(/.vscode/**)',
+  'Edit(~/AppData/Roaming/Code/User/profiles/**)',
+  'Edit(~/.claude/plugins/**)',
 ];
 
 const MUST_BE_DENIED = [
@@ -189,6 +199,22 @@ const MUST_BE_DENIED = [
   "git push origin 'refs/*'",
   "git push origin 'refs/heads/*'",
   'git push origin :',
+  // Flag antes do subcomando de gh auth e de git remote.
+  'gh auth --help=false token',
+  'gh auth --help=false status -t',
+  'gh auth --help=false login',
+  'git remote -v add --mirror=push espelho https://example.com/x.git',
+  'git remote --verbose set-url --push origin https://example.com/x.git',
+  // Push "matching" com o dois-pontos no meio e flags curtas combinadas.
+  'git push origin : chore/x',
+  'gh auth status -at',
+];
+
+// Leituras que não podem cair no deny.
+const MUST_NOT_BE_DENIED = [
+  'gh auth status',
+  'git remote -v',
+  'git remote get-url origin',
 ];
 
 // Um nome realista por tipo de branch, inclusive com "main" e "tag" no nome.
@@ -324,6 +350,17 @@ describe('settings.json do Claude Code', () => {
         expect(
           MUST_BE_DENIED.filter(
             (command) => matching(deny, shell, command).length === 0,
+          ),
+        ).toEqual([]);
+      },
+    );
+
+    it.each(SHELLS)(
+      'em %s, gh auth status puro, git remote -v e git remote get-url não casam com nenhum deny',
+      (shell) => {
+        expect(
+          MUST_NOT_BE_DENIED.filter(
+            (command) => matching(deny, shell, command).length > 0,
           ),
         ).toEqual([]);
       },
