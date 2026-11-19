@@ -12,9 +12,9 @@ allowed-tools:
   - 'Bash(npm test)'
   - 'Bash(npm run test:e2e)'
   - 'Bash(docker ps --filter "publish=5432" --format "{{.Names}} {{.Image}} {{.Status}}")'
-  - 'Bash(git diff -w main...HEAD -- "*.spec.ts" "*.e2e-spec.ts")'
-  - 'Bash(git diff --name-only main...HEAD)'
-  - 'Bash(git diff main...HEAD)'
+  - 'Bash(git diff --no-ext-diff --no-textconv -w main...HEAD -- "*.spec.ts" "*.e2e-spec.ts")'
+  - 'Bash(git diff --no-ext-diff --no-textconv --name-only main...HEAD)'
+  - 'Bash(git diff --no-ext-diff --no-textconv main...HEAD)'
   - 'Bash(git log --oneline main..HEAD)'
   - 'Bash(git grep -c "it(" main -- "*.spec.ts" "*.e2e-spec.ts")'
   - 'Bash(git grep -c "it(" -- "*.spec.ts" "*.e2e-spec.ts")'
@@ -28,9 +28,9 @@ allowed-tools:
   - 'PowerShell(npm test)'
   - 'PowerShell(npm run test:e2e)'
   - 'PowerShell(docker ps --filter "publish=5432" --format "{{.Names}} {{.Image}} {{.Status}}")'
-  - 'PowerShell(git diff -w main...HEAD -- "*.spec.ts" "*.e2e-spec.ts")'
-  - 'PowerShell(git diff --name-only main...HEAD)'
-  - 'PowerShell(git diff main...HEAD)'
+  - 'PowerShell(git diff --no-ext-diff --no-textconv -w main...HEAD -- "*.spec.ts" "*.e2e-spec.ts")'
+  - 'PowerShell(git diff --no-ext-diff --no-textconv --name-only main...HEAD)'
+  - 'PowerShell(git diff --no-ext-diff --no-textconv main...HEAD)'
   - 'PowerShell(git log --oneline main..HEAD)'
   - 'PowerShell(git grep -c "it(" main -- "*.spec.ts" "*.e2e-spec.ts")'
   - 'PowerShell(git grep -c "it(" -- "*.spec.ts" "*.e2e-spec.ts")'
@@ -41,7 +41,7 @@ allowed-tools:
 
 Esta skill é a **única exceção** à regra do `CLAUDE.md` de que o agente nunca altera o remoto. Ela só vale quando o usuário digita `/ship-pr`. Fora dela, a regra geral continua valendo: o agente não sugere esta skill no meio de outra tarefa e não faz push por conta própria.
 
-O `allowed-tools` acima lista só os comandos de leitura e de verificação que os passos abaixo rodam, escritos por extenso, para não aceitar opções que executam programas ou gravam arquivos (`git grep -O`, `git diff --output`, `npm test -- -u`). Na sintaxe de permissão do Claude Code, todo `*` é curinga, inclusive dentro de aspas: as regras deste bloco que têm `*` (nome de branch, padrão de arquivo como `"*.spec.ts"`) aceitam qualquer texto naquela posição. Não acrescente regras com `*` sem necessidade e prefira pôr o `*` depois de um `--`, onde o git trata o resto como caminho: isso evita opções do git nessa posição, mas não substituição de comando (`"$(...)"`), que não foi testada. Se precisar de outra forma de um comando, o Claude Code pede permissão no modo padrão (no modo auto, não). `git push` e `gh pr create` ficam de fora de propósito: o `.claude/settings.json` tem regras `ask` para eles, então o Claude Code pede permissão na hora, como segunda trava, no modo padrão; no modo auto as regras `ask` são aprovadas sem perguntar, por isso esta skill deve rodar no modo padrão. A liberação do `allowed-tools` vale só no turno em que o usuário digita `/ship-pr`; o passo 7, que roda depois da aprovação, segue as regras do `.claude/settings.json` e o modo de permissão.
+O `allowed-tools` acima lista só os comandos de leitura e de verificação que os passos abaixo rodam, escritos por extenso, para não aceitar opções que executam programas ou gravam arquivos (`git grep -O`, `git diff --output`, `npm test -- -u`). Os `git diff` levam `--no-ext-diff --no-textconv` para não executar um diff externo nem um textconv configurado no repositório. Na sintaxe de permissão do Claude Code, todo `*` é curinga, inclusive dentro de aspas: as regras deste bloco que têm `*` (nome de branch, padrão de arquivo como `"*.spec.ts"`) aceitam qualquer texto naquela posição. Não acrescente regras com `*` sem necessidade e prefira pôr o `*` depois de um `--`, onde o git trata o resto como caminho: isso evita opções do git nessa posição, mas não substituição de comando (`"$(...)"`), que não foi testada. Se precisar de outra forma de um comando, o Claude Code pede permissão no modo padrão (no modo auto, não). `git push` e `gh pr create` ficam de fora de propósito: o `.claude/settings.json` tem regras `ask` para eles, então o Claude Code pede permissão na hora, como segunda trava, no modo padrão; no modo auto as regras `ask` foram aprovadas sem perguntar (observado em 2026-11-15; a documentação diz o contrário), por isso esta skill deve rodar no modo padrão. A liberação do `allowed-tools` vale só no turno em que o usuário digita `/ship-pr`; o passo 7, que roda depois da aprovação, segue as regras do `.claude/settings.json` e o modo de permissão.
 
 ## Proibido nesta skill
 
@@ -106,7 +106,7 @@ Mostre os números de cada etapa: avisos e erros do lint, erros do typecheck, ar
 ### 4. Testes removidos
 
 ```powershell
-git diff -w main...HEAD -- "*.spec.ts" "*.e2e-spec.ts"
+git diff --no-ext-diff --no-textconv -w main...HEAD -- "*.spec.ts" "*.e2e-spec.ts"
 ```
 
 Liste todas as linhas removidas (começam com `-`, sem contar os cabeçalhos `---`), com o arquivo de cada uma. As únicas remoções aceitas sem parar são linhas de `import` (e as linhas em branco que vêm junto). Se houver **qualquer outra remoção** (um `it`, um `expect`, uma linha de setup, um teste trocado por `it.skip`), PARE e mostre as linhas ao usuário. Ele decide se a remoção é legítima.
@@ -114,7 +114,7 @@ Liste todas as linhas removidas (começam com `-`, sem contar os cabeçalhos `--
 ### 5. Arquivos sensíveis
 
 ```powershell
-git diff --name-only main...HEAD
+git diff --no-ext-diff --no-textconv --name-only main...HEAD
 ```
 
 Nenhum arquivo da lista pode ser sensível. PARE se aparecer:
@@ -127,7 +127,7 @@ Se um nome parecer suspeito e não estiver nesta lista, pergunte ao usuário ant
 
 ### 6. Título e descrição: ESPERE a aprovação
 
-Leia `git log --oneline main..HEAD`, o diff e o `docs/audit.md`, e proponha:
+Leia `git log --oneline main..HEAD`, o diff (`git diff --no-ext-diff --no-textconv main...HEAD`) e o `docs/audit.md`, e proponha:
 
 - **Título** em Conventional Commits pt-BR com escopo (`feat(appointments): ...`), porque ele vira a mensagem do commit do squash.
 - **Descrição** seguindo `.github/pull_request_template.md` ("O que mudou", "Como testar", "Checklist"), contendo também:
