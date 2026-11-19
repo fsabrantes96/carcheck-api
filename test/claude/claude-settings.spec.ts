@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 // Especificação do .claude/settings.json e do allowed-tools da skill ship-pr
 // (risco 57 do docs/audit.md).
@@ -12,8 +12,8 @@ import { resolve } from 'node:path';
 // atribuições de variável no início etc.) e NÃO substitui o teste manual das
 // regras numa sessão nova, no modo padrão e no modo auto.
 //
-// CLAUDE_SETTINGS_FILE aponta para outro arquivo de settings (por exemplo,
-// uma cópia temporária com mudanças propostas); sem ela, vale o versionado.
+// O spec é uma trava: lê sempre os arquivos versionados, pelo caminho relativo
+// a este arquivo, sem variável nem opção que aponte para outro.
 
 type Shell = 'Bash' | 'PowerShell';
 const SHELLS: Shell[] = ['Bash', 'PowerShell'];
@@ -22,13 +22,16 @@ interface Settings {
   permissions: { allow?: string[]; deny: string[]; ask: string[] };
 }
 
-const settingsPath = resolve(
-  process.env.CLAUDE_SETTINGS_FILE ?? '.claude/settings.json',
-);
-const settings = JSON.parse(readFileSync(settingsPath, 'utf8')) as Settings;
+const repoFile = (path: string): string =>
+  readFileSync(
+    fileURLToPath(new URL(`../../${path}`, import.meta.url)),
+    'utf8',
+  );
+
+const settings = JSON.parse(repoFile('.claude/settings.json')) as Settings;
 const { deny, ask } = settings.permissions;
 
-const skill = readFileSync(resolve('.claude/skills/ship-pr/SKILL.md'), 'utf8');
+const skill = repoFile('.claude/skills/ship-pr/SKILL.md');
 
 const RULE = /^(Bash|PowerShell)\((.*)\)$/s;
 
