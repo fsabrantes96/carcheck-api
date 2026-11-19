@@ -10,10 +10,14 @@ import { fileURLToPath } from 'node:url';
 // comando sem nada depois; Bash diferencia maiúsculas, PowerShell não). Ele
 // NÃO é o matcher do Claude Code (que também separa subcomandos, ignora
 // atribuições de variável no início etc.) e NÃO substitui o teste manual das
-// regras numa sessão nova, no modo padrão e no modo auto.
+// regras numa sessão nova, no modo padrão e no modo auto. Os testes de
+// maiúsculas descrevem o matcher, não o Claude Code: no Claude Code, `GIT` e
+// `GIT.EXE` no Bash continuam sem cobertura (risco 57).
 //
 // O spec é uma trava: lê sempre os arquivos versionados, pelo caminho relativo
-// a este arquivo, sem variável nem opção que aponte para outro.
+// a este arquivo, sem variável nem opção que aponte para outro. Ele lê a cópia
+// de trabalho (uma edição não commitada é o que vai ser testado) e não
+// considera o .claude/settings.local.json, que também afeta as permissões.
 
 type Shell = 'Bash' | 'PowerShell';
 const SHELLS: Shell[] = ['Bash', 'PowerShell'];
@@ -21,6 +25,9 @@ const SHELLS: Shell[] = ['Bash', 'PowerShell'];
 interface Settings {
   permissions: { allow?: string[]; deny: string[]; ask: string[] };
 }
+
+// Entradas do allowed-tools da ship-pr, por shell.
+const ALLOWED_TOOLS_PER_SHELL = 16;
 
 const repoFile = (path: string): string =>
   readFileSync(
@@ -72,6 +79,20 @@ const NEW_DENY = [
   'git -*',
   'git.exe*',
   'gh.exe*',
+  'gh -*',
+  'git remote add*',
+  'git remote set-url*',
+  'git remote rename*',
+  'git credential*',
+  'git-credential*',
+  'gh auth git-credential*',
+  'gh auth login*',
+  'gh auth switch*',
+  'gh config*',
+  'gh auth status *-t*',
+  'gh auth status *--show-token*',
+  'git push *refs/*',
+  'git push * :',
 ];
 
 // Regras que saem do ask (o deny passa a cobri-las).
@@ -106,6 +127,15 @@ const EDIT_DENY = [
   'Edit(~/.config/git/**)',
   'Edit(~/.config/gh/**)',
   'Edit(~/AppData/Roaming/GitHub CLI/**)',
+  'Edit(~/.claude/settings*.json)',
+  'Edit(~/.claude.json)',
+  'Edit(~/.claude/CLAUDE.md)',
+  'Edit(~/.claude/skills/**)',
+  'Edit(~/.claude/agents/**)',
+  'Edit(~/.claude/commands/**)',
+  'Edit(/.mcp.json)',
+  'Edit(~/AppData/Roaming/Code/User/settings.json)',
+  'Edit(//c/ProgramData/Git/**)',
 ];
 
 const MUST_BE_DENIED = [
@@ -128,28 +158,82 @@ const MUST_BE_DENIED = [
   'git --git-dir=.git push origin chore/x',
   'git.exe push origin chore/x',
   'gh.exe pr merge 1',
+  // Famílias que já estavam no deny.
+  'git push --force',
+  'git push origin +chore/x',
+  'git push origin HEAD:main',
+  'git push origin "HEAD:main"',
+  'gh pr merge 1',
+  'gh pr -R dono/repo merge 1',
+  'gh api -X PUT repos/dono/repo/pulls/1/merge',
+  'gh auth token',
+  'git diff --output=x main',
+  'git grep -O padrao',
+  // gh com flag antes do subcomando.
+  'gh -R dono/repo pr merge 1',
+  'gh --help=false api -X PUT repos/dono/repo/pulls/1/merge',
+  // Remoto que embrulha ou desvia o push.
+  'git remote add --mirror=push espelho https://example.com/x.git',
+  'git remote set-url --push origin https://example.com/x.git',
+  'git remote rename origin x',
+  // Credenciais e configuração do gh.
+  'git credential fill',
+  'git-credential-manager get',
+  'gh auth git-credential get',
+  'gh auth login --with-token',
+  'gh auth switch',
+  'gh config set editor x',
+  'gh auth status --show-token',
+  'gh auth status --hostname github.com -t',
+  // Refspecs curinga e push "matching".
+  "git push origin 'refs/*'",
+  "git push origin 'refs/heads/*'",
+  'git push origin :',
 ];
 
-const MUST_ASK = [
-  'git push -u origin chore/x',
-  'gh pr create --base main --head chore/x --title "t" --body-file f.md',
+// Um nome realista por tipo de branch, inclusive com "main" e "tag" no nome.
+const BRANCHES = [
+  'feat/cadastro-veiculo',
+  'fix/main-menu',
+  'chore/permissoes-git',
+  'test/tag-filtro',
+  'docs/readme',
 ];
 
-function allowedTools(shell: Shell): string[] {
+const MUST_ASK = BRANCHES.flatMap((branch) => [
+  `git push -u origin ${branch}`,
+  `gh pr create --base main --head ${branch} --title "t" --body-file f.md`,
+]);
+
+function allowedToolsBlock(): string[] {
   const frontmatter = skill.split(/^---$/m)[1];
-  return [...frontmatter.matchAll(/^ {2}- '(Bash|PowerShell)\((.*)\)'$/gm)]
-    .filter((match) => match[1] === shell)
-    .map((match) => match[2]);
+  const block = frontmatter.split(/^allowed-tools:\s*$/m)[1] ?? '';
+  const lines = block.split('\n');
+  const end = lines.findIndex((line, index) => index > 0 && /^\S/.test(line));
+  return (end === -1 ? lines : lines.slice(0, end)).filter(
+    (line) => line.trim() !== '',
+  );
 }
 
+const ALLOWED_TOOL_LINE = /^ {2}- '(Bash|PowerShell)\((.*)\)'$/;
+
+function allowedTools(shell: Shell): string[] {
+  return allowedToolsBlock().flatMap((line) => {
+    const match = ALLOWED_TOOL_LINE.exec(line);
+    return match && match[1] === shell ? [match[2]] : [];
+  });
+}
+
+const FENCE = /^\s*```[^\n]*\n([\s\S]*?)^\s*```/gm;
+
 function codeBlockLines(): string[] {
-  return [...skill.matchAll(/^\s*```\w*\n([\s\S]*?)^\s*```/gm)].flatMap(
-    (block) => block[1].split('\n').map((line) => line.trim()),
+  return [...skill.matchAll(FENCE)].flatMap((block) =>
+    block[1].split('\n').map((line) => line.trim()),
   );
 }
 
 function inlineCode(): string[] {
-  const withoutBlocks = skill.replace(/^\s*```\w*\n[\s\S]*?^\s*```/gm, '');
+  const withoutBlocks = skill.replace(FENCE, '');
   return [...withoutBlocks.matchAll(/`([^`\n]+)`/g)].map((match) => match[1]);
 }
 
@@ -159,6 +243,13 @@ const isDiffOfMain = (command: string): boolean =>
 describe('settings.json do Claude Code', () => {
   it('não tem regras allow', () => {
     expect(settings.permissions.allow).toBeUndefined();
+  });
+
+  it('só tem a chave permissions no topo (além de um $schema opcional), com deny e ask', () => {
+    expect(Object.keys(settings).filter((key) => key !== '$schema')).toEqual([
+      'permissions',
+    ]);
+    expect(Object.keys(settings.permissions).sort()).toEqual(['ask', 'deny']);
   });
 
   it('nenhuma regra termina em :*', () => {
@@ -238,10 +329,15 @@ describe('settings.json do Claude Code', () => {
       },
     );
 
-    it('em PowerShell, o deny não diferencia maiúsculas (GIT CONFIG)', () => {
+    it('o matcher aproximado trata o PowerShell sem diferenciar maiúsculas (GIT CONFIG casa com o deny)', () => {
       expect(matching(deny, 'PowerShell', 'GIT CONFIG user.name')).not.toEqual(
         [],
       );
+    });
+
+    it('o matcher aproximado diferencia maiúsculas no Bash: GIT CONFIG e GIT.EXE não casam com nenhum deny (lacuna do risco 57)', () => {
+      expect(matching(deny, 'Bash', 'GIT CONFIG user.name')).toEqual([]);
+      expect(matching(deny, 'Bash', 'GIT.EXE push origin chore/x')).toEqual([]);
     });
 
     it.each(SHELLS)(
@@ -260,7 +356,54 @@ describe('settings.json do Claude Code', () => {
   });
 });
 
+describe('auto-teste do matcher aproximado (não é o matcher do Claude Code)', () => {
+  it.each<[string, string, Shell, boolean]>([
+    ['git push *', 'git push', 'Bash', true],
+    ['git push *', 'git push origin x', 'Bash', true],
+    ['git push *', 'git pushx', 'Bash', false],
+    ['ls*', 'lsof', 'Bash', true],
+    ['git push * -d *', 'git push origin -d', 'Bash', false],
+    ['git config*', 'GIT CONFIG x', 'Bash', false],
+    ['git config*', 'GIT CONFIG x', 'PowerShell', true],
+    ['a.b+c(d)*', 'a.b+c(d) x', 'Bash', true],
+    ['a.b+c(d)*', 'aXb+c(d) x', 'Bash', false],
+  ])(
+    'a regra %j contra %j em %s casa: %s',
+    (pattern, command, shell, expected) => {
+      expect(toRegExp(pattern, shell).test(command)).toBe(expected);
+    },
+  );
+});
+
 describe('allowed-tools e comandos da skill ship-pr', () => {
+  it('toda linha do allowed-tools é uma regra reconhecida, entre aspas simples e com dois espaços de recuo', () => {
+    expect(
+      allowedToolsBlock().filter((line) => !ALLOWED_TOOL_LINE.test(line)),
+    ).toEqual([]);
+  });
+
+  it.each(SHELLS)('tem %s entradas no allowed-tools de cada shell', (shell) => {
+    expect(allowedTools(shell)).toHaveLength(ALLOWED_TOOLS_PER_SHELL);
+  });
+
+  it('nenhuma regra do allowed-tools termina em :*', () => {
+    expect(
+      [...allowedTools('Bash'), ...allowedTools('PowerShell')].filter(
+        (pattern) => pattern.endsWith(':*'),
+      ),
+    ).toEqual([]);
+  });
+
+  it('todo * do allowed-tools vem depois de um -- ou é o nome da branch do gh pr view', () => {
+    const misplaced = allowedTools('Bash').filter((pattern) => {
+      if (!pattern.includes('*')) return false;
+      if (pattern === 'gh pr view * --json url') return false;
+      const separator = pattern.indexOf(' -- ');
+      return separator === -1 || pattern.indexOf('*') < separator;
+    });
+    expect(misplaced).toEqual([]);
+  });
+
   it('lista os mesmos comandos em Bash e em PowerShell', () => {
     expect(allowedTools('Bash')).toEqual(allowedTools('PowerShell'));
   });
@@ -297,6 +440,7 @@ describe('allowed-tools e comandos da skill ship-pr', () => {
 
   it('todo git diff contra a main no código inline usa --no-ext-diff --no-textconv', () => {
     const diffs = inlineCode().filter(isDiffOfMain);
+    expect(diffs).toHaveLength(1);
     expect(
       diffs.filter(
         (command) =>
@@ -312,11 +456,29 @@ describe('allowed-tools e comandos da skill ship-pr', () => {
     );
   });
 
-  it('todo comando dos blocos de código que lê o repositório está no allowed-tools', () => {
-    const allowed = allowedTools('PowerShell');
-    const reads = codeBlockLines().filter((line) =>
-      /^git (diff|status|branch|log|grep|rev-parse)\b/.test(line),
+  it.each(SHELLS)(
+    'todo comando dos blocos de código, exceto git push e gh pr create, está no allowed-tools de %s',
+    (shell) => {
+      const allowed = allowedTools(shell);
+      const commands = codeBlockLines().filter(
+        (line) =>
+          line !== '' &&
+          !line.startsWith('git push') &&
+          !line.startsWith('gh pr create'),
+      );
+      expect(commands.length).toBeGreaterThan(0);
+      expect(commands.filter((command) => !allowed.includes(command))).toEqual(
+        [],
+      );
+    },
+  );
+
+  it('não afirma como fato que o ask é aprovado sem perguntar no modo auto', () => {
+    expect(skill).toContain(
+      'observado em 2026-11-15; a documentação diz o contrário',
     );
-    expect(reads.filter((command) => !allowed.includes(command))).toEqual([]);
+    expect(skill).not.toContain(
+      'no modo auto as regras `ask` são aprovadas sem perguntar',
+    );
   });
 });
