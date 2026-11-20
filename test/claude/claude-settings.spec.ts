@@ -32,7 +32,8 @@ interface Settings {
 // SHA256 do .claude/settings.json, com \r\n trocado por \n, em maiúsculas como
 // o (Get-FileHash .claude/settings.json).Hash. O arquivo precisa ser idêntico
 // no carcheck-api e no carcheck-web: mudou o settings, atualize esta constante
-// nos dois repositórios.
+// nos dois repositórios. Este spec só trava a constante deste repositório; a
+// igualdade com o carcheck-web é conferida à mão, com o Get-FileHash nos dois.
 const SETTINGS_SHA256 =
   'EEABAE62242DEFDABD8E4AC41B2E92B0935043EE5E9F8531DF1A089359EF535C';
 
@@ -159,7 +160,8 @@ const HARDENED_DENY = [
   'gh auth status * -*',
 ];
 
-// Regras que só podem estar no deny, nunca no ask.
+// Regras que o deny já cobre (algumas não literalmente, por exemplo via
+// `git -*`) e que não podem voltar ao ask.
 const FORBIDDEN_IN_ASK = [
   'git -c *',
   'git -C * push*',
@@ -352,7 +354,7 @@ function hasDiffFlags(command: string): boolean {
 const INLINE_PROSE_MENTIONS = ['git diff', 'git diff --output'];
 
 describe('settings.json do Claude Code', () => {
-  it('tem o SHA256 fixado em SETTINGS_SHA256 (o mesmo do carcheck-web)', () => {
+  it('tem o SHA256 fixado em SETTINGS_SHA256 (constante deste repositório; a igualdade com o carcheck-web é conferida à mão)', () => {
     expect(
       createHash('sha256').update(settingsText).digest('hex').toUpperCase(),
     ).toBe(SETTINGS_SHA256);
@@ -411,7 +413,7 @@ describe('settings.json do Claude Code', () => {
     }
   });
 
-  it('não tem no ask as regras que só podem estar no deny', () => {
+  it('não tem no ask as regras que o deny já cobre', () => {
     for (const shell of SHELLS) {
       const asked = shellRules(ask, shell);
       expect(
@@ -685,7 +687,7 @@ describe('allowed-tools e comandos da skill ship-pr', () => {
     },
   );
 
-  it('descreve o modo auto como no front: aprovado sem perguntar em 2026-11-15, pediu permissão em 2026-11-19, por isso roda no modo padrão', () => {
+  it('descreve o modo auto com as âncoras da frase do front (conferida à mão): aprovado sem perguntar em 2026-11-15, pediu permissão em 2026-11-19, por isso roda no modo padrão', () => {
     for (const anchor of [
       'em 2026-11-15, as regras `ask` foram aprovadas sem perguntar no modo auto',
       'no teste de 2026-11-19',
