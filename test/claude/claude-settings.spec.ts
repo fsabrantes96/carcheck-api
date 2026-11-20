@@ -64,6 +64,17 @@ const SHIP_PR_FRONTMATTER_KEYS = [
   'name',
 ];
 
+// SHA256 do frontmatter da ship-pr (o texto entre o --- da primeira linha e o
+// --- de fechamento, sem eles), com \r\n trocado por \n, em maiúsculas. Fecha
+// o que o parse por regex não vê (comentário na coluna 0 no meio do
+// allowed-tools, chave entre aspas). É própria deste repositório: o
+// allowed-tools da ship-pr do carcheck-web é outro, então o hash também.
+const SHIP_PR_FRONTMATTER_SHA256 =
+  'E0D0F1535A0C23B10D94125090363F7D39B93516B678F9FC59C246D7E6EC873C';
+
+// Frontmatter: abre na primeira linha e fecha com uma linha que é só ---.
+const FRONTMATTER = /^---\n([\s\S]*?)\n---\n/;
+
 const repoFile = (path: string): string =>
   readFileSync(
     fileURLToPath(new URL(`../../${path}`, import.meta.url)),
@@ -75,6 +86,16 @@ const settings = JSON.parse(settingsText) as Settings;
 const { deny, ask } = settings.permissions;
 
 const skill = repoFile('.claude/skills/ship-pr/SKILL.md');
+
+// Devolve o frontmatter da ship-pr; sem o --- de fechamento, lança erro, e
+// todo teste que depende dele falha.
+function frontmatter(): string {
+  const match = FRONTMATTER.exec(skill);
+  if (match === null) {
+    throw new Error('SKILL.md da ship-pr sem frontmatter fechado por ---');
+  }
+  return match[1];
+}
 
 const RULE = /^(Bash|PowerShell)\((.*)\)$/s;
 
@@ -269,8 +290,7 @@ const MUST_ASK = BRANCHES.flatMap((branch) => [
 ]);
 
 function allowedToolsBlock(): string[] {
-  const frontmatter = skill.split(/^---$/m)[1];
-  const block = frontmatter.split(/^allowed-tools:\s*$/m)[1] ?? '';
+  const block = frontmatter().split(/^allowed-tools:\s*$/m)[1] ?? '';
   const lines = block.split('\n');
   const end = lines.findIndex((line, index) => index > 0 && /^\S/.test(line));
   return (end === -1 ? lines : lines.slice(0, end)).filter(
@@ -565,17 +585,25 @@ describe('allowed-tools e comandos da skill ship-pr', () => {
     },
   );
 
-  it('o frontmatter abre na primeira linha e tem só as chaves esperadas, cada uma uma vez', () => {
-    expect(skill.startsWith('---\n')).toBe(true);
-    const keys = skill
-      .split(/^---$/m)[1]
+  it('o frontmatter abre na primeira linha e fecha com uma linha ---', () => {
+    expect(FRONTMATTER.exec(skill)).not.toBeNull();
+  });
+
+  it('o frontmatter tem o SHA256 fixado em SHIP_PR_FRONTMATTER_SHA256', () => {
+    expect(
+      createHash('sha256').update(frontmatter()).digest('hex').toUpperCase(),
+    ).toBe(SHIP_PR_FRONTMATTER_SHA256);
+  });
+
+  it('o frontmatter tem só as chaves esperadas, cada uma uma vez', () => {
+    const keys = frontmatter()
       .split('\n')
       .flatMap((line) => /^([A-Za-z][\w-]*):/.exec(line)?.[1] ?? []);
     expect(keys.sort()).toEqual(SHIP_PR_FRONTMATTER_KEYS);
   });
 
   it('o frontmatter tem disable-model-invocation: true', () => {
-    expect(skill.split(/^---$/m)[1].split('\n')).toContain(
+    expect(frontmatter().split('\n')).toContain(
       'disable-model-invocation: true',
     );
   });
