@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
@@ -28,8 +29,40 @@ interface Settings {
   permissions: { allow?: string[]; deny: string[]; ask: string[] };
 }
 
-// Entradas do allowed-tools da ship-pr, por shell.
-const ALLOWED_TOOLS_PER_SHELL = 16;
+// SHA256 do .claude/settings.json, com \r\n trocado por \n, em maiúsculas como
+// o (Get-FileHash .claude/settings.json).Hash. O arquivo precisa ser idêntico
+// no carcheck-api e no carcheck-web: mudou o settings, atualize esta constante
+// nos dois repositórios.
+const SETTINGS_SHA256 =
+  'EEABAE62242DEFDABD8E4AC41B2E92B0935043EE5E9F8531DF1A089359EF535C';
+
+// Comandos do allowed-tools da ship-pr, os mesmos em Bash e em PowerShell.
+const SHIP_PR_ALLOWED_COMMANDS = [
+  'git branch --show-current',
+  'gh auth status',
+  'git status --porcelain',
+  'git rev-parse HEAD',
+  'npm run lint',
+  'npx tsc --noEmit -p tsconfig.json',
+  'npm test',
+  'npm run test:e2e',
+  'docker ps --filter "publish=5432" --format "{{.Names}} {{.Image}} {{.Status}}"',
+  'git diff --no-ext-diff --no-textconv -w main...HEAD -- "*.spec.ts" "*.e2e-spec.ts"',
+  'git diff --no-ext-diff --no-textconv --name-only main...HEAD',
+  'git diff --no-ext-diff --no-textconv main...HEAD',
+  'git log --oneline main..HEAD',
+  'git grep -c "it(" main -- "*.spec.ts" "*.e2e-spec.ts"',
+  'git grep -c "it(" -- "*.spec.ts" "*.e2e-spec.ts"',
+  'gh pr view * --json url',
+];
+
+// Chaves de topo do frontmatter da ship-pr, em ordem alfabética.
+const SHIP_PR_FRONTMATTER_KEYS = [
+  'allowed-tools',
+  'description',
+  'disable-model-invocation',
+  'name',
+];
 
 const repoFile = (path: string): string =>
   readFileSync(
@@ -37,7 +70,8 @@ const repoFile = (path: string): string =>
     'utf8',
   ).replace(/\r\n/g, '\n');
 
-const settings = JSON.parse(repoFile('.claude/settings.json')) as Settings;
+const settingsText = repoFile('.claude/settings.json');
+const settings = JSON.parse(settingsText) as Settings;
 const { deny, ask } = settings.permissions;
 
 const skill = repoFile('.claude/skills/ship-pr/SKILL.md');
@@ -298,6 +332,12 @@ function hasDiffFlags(command: string): boolean {
 const INLINE_PROSE_MENTIONS = ['git diff', 'git diff --output'];
 
 describe('settings.json do Claude Code', () => {
+  it('tem o SHA256 fixado em SETTINGS_SHA256 (o mesmo do carcheck-web)', () => {
+    expect(
+      createHash('sha256').update(settingsText).digest('hex').toUpperCase(),
+    ).toBe(SETTINGS_SHA256);
+  });
+
   it('não tem regras allow', () => {
     expect(settings.permissions.allow).toBeUndefined();
   });
@@ -518,8 +558,26 @@ describe('allowed-tools e comandos da skill ship-pr', () => {
     ).toEqual([]);
   });
 
-  it.each(SHELLS)('tem %s entradas no allowed-tools de cada shell', (shell) => {
-    expect(allowedTools(shell)).toHaveLength(ALLOWED_TOOLS_PER_SHELL);
+  it.each(SHELLS)(
+    'o allowed-tools de %s é exatamente a lista SHIP_PR_ALLOWED_COMMANDS',
+    (shell) => {
+      expect(allowedTools(shell)).toEqual(SHIP_PR_ALLOWED_COMMANDS);
+    },
+  );
+
+  it('o frontmatter abre na primeira linha e tem só as chaves esperadas, cada uma uma vez', () => {
+    expect(skill.startsWith('---\n')).toBe(true);
+    const keys = skill
+      .split(/^---$/m)[1]
+      .split('\n')
+      .flatMap((line) => /^([A-Za-z][\w-]*):/.exec(line)?.[1] ?? []);
+    expect(keys.sort()).toEqual(SHIP_PR_FRONTMATTER_KEYS);
+  });
+
+  it('o frontmatter tem disable-model-invocation: true', () => {
+    expect(skill.split(/^---$/m)[1].split('\n')).toContain(
+      'disable-model-invocation: true',
+    );
   });
 
   it('nenhuma regra do allowed-tools termina em :*', () => {
@@ -538,10 +596,6 @@ describe('allowed-tools e comandos da skill ship-pr', () => {
       return separator === -1 || pattern.indexOf('*') < separator;
     });
     expect(misplaced).toEqual([]);
-  });
-
-  it('lista os mesmos comandos em Bash e em PowerShell', () => {
-    expect(allowedTools('Bash')).toEqual(allowedTools('PowerShell'));
   });
 
   it.each(SHELLS)('tem 7 curingas no allowed-tools de %s', (shell) => {
