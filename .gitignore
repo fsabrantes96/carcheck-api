@@ -78,3 +78,6 @@ desktop.ini
 /.windsurf/
 /.cursor/
 /.devin/
+
+# Permissões locais do Claude Code (pessoais, nunca versionadas)
+/.claude/settings.local.json
