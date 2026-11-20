@@ -18,6 +18,8 @@ import { fileURLToPath } from 'node:url';
 // a este arquivo, sem variável nem opção que aponte para outro. Ele lê a cópia
 // de trabalho (uma edição não commitada é o que vai ser testado) e não
 // considera o .claude/settings.local.json, que também afeta as permissões.
+// Os arquivos são lidos com \r\n trocado por \n, para que um checkout com CRLF
+// não mude o resultado.
 
 type Shell = 'Bash' | 'PowerShell';
 const SHELLS: Shell[] = ['Bash', 'PowerShell'];
@@ -33,7 +35,7 @@ const repoFile = (path: string): string =>
   readFileSync(
     fileURLToPath(new URL(`../../${path}`, import.meta.url)),
     'utf8',
-  );
+  ).replace(/\r\n/g, '\n');
 
 const settings = JSON.parse(repoFile('.claude/settings.json')) as Settings;
 const { deny, ask } = settings.permissions;
@@ -69,8 +71,9 @@ function matching(rules: string[], shell: Shell, command: string): string[] {
   );
 }
 
-// Regras de shell que este endurecimento acrescenta ao deny (cada uma em par).
-const NEW_DENY = [
+// Regras de shell do endurecimento das permissões que o deny precisa ter, nos
+// dois shells.
+const HARDENED_DENY = [
   'git push *--ta*',
   'git push *--fol*',
   'git push *tags/*',
@@ -83,7 +86,6 @@ const NEW_DENY = [
   'git remote add*',
   'git remote set-url*',
   'git remote rename*',
-  'git credential*',
   'git-credential*',
   'gh auth git-credential*',
   'gh auth login*',
@@ -102,8 +104,8 @@ const NEW_DENY = [
   'gh auth status * -*',
 ];
 
-// Regras que saem do ask (o deny passa a cobri-las).
-const REMOVED_ASK = [
+// Regras que só podem estar no deny, nunca no ask.
+const FORBIDDEN_IN_ASK = [
   'git -c *',
   'git -C * push*',
   'git --git-dir* push*',
@@ -115,13 +117,14 @@ const REMOVED_ASK = [
   'gh.exe *',
 ];
 
-// Push que já estava no deny e continua lá.
-const KEPT_DENY = [
+// Regras de base do deny (push e credenciais), anteriores ao endurecimento.
+const BASELINE_DENY = [
   'git push --mirror*',
   'git push * --mirror*',
   'git push --all*',
   'git push * --all*',
   'git push *:chore/*',
+  'git credential*',
 ];
 
 const EDIT_DENY = [
@@ -250,21 +253,49 @@ function allowedTools(shell: Shell): string[] {
   });
 }
 
-const FENCE = /^\s*```[^\n]*\n([\s\S]*?)^\s*```/gm;
+// Bloco de código com ``` ou ~~~; o fechamento usa o mesmo marcador da abertura.
+// O recuo é [ \t]*, não \s*, para o marcador não atravessar linhas.
+const FENCE = /^[ \t]*(```|~~~)[^\n]*\n([\s\S]*?)^[ \t]*\1/gm;
 
-function codeBlockLines(): string[] {
-  return [...skill.matchAll(FENCE)].flatMap((block) =>
-    block[1].split('\n').map((line) => line.trim()),
+function codeBlockLines(text: string = skill): string[] {
+  return [...text.matchAll(FENCE)].flatMap((block) =>
+    block[2].split('\n').map((line) => line.trim()),
   );
 }
 
-function inlineCode(): string[] {
-  const withoutBlocks = skill.replace(FENCE, '');
+function inlineCode(text: string = skill): string[] {
+  const withoutBlocks = text.replace(FENCE, '');
   return [...withoutBlocks.matchAll(/`([^`\n]+)`/g)].map((match) => match[1]);
 }
 
-const isDiffOfMain = (command: string): boolean =>
-  command.startsWith('git diff') && command.includes('main');
+// Subcomandos do git que sempre produzem diff, e os que só produzem com opção.
+const ALWAYS_DIFF =
+  /^(git (?:diff|show|format-patch|range-diff|diff-tree|stash show))(?:\s|$)/;
+const DIFF_WITH_OPTION =
+  /^(git (?:log|whatchanged))\s(?:.*\s)?(?:-p|-u|--patch|--stat|--numstat)(?:[\s=]|$)/;
+
+// Devolve o subcomando ("git diff", "git stash show"...) se o comando produz
+// diff, ou null.
+function diffSubcommand(command: string): string | null {
+  return (
+    (ALWAYS_DIFF.exec(command) ?? DIFF_WITH_OPTION.exec(command))?.[1] ?? null
+  );
+}
+
+const producesDiff = (command: string): boolean =>
+  diffSubcommand(command) !== null;
+
+// O subcomando vem logo seguido de --no-ext-diff --no-textconv.
+function hasDiffFlags(command: string): boolean {
+  const subcommand = diffSubcommand(command);
+  if (subcommand === null) return false;
+  const flagged = `${subcommand} --no-ext-diff --no-textconv`;
+  return command === flagged || command.startsWith(`${flagged} `);
+}
+
+// Trechos inline que citam um comando de diff em texto corrido, sem ser um
+// comando a rodar. Só valem com o trecho inteiro igual (match exato).
+const INLINE_PROSE_MENTIONS = ['git diff', 'git diff --output'];
 
 describe('settings.json do Claude Code', () => {
   it('não tem regras allow', () => {
@@ -309,23 +340,23 @@ describe('settings.json do Claude Code', () => {
     ).toEqual([]);
   });
 
-  it('tem no deny, nos dois shells, as regras novas e as de push que já existiam', () => {
+  it('tem no deny, nos dois shells, as regras endurecidas e as de base', () => {
     for (const shell of SHELLS) {
       const denied = shellRules(deny, shell);
       expect(
-        [...NEW_DENY, ...KEPT_DENY].filter(
+        [...HARDENED_DENY, ...BASELINE_DENY].filter(
           (pattern) => !denied.includes(pattern),
         ),
       ).toEqual([]);
     }
   });
 
-  it('tirou do ask as regras que o deny passou a cobrir', () => {
+  it('não tem no ask as regras que só podem estar no deny', () => {
     for (const shell of SHELLS) {
       const asked = shellRules(ask, shell);
-      expect(REMOVED_ASK.filter((pattern) => asked.includes(pattern))).toEqual(
-        [],
-      );
+      expect(
+        FORBIDDEN_IN_ASK.filter((pattern) => asked.includes(pattern)),
+      ).toEqual([]);
     }
   });
 
@@ -372,11 +403,6 @@ describe('settings.json do Claude Code', () => {
       );
     });
 
-    it('o matcher aproximado diferencia maiúsculas no Bash: GIT CONFIG e GIT.EXE não casam com nenhum deny (lacuna do risco 57)', () => {
-      expect(matching(deny, 'Bash', 'GIT CONFIG user.name')).toEqual([]);
-      expect(matching(deny, 'Bash', 'GIT.EXE push origin chore/x')).toEqual([]);
-    });
-
     it.each(SHELLS)(
       'em %s, nenhum comando do allowed-tools da ship-pr casa com um deny',
       (shell) => {
@@ -402,6 +428,9 @@ describe('auto-teste do matcher aproximado (não é o matcher do Claude Code)', 
     ['git push * -d *', 'git push origin -d', 'Bash', false],
     ['git config*', 'GIT CONFIG x', 'Bash', false],
     ['git config*', 'GIT CONFIG x', 'PowerShell', true],
+    // Lacuna do risco 57: no Bash, GIT.EXE em maiúsculas não casa.
+    ['git.exe*', 'GIT.EXE push origin chore/x', 'Bash', false],
+    ['git.exe*', 'GIT.EXE push', 'PowerShell', true],
     ['a.b+c(d)*', 'a.b+c(d) x', 'Bash', true],
     ['a.b+c(d)*', 'aXb+c(d) x', 'Bash', false],
   ])(
@@ -410,6 +439,76 @@ describe('auto-teste do matcher aproximado (não é o matcher do Claude Code)', 
       expect(toRegExp(pattern, shell).test(command)).toBe(expected);
     },
   );
+});
+
+describe('auto-teste do predicado de comandos que produzem diff', () => {
+  it.each<[string, boolean]>([
+    ['git diff main...HEAD', true],
+    ['git show HEAD', true],
+    ['git format-patch main', true],
+    ['git range-diff main...HEAD', true],
+    ['git diff-tree HEAD', true],
+    ['git stash show', true],
+    ['git log -p', true],
+    ['git log -u main..HEAD', true],
+    ['git log --patch', true],
+    ['git log --oneline --stat main..HEAD', true],
+    ['git log --stat=80', true],
+    ['git log --numstat', true],
+    ['git whatchanged -p', true],
+    ['git log --oneline main..HEAD', false],
+    ['git log --pretty=%p', false],
+    ['git whatchanged --oneline', false],
+    ['git difftool main', false],
+    ['git stash list', false],
+    ['git grep -c "it(" main -- "*.spec.ts"', false],
+    ['git status --porcelain', false],
+  ])('%j produz diff: %s', (command, expected) => {
+    expect(producesDiff(command)).toBe(expected);
+  });
+
+  it.each<[string, boolean]>([
+    ['git diff --no-ext-diff --no-textconv main...HEAD', true],
+    ['git stash show --no-ext-diff --no-textconv', true],
+    ['git log --no-ext-diff --no-textconv -p', true],
+    ['git diff main...HEAD --no-ext-diff --no-textconv', false],
+    ['git show --no-ext-diff HEAD', false],
+    ['git diff --no-ext-diff --no-textconvx main', false],
+  ])('%j tem as flags logo depois do subcomando: %s', (command, expected) => {
+    expect(hasDiffFlags(command)).toBe(expected);
+  });
+});
+
+describe('auto-teste da leitura de blocos de código', () => {
+  it('lê blocos com ~~~ e com ```', () => {
+    const text = [
+      '~~~powershell',
+      'git status',
+      '~~~',
+      '',
+      '```',
+      'npm test',
+      '```',
+    ].join('\n');
+    expect(codeBlockLines(text).filter((line) => line !== '')).toEqual([
+      'git status',
+      'npm test',
+    ]);
+  });
+
+  it('um bloco aberto com ``` não fecha com ~~~', () => {
+    const text = ['```', 'git status', '~~~', 'npm test', '```'].join('\n');
+    expect(codeBlockLines(text).filter((line) => line !== '')).toEqual([
+      'git status',
+      '~~~',
+      'npm test',
+    ]);
+  });
+
+  it('código inline fora dos blocos não inclui o conteúdo dos blocos', () => {
+    const text = ['Rode `npm test`.', '~~~', '`git status`', '~~~'].join('\n');
+    expect(inlineCode(text)).toEqual(['npm test']);
+  });
 });
 
 describe('allowed-tools e comandos da skill ship-pr', () => {
@@ -450,39 +549,33 @@ describe('allowed-tools e comandos da skill ship-pr', () => {
     expect(count).toBe(7);
   });
 
-  it('todo git diff contra a main no allowed-tools usa --no-ext-diff --no-textconv', () => {
+  it('todo comando que produz diff no allowed-tools usa --no-ext-diff --no-textconv', () => {
     const diffs = [
       ...allowedTools('Bash'),
       ...allowedTools('PowerShell'),
-    ].filter(isDiffOfMain);
+    ].filter(producesDiff);
     expect(diffs).toHaveLength(6);
-    expect(
-      diffs.filter(
-        (command) =>
-          !command.startsWith('git diff --no-ext-diff --no-textconv '),
-      ),
-    ).toEqual([]);
+    expect(diffs.filter((command) => !hasDiffFlags(command))).toEqual([]);
   });
 
-  it('todo git diff contra a main nos blocos de código usa --no-ext-diff --no-textconv', () => {
-    const diffs = codeBlockLines().filter(isDiffOfMain);
+  it('todo comando que produz diff nos blocos de código usa --no-ext-diff --no-textconv', () => {
+    const diffs = codeBlockLines().filter(producesDiff);
     expect(diffs).toHaveLength(2);
-    expect(
-      diffs.filter(
-        (command) =>
-          !command.startsWith('git diff --no-ext-diff --no-textconv '),
-      ),
-    ).toEqual([]);
+    expect(diffs.filter((command) => !hasDiffFlags(command))).toEqual([]);
   });
 
-  it('todo git diff contra a main no código inline usa --no-ext-diff --no-textconv', () => {
-    const diffs = inlineCode().filter(isDiffOfMain);
+  it('todo comando que produz diff no código inline usa --no-ext-diff --no-textconv (fora as menções em texto corrido)', () => {
+    const diffs = inlineCode().filter(
+      (code) => producesDiff(code) && !INLINE_PROSE_MENTIONS.includes(code),
+    );
     expect(diffs).toHaveLength(1);
+    expect(diffs.filter((command) => !hasDiffFlags(command))).toEqual([]);
+  });
+
+  it('as menções em texto corrido liberadas ainda existem no código inline', () => {
+    const inline = inlineCode();
     expect(
-      diffs.filter(
-        (command) =>
-          !command.startsWith('git diff --no-ext-diff --no-textconv '),
-      ),
+      INLINE_PROSE_MENTIONS.filter((mention) => !inline.includes(mention)),
     ).toEqual([]);
   });
 
