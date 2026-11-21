@@ -863,6 +863,20 @@ describe('allowed-tools e comandos da skill ship-pr', () => {
     );
   });
 
+  it('o passo 5 manda parar com arquivos que mudam permissões, o comportamento do agente ou o CI, e esperar a confirmação explícita do usuário', () => {
+    const step5 = skill.split('### 5.')[1]?.split('### 6.')[0] ?? '';
+    for (const line of [
+      'PARE também se a lista tiver um arquivo que muda as permissões, o comportamento do agente ou o que roda no CI, mesmo que a mudança pareça ser o objetivo da PR:',
+      '- qualquer arquivo dentro de uma pasta `.claude/` ou `.agents/`, em qualquer nível do repositório;',
+      '- `.mcp.json`;',
+      '- qualquer arquivo dentro de `.vscode/` ou de `.github/`;',
+      '- `.gitattributes`.',
+      'Mostre ao usuário os arquivos desse grupo e devolva o controle a ele. Só siga para o passo 6 depois que ele responder, de forma explícita, que a mudança foi de propósito. Se `.claude/settings.json` ou `.claude/skills/ship-pr/SKILL.md` estiverem entre eles, a resposta precisa trazer o SHA256 de cada um, conferido por ele. Silêncio, "ok?" ou uma resposta sem o SHA256 pedido não são confirmação.',
+    ]) {
+      expect(step5, line).toContain(line);
+    }
+  });
+
   it('registra os dois testes do modo auto em vez de afirmar como fato que o ask é aprovado sem perguntar', () => {
     expect(skill).toContain(
       'em 2026-11-15, as regras `ask` foram aprovadas sem perguntar no modo auto; no teste de 2026-11-19 (no back) pediram permissão, como diz a documentação. Por isso esta skill deve rodar no modo padrão.',
