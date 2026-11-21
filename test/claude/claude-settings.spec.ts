@@ -19,7 +19,8 @@ import { fileURLToPath } from 'node:url';
 // O spec é uma trava: lê sempre os arquivos versionados, pelo caminho relativo
 // a este arquivo, sem variável nem opção que aponte para outro. Ele lê a cópia
 // de trabalho (uma edição não commitada é o que vai ser testado) e não
-// considera o .claude/settings.local.json, que também afeta as permissões. O
+// considera o .claude/settings.local.json, que também afeta as permissões
+// (quem o confere é o passo 2 da ship-pr, na hora de publicar). O
 // .claude/settings.json tem que ser idêntico ao do front, mas este spec só
 // confere a constante deste repositório: a igualdade com o front é conferida
 // à mão. Os arquivos são lidos com \r\n trocado por \n, para que um checkout
