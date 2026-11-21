@@ -849,6 +849,20 @@ describe('allowed-tools e comandos da skill ship-pr', () => {
     },
   );
 
+  it('o passo 2 manda ler o .claude/settings.local.json e parar se tiver permissions.allow, permissions.defaultMode, hooks ou env', () => {
+    const step2 = skill.split('### 2.')[1]?.split('### 3.')[0] ?? '';
+    expect(step2).toContain(
+      'O `.claude/settings.local.json` está no `.gitignore`',
+    );
+    expect(step2).toContain('Leia o arquivo com a ferramenta Read');
+    expect(step2).toContain(
+      '- Se ele tiver a chave `permissions.allow`, `permissions.defaultMode`, `hooks` ou `env`, PARE, mesmo que o valor esteja vazio (`[]` ou `{}`). Mostre ao usuário só os nomes das chaves encontradas, não os valores, e devolva o controle a ele.',
+    );
+    expect(step2).toContain(
+      '- Se ele não for um JSON válido, ou se a leitura falhar por outro motivo, PARE e mostre o erro.',
+    );
+  });
+
   it('registra os dois testes do modo auto em vez de afirmar como fato que o ask é aprovado sem perguntar', () => {
     expect(skill).toContain(
       'em 2026-11-15, as regras `ask` foram aprovadas sem perguntar no modo auto; no teste de 2026-11-19 (no back) pediram permissão, como diz a documentação. Por isso esta skill deve rodar no modo padrão.',
