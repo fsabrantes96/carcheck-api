@@ -2,8 +2,9 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-// Especificação do .claude/settings.json e do allowed-tools da skill ship-pr
-// (risco 57 do docs/audit.md).
+// Especificação do .claude/settings.json e da skill ship-pr (arquivo inteiro,
+// frontmatter, allowed-tools, comandos citados e frase do modo auto) (risco 57
+// do docs/audit.md; no carcheck-web, risco 11).
 //
 // ATENÇÃO: o matcher abaixo é uma aproximação da sintaxe documentada em
 // https://code.claude.com/docs/en/permissions (todo `*` casa qualquer texto,
@@ -18,9 +19,11 @@ import { fileURLToPath } from 'node:url';
 // O spec é uma trava: lê sempre os arquivos versionados, pelo caminho relativo
 // a este arquivo, sem variável nem opção que aponte para outro. Ele lê a cópia
 // de trabalho (uma edição não commitada é o que vai ser testado) e não
-// considera o .claude/settings.local.json, que também afeta as permissões.
-// Os arquivos são lidos com \r\n trocado por \n, para que um checkout com CRLF
-// não mude o resultado.
+// considera o .claude/settings.local.json, que também afeta as permissões. O
+// .claude/settings.json tem que ser idêntico ao do front, mas este spec só
+// confere a constante deste repositório: a igualdade com o front é conferida
+// à mão. Os arquivos são lidos com \r\n trocado por \n, para que um checkout
+// com CRLF não mude o resultado.
 
 type Shell = 'Bash' | 'PowerShell';
 const SHELLS: Shell[] = ['Bash', 'PowerShell'];
@@ -102,7 +105,7 @@ const skill = repoFile('.claude/skills/ship-pr/SKILL.md');
 // todo teste que depende dele falha.
 function frontmatter(): string {
   const match = FRONTMATTER.exec(skill);
-  if (match === null) {
+  if (match?.[1] === undefined) {
     throw new Error('SKILL.md da ship-pr sem frontmatter fechado por ---');
   }
   return match[1];
@@ -113,19 +116,19 @@ const RULE = /^(Bash|PowerShell)\((.*)\)$/s;
 function shellRules(rules: string[], shell: Shell): string[] {
   return rules.flatMap((rule) => {
     const match = RULE.exec(rule);
-    return match && match[1] === shell ? [match[2]] : [];
+    return match?.[1] === shell && match[2] !== undefined ? [match[2]] : [];
   });
 }
 
+const escapeRegExp = (text: string): string =>
+  text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 function toRegExp(pattern: string, shell: Shell): RegExp {
   const flags = shell === 'PowerShell' ? 'i' : '';
-  const body = pattern
-    .split('*')
-    .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-    .join('[\\s\\S]*');
+  const body = pattern.split('*').map(escapeRegExp).join('[\\s\\S]*');
   const wildcards = pattern.split('*').length - 1;
   if (wildcards === 1 && pattern.endsWith(' *')) {
-    const bare = pattern.slice(0, -2).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const bare = escapeRegExp(pattern.slice(0, -2));
     return new RegExp(`^(?:${body}|${bare})$`, flags);
   }
   return new RegExp(`^${body}$`, flags);
@@ -315,7 +318,7 @@ const ALLOWED_TOOL_LINE = /^ {2}- '(Bash|PowerShell)\((.*)\)'$/;
 function allowedTools(shell: Shell): string[] {
   return allowedToolsBlock().flatMap((line) => {
     const match = ALLOWED_TOOL_LINE.exec(line);
-    return match && match[1] === shell ? [match[2]] : [];
+    return match?.[1] === shell && match[2] !== undefined ? [match[2]] : [];
   });
 }
 
@@ -439,25 +442,27 @@ describe('settings.json do Claude Code', () => {
     ).toEqual([]);
   });
 
-  it('tem no deny, nos dois shells, as regras endurecidas e as de base', () => {
-    for (const shell of SHELLS) {
+  it.each(SHELLS)(
+    'em %s, tem no deny as regras endurecidas e as de base',
+    (shell) => {
       const denied = shellRules(deny, shell);
       expect(
         [...HARDENED_DENY, ...BASELINE_DENY].filter(
           (pattern) => !denied.includes(pattern),
         ),
       ).toEqual([]);
-    }
-  });
+    },
+  );
 
-  it('não tem no ask as regras que o deny já cobre', () => {
-    for (const shell of SHELLS) {
+  it.each(SHELLS)(
+    'em %s, não tem no ask as regras que o deny já cobre',
+    (shell) => {
       const asked = shellRules(ask, shell);
       expect(
         FORBIDDEN_IN_ASK.filter((pattern) => asked.includes(pattern)),
       ).toEqual([]);
-    }
-  });
+    },
+  );
 
   it('tem no deny as regras de Edit dos arquivos de configuração do git, do gh e do Claude Code', () => {
     expect(EDIT_DENY.filter((rule) => !deny.includes(rule))).toEqual([]);
@@ -509,10 +514,11 @@ describe('settings.json do Claude Code', () => {
           pattern.replace(/ \* /g, ' chore/x '),
         );
         expect(commands.length).toBeGreaterThan(0);
-        const blocked = commands.filter(
-          (command) => matching(deny, shell, command).length > 0,
-        );
-        expect(blocked).toEqual([]);
+        expect(
+          commands.filter(
+            (command) => matching(deny, shell, command).length > 0,
+          ),
+        ).toEqual([]);
       },
     );
 
@@ -540,9 +546,11 @@ describe('auto-teste do matcher aproximado (não é o matcher do Claude Code)', 
     ['git push *', 'git pushx', 'Bash', false],
     ['ls*', 'lsof', 'Bash', true],
     ['git push * -d *', 'git push origin -d', 'Bash', false],
+    // Lacuna do risco 57: no Bash, GIT CONFIG e GIT.EXE em maiúsculas não
+    // casam. Fica no auto-teste, sem usar o deny real, para não congelar a
+    // lacuna no settings.json.
     ['git config*', 'GIT CONFIG x', 'Bash', false],
     ['git config*', 'GIT CONFIG x', 'PowerShell', true],
-    // Lacuna do risco 57: no Bash, GIT.EXE em maiúsculas não casa.
     ['git.exe*', 'GIT.EXE push origin chore/x', 'Bash', false],
     ['git.exe*', 'GIT.EXE push', 'PowerShell', true],
     ['a.b+c(d)*', 'a.b+c(d) x', 'Bash', true],
@@ -728,7 +736,7 @@ describe('allowed-tools e comandos da skill ship-pr', () => {
     expect(FRONTMATTER.exec(skill)).not.toBeNull();
   });
 
-  it('o frontmatter tem o SHA256 fixado em SHIP_PR_FRONTMATTER_SHA256', () => {
+  it('o frontmatter tem o SHA256 fixado em SHIP_PR_FRONTMATTER_SHA256 (constante deste repositório)', () => {
     expect(
       createHash('sha256').update(frontmatter()).digest('hex').toUpperCase(),
     ).toBe(SHIP_PR_FRONTMATTER_SHA256);
@@ -772,7 +780,7 @@ describe('allowed-tools e comandos da skill ship-pr', () => {
     expect(misplaced).toEqual([]);
   });
 
-  it.each(SHELLS)('tem 7 curingas no allowed-tools de %s', (shell) => {
+  it.each(SHELLS)('em %s, tem 7 curingas no allowed-tools', (shell) => {
     const count = allowedTools(shell).join('').split('*').length - 1;
     expect(count).toBe(7);
   });
@@ -818,7 +826,7 @@ describe('allowed-tools e comandos da skill ship-pr', () => {
   });
 
   it('o passo 6 cita o comando do diff por extenso', () => {
-    const step6 = skill.split('### 6.')[1].split('### 7.')[0];
+    const step6 = skill.split('### 6.')[1]?.split('### 7.')[0] ?? '';
     expect(step6).toContain(
       '`git diff --no-ext-diff --no-textconv main...HEAD`',
     );
