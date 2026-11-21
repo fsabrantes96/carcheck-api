@@ -85,7 +85,7 @@ const SHIP_PR_FRONTMATTER_SHA256 =
 // carcheck-web é outra. A skill é editada à mão pelo usuário; atualize esta
 // constante no mesmo commit.
 const SHIP_PR_SKILL_SHA256 =
-  '8B32969514560600F0BAD70BEE93C149FC995FC7CC9D0624A9F4C76EBCD6D727';
+  'EE5E96631C93DE21F2DD75AFD0BF107DA5EA8B1D72B8CF1686072E6AC8B4FB21';
 
 // Frontmatter: abre na primeira linha e fecha com uma linha que é só ---.
 const FRONTMATTER = /^---\n([\s\S]*?)\n---\n/;
@@ -861,6 +861,20 @@ describe('allowed-tools e comandos da skill ship-pr', () => {
     expect(step2).toContain(
       '- Se ele não for um JSON válido, ou se a leitura falhar por outro motivo, PARE e diga o motivo, sem citar trechos do arquivo.',
     );
+  });
+
+  it('o passo 5 manda parar com arquivos que mudam permissões, o comportamento do agente ou o CI, e esperar a confirmação explícita do usuário', () => {
+    const step5 = skill.split('### 5.')[1]?.split('### 6.')[0] ?? '';
+    for (const line of [
+      'PARE também se a lista tiver um arquivo que muda as permissões, o comportamento do agente ou o que roda no CI, mesmo que a mudança pareça ser o objetivo da PR:',
+      '- qualquer arquivo dentro de uma pasta `.claude/` ou `.agents/`, em qualquer nível do repositório;',
+      '- `.mcp.json`;',
+      '- qualquer arquivo dentro de `.vscode/` ou de `.github/`;',
+      '- `.gitattributes`.',
+      'Mostre ao usuário os arquivos desse grupo e devolva o controle a ele. Só siga para o passo 6 depois que ele responder, de forma explícita, que a mudança foi de propósito. Se `.claude/settings.json` ou `.claude/skills/ship-pr/SKILL.md` estiverem entre eles, a resposta precisa trazer o SHA256 de cada um, conferido por ele. Silêncio, "ok?" ou uma resposta sem o SHA256 pedido não são confirmação.',
+    ]) {
+      expect(step5, line).toContain(line);
+    }
   });
 
   it('registra os dois testes do modo auto em vez de afirmar como fato que o ask é aprovado sem perguntar', () => {
