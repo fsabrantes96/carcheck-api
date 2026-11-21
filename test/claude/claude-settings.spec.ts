@@ -73,6 +73,16 @@ const SHIP_PR_FRONTMATTER_KEYS = [
 const SHIP_PR_FRONTMATTER_SHA256 =
   'E0D0F1535A0C23B10D94125090363F7D39B93516B678F9FC59C246D7E6EC873C';
 
+// SHA256 da SKILL.md da ship-pr inteira, com \r\n trocado por \n, em
+// maiúsculas como o (Get-FileHash .claude/skills/ship-pr/SKILL.md).Hash. Trava
+// o corpo da skill (regra de parada, aprovação explícita, lista do que é
+// proibido, comandos em texto corrido), que as verificações por regex abaixo
+// não cobrem por inteiro. É própria deste repositório: a ship-pr do
+// carcheck-web é outra. A skill é editada à mão pelo usuário; atualize esta
+// constante no mesmo commit.
+const SHIP_PR_SKILL_SHA256 =
+  '1495EABADFDE92E8758064D9DA3255EFA46E84D077B2BA1B87FC6CF0A0237E53';
+
 // Frontmatter: abre na primeira linha e fecha com uma linha que é só ---.
 const FRONTMATTER = /^---\n([\s\S]*?)\n---\n/;
 
@@ -373,8 +383,12 @@ function hasDiffFlags(command: string): boolean {
 }
 
 // Trechos inline que citam um comando de diff em texto corrido, sem ser um
-// comando a rodar. Só valem com o trecho inteiro igual (match exato).
-const INLINE_PROSE_MENTIONS = ['git diff', 'git diff --output'];
+// comando a rodar, com o número exato de ocorrências. Só valem com o trecho
+// inteiro igual (match exato); uma ocorrência a mais falha o spec.
+const INLINE_PROSE_MENTIONS: Record<string, number> = {
+  'git diff': 1,
+  'git diff --output': 1,
+};
 
 describe('settings.json do Claude Code', () => {
   it('tem o SHA256 fixado em SETTINGS_SHA256 (constante deste repositório; a igualdade com o carcheck-web é conferida à mão)', () => {
@@ -705,6 +719,13 @@ describe('allowed-tools e comandos da skill ship-pr', () => {
     ).toBe(SHIP_PR_FRONTMATTER_SHA256);
   });
 
+  it('a SKILL.md inteira tem o SHA256 fixado em SHIP_PR_SKILL_SHA256 (constante deste repositório)', () => {
+    expect(
+      createHash('sha256').update(skill).digest('hex').toUpperCase(),
+      'a SKILL.md da ship-pr mudou: ela é editada à mão pelo usuário, e o SHIP_PR_SKILL_SHA256 deste spec é atualizado no mesmo commit',
+    ).toBe(SHIP_PR_SKILL_SHA256);
+  });
+
   it('o frontmatter tem só as chaves esperadas, cada uma uma vez', () => {
     const keys = frontmatter()
       .split('\n')
@@ -758,17 +779,27 @@ describe('allowed-tools e comandos da skill ship-pr', () => {
 
   it('todo comando que produz diff no código inline usa --no-ext-diff --no-textconv (fora as menções em texto corrido)', () => {
     const diffs = inlineCode().filter(
-      (code) => producesDiff(code) && !INLINE_PROSE_MENTIONS.includes(code),
+      (code) =>
+        producesDiff(code) &&
+        !Object.keys(INLINE_PROSE_MENTIONS).includes(code),
     );
     expect(diffs).toHaveLength(1);
     expect(diffs.filter((command) => !hasDiffFlags(command))).toEqual([]);
   });
 
-  it('as menções em texto corrido liberadas ainda existem no código inline', () => {
+  it('as menções em texto corrido liberadas aparecem no código inline exatamente o número de vezes de INLINE_PROSE_MENTIONS', () => {
     const inline = inlineCode();
-    expect(
-      INLINE_PROSE_MENTIONS.filter((mention) => !inline.includes(mention)),
-    ).toEqual([]);
+    const counts = Object.fromEntries(
+      Object.keys(INLINE_PROSE_MENTIONS).map((mention) => [
+        mention,
+        inline.filter((code) => code === mention).length,
+      ]),
+    );
+    expect(counts).toEqual(INLINE_PROSE_MENTIONS);
+  });
+
+  it('os blocos de código lidos incluem o push do passo 7, que fica recuado dentro de um item de lista', () => {
+    expect(codeBlockLines()).toContain('git push -u origin <branch>');
   });
 
   it('o passo 6 cita o comando do diff por extenso', () => {
