@@ -515,6 +515,21 @@ describe('settings.json do Claude Code', () => {
         expect(blocked).toEqual([]);
       },
     );
+
+    it.each(SHELLS)(
+      'em %s, nenhum comando dos blocos de código da ship-pr casa com um deny',
+      (shell) => {
+        const commands = codeBlockLines()
+          .filter((line) => line !== '')
+          .map((line) => line.replace('<branch>', 'chore/x'));
+        expect(commands.length).toBeGreaterThan(0);
+        expect(
+          commands.filter(
+            (command) => matching(deny, shell, command).length > 0,
+          ),
+        ).toEqual([]);
+      },
+    );
   });
 });
 
@@ -826,15 +841,11 @@ describe('allowed-tools e comandos da skill ship-pr', () => {
     },
   );
 
-  it('descreve o modo auto com as âncoras da frase do front (conferida à mão): aprovado sem perguntar em 2026-11-15, pediu permissão em 2026-11-19, por isso roda no modo padrão', () => {
-    for (const anchor of [
-      'em 2026-11-15, as regras `ask` foram aprovadas sem perguntar no modo auto',
-      'no teste de 2026-11-19',
-      'pediram permissão, como diz a documentação',
-      'deve rodar no modo padrão',
-    ]) {
-      expect(skill, anchor).toContain(anchor);
-    }
+  it('registra os dois testes do modo auto em vez de afirmar como fato que o ask é aprovado sem perguntar', () => {
+    expect(skill).toContain(
+      'em 2026-11-15, as regras `ask` foram aprovadas sem perguntar no modo auto; no teste de 2026-11-19 (no back) pediram permissão, como diz a documentação. Por isso esta skill deve rodar no modo padrão.',
+    );
+    // Os mesmos trechos proibidos do spec do front.
     for (const stale of [
       'diz o contrário',
       'no modo auto as regras `ask` são aprovadas',
