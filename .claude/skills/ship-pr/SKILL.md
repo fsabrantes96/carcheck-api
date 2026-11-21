@@ -77,6 +77,12 @@ git status --porcelain
 
 A saída precisa estar vazia (inclusive sem arquivos não rastreados). Se não estiver, PARE e liste os arquivos.
 
+O `.claude/settings.local.json` está no `.gitignore`, então o `git status` não o mostra, mas ele muda as permissões e o que roda nesta sessão. Leia o arquivo com a ferramenta Read, não com um comando de shell:
+
+- Se o arquivo não existir, siga.
+- Se ele não for um JSON válido, ou se a leitura falhar por outro motivo, PARE e mostre o erro.
+- Se ele tiver a chave `permissions.allow`, `permissions.defaultMode`, `hooks` ou `env`, PARE, mesmo que o valor esteja vazio (`[]` ou `{}`). Mostre ao usuário só os nomes das chaves encontradas, não os valores, e devolva o controle a ele.
+
 Anote o commit atual (`git rev-parse HEAD`). O passo 7 confere se ele não mudou.
 
 ### 3. Lint, typecheck, unitários e e2e
