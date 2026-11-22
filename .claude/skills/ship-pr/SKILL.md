@@ -131,14 +131,14 @@ Nenhum arquivo da lista pode ser sensível. PARE se aparecer:
 
 Se um nome parecer suspeito e não estiver nesta lista, pergunte ao usuário antes de seguir.
 
-PARE também se a lista tiver um arquivo que muda as permissões, o comportamento do agente ou o que roda no CI, mesmo que a mudança pareça ser o objetivo da PR:
+PARE também se a lista tiver um arquivo que muda as permissões, o comportamento do agente ou o que roda no CI, mesmo que a mudança pareça ser o objetivo da PR. Cada item abaixo vale em qualquer nível do repositório, na raiz ou em qualquer subpasta:
 
-- qualquer arquivo dentro de uma pasta `.claude/` ou `.agents/`, em qualquer nível do repositório;
+- qualquer arquivo dentro de uma pasta `.claude/` ou `.agents/`;
 - `.mcp.json`;
 - qualquer arquivo dentro de `.vscode/` ou de `.github/`;
 - `.gitattributes`.
 
-Mostre ao usuário os arquivos desse grupo e devolva o controle a ele. Só siga para o passo 6 depois que ele responder, de forma explícita, que a mudança foi de propósito. Se `.claude/settings.json` ou `.claude/skills/ship-pr/SKILL.md` estiverem entre eles, a resposta precisa trazer o SHA256 de cada um, conferido por ele. Silêncio, "ok?" ou uma resposta sem o SHA256 pedido não são confirmação.
+Mostre ao usuário os arquivos desse grupo e devolva o controle a ele. Só siga para o passo 6 depois que ele responder, de forma explícita, que a mudança foi de propósito. Se `.claude/settings.json` ou `.claude/skills/ship-pr/SKILL.md` estiverem entre eles, a resposta precisa trazer o SHA256 de cada um, calculado pelo usuário com `Get-FileHash` no arquivo da branch. Não calcule o hash por conta própria: use o valor informado na resposta e só confira se há um para cada arquivo pedido. Silêncio, "ok?" ou uma resposta sem o SHA256 pedido não são confirmação.
 
 ### 6. Título e descrição: ESPERE a aprovação
 
