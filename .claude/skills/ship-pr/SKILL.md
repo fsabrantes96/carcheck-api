@@ -142,7 +142,7 @@ Mostre ao usuário os arquivos desse grupo e devolva o controle a ele. Só siga 
 
 Se entre eles houver um `settings.json` dentro de uma pasta `.claude/` ou uma `SKILL.md` dentro de `.claude/skills/ship-pr/`, em qualquer nível, a resposta precisa trazer também o SHA256 de cada um:
 
-- Para cada arquivo, mostre o comando pronto para rodar na raiz do repositório, já com o caminho real do arquivo. Para os arquivos da raiz, os comandos são `(Get-FileHash .claude/settings.json).Hash` e `(Get-FileHash .claude/skills/ship-pr/SKILL.md).Hash`.
+- Para cada arquivo, mostre o comando pronto para rodar na raiz do repositório, já com o caminho real do arquivo entre aspas simples e com `-LiteralPath`. Para os arquivos da raiz, os comandos são `(Get-FileHash -LiteralPath '.claude/settings.json').Hash` e `(Get-FileHash -LiteralPath '.claude/skills/ship-pr/SKILL.md').Hash`. Se o caminho tiver aspas simples, ou se o git mostrar o caminho entre aspas, não monte o comando: mostre o caminho e peça ao usuário que calcule o hash por conta própria.
 - Diga ao usuário que ele compara o resultado com o hash da versão que ele revisou, não com a constante do spec nem com um valor mostrado na sessão.
 - Não mostre, não calcule e não sugira hash nenhum para esses arquivos, nem mesmo a constante do spec.
 - A resposta precisa trazer, para cada arquivo pedido, o caminho e um SHA256 de 64 caracteres hexadecimais. Se faltar o valor de algum arquivo, se um valor não tiver esse formato ou se não estiver ligado a um caminho, PARE de novo e peça só o que falta, sem sugerir valor.
