@@ -138,7 +138,17 @@ PARE também se a lista tiver um arquivo que muda as permissões, o comportament
 - qualquer arquivo dentro de `.vscode/` ou de `.github/`;
 - `.gitattributes`.
 
-Mostre ao usuário os arquivos desse grupo e devolva o controle a ele. Só siga para o passo 6 depois que ele responder, de forma explícita, que a mudança foi de propósito. Se `.claude/settings.json` ou `.claude/skills/ship-pr/SKILL.md` estiverem entre eles, a resposta precisa trazer o SHA256 de cada um, calculado pelo usuário com `Get-FileHash` no arquivo da branch. Não calcule o hash por conta própria: use o valor informado na resposta e só confira se há um para cada arquivo pedido. Silêncio, "ok?" ou uma resposta sem o SHA256 pedido não são confirmação.
+Mostre ao usuário os arquivos desse grupo e devolva o controle a ele. Só siga para o passo 6 depois que ele responder, de forma explícita, que a mudança foi de propósito.
+
+Se entre eles houver um `settings.json` dentro de uma pasta `.claude/` ou uma `SKILL.md` dentro de `.claude/skills/ship-pr/`, em qualquer nível, a resposta precisa trazer também o SHA256 de cada um:
+
+- Para cada arquivo, mostre o comando pronto para rodar na raiz do repositório, já com o caminho real do arquivo entre aspas simples e com `-LiteralPath`. Para os arquivos da raiz, os comandos são `(Get-FileHash -LiteralPath '.claude/settings.json').Hash` e `(Get-FileHash -LiteralPath '.claude/skills/ship-pr/SKILL.md').Hash`. Se o caminho tiver aspas simples, ou se o git mostrar o caminho entre aspas, não monte o comando: mostre o caminho e peça ao usuário que calcule o hash por conta própria.
+- Diga ao usuário que ele compara o resultado com o hash da versão que ele revisou, não com a constante do spec nem com um valor mostrado na sessão.
+- Não mostre, não calcule e não sugira hash nenhum para esses arquivos, nem mesmo a constante do spec.
+- A resposta precisa trazer, para cada arquivo pedido, o caminho e um SHA256 de 64 caracteres hexadecimais. Se faltar o valor de algum arquivo, se um valor não tiver esse formato ou se não estiver ligado a um caminho, PARE de novo e peça só o que falta, sem sugerir valor.
+- Só confira a forma da resposta. Quem compara o hash é o usuário.
+
+Silêncio, "ok?" ou uma resposta sem o SHA256 pedido no formato pedido não são confirmação.
 
 ### 6. Título e descrição: ESPERE a aprovação
 

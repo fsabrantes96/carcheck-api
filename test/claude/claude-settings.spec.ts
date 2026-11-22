@@ -85,7 +85,7 @@ const SHIP_PR_FRONTMATTER_SHA256 =
 // carcheck-web é outra. A skill é editada à mão pelo usuário; atualize esta
 // constante no mesmo commit.
 const SHIP_PR_SKILL_SHA256 =
-  '4A10BDDD3D90E3786072BC23146EFCC37B0D9E4E02490849585B2493D4378A77';
+  '7B0FEF1F4F71C164F4687E16CD887CFBCD55EFFCC25F572F62189AC67DC06AFA';
 
 // Frontmatter: abre na primeira linha e fecha com uma linha que é só ---.
 const FRONTMATTER = /^---\n([\s\S]*?)\n---\n/;
@@ -863,7 +863,7 @@ describe('allowed-tools e comandos da skill ship-pr', () => {
     );
   });
 
-  it('o passo 5 manda parar com arquivos que mudam permissões, o comportamento do agente ou o CI, e esperar a confirmação explícita do usuário', () => {
+  it('o passo 5 manda parar com arquivos que mudam permissões, o comportamento do agente ou o CI, esperar a confirmação explícita do usuário e pedir o SHA256 no formato de 64 hexadecimais, com o comando literal', () => {
     const step5 = skill.split('### 5.')[1]?.split('### 6.')[0] ?? '';
     for (const line of [
       'PARE também se a lista tiver um arquivo que muda as permissões, o comportamento do agente ou o que roda no CI, mesmo que a mudança pareça ser o objetivo da PR. Cada item abaixo vale em qualquer nível do repositório, na raiz ou em qualquer subpasta:',
@@ -871,10 +871,21 @@ describe('allowed-tools e comandos da skill ship-pr', () => {
       '- `.mcp.json`;',
       '- qualquer arquivo dentro de `.vscode/` ou de `.github/`;',
       '- `.gitattributes`.',
-      'Mostre ao usuário os arquivos desse grupo e devolva o controle a ele. Só siga para o passo 6 depois que ele responder, de forma explícita, que a mudança foi de propósito. Se `.claude/settings.json` ou `.claude/skills/ship-pr/SKILL.md` estiverem entre eles, a resposta precisa trazer o SHA256 de cada um, calculado pelo usuário com `Get-FileHash` no arquivo da branch. Não calcule o hash por conta própria: use o valor informado na resposta e só confira se há um para cada arquivo pedido. Silêncio, "ok?" ou uma resposta sem o SHA256 pedido não são confirmação.',
+      'Mostre ao usuário os arquivos desse grupo e devolva o controle a ele. Só siga para o passo 6 depois que ele responder, de forma explícita, que a mudança foi de propósito.',
+      'Se entre eles houver um `settings.json` dentro de uma pasta `.claude/` ou uma `SKILL.md` dentro de `.claude/skills/ship-pr/`, em qualquer nível, a resposta precisa trazer também o SHA256 de cada um:',
+      "- Para cada arquivo, mostre o comando pronto para rodar na raiz do repositório, já com o caminho real do arquivo entre aspas simples e com `-LiteralPath`. Para os arquivos da raiz, os comandos são `(Get-FileHash -LiteralPath '.claude/settings.json').Hash` e `(Get-FileHash -LiteralPath '.claude/skills/ship-pr/SKILL.md').Hash`. Se o caminho tiver aspas simples, ou se o git mostrar o caminho entre aspas, não monte o comando: mostre o caminho e peça ao usuário que calcule o hash por conta própria.",
+      '- Diga ao usuário que ele compara o resultado com o hash da versão que ele revisou, não com a constante do spec nem com um valor mostrado na sessão.',
+      '- Não mostre, não calcule e não sugira hash nenhum para esses arquivos, nem mesmo a constante do spec.',
+      '- A resposta precisa trazer, para cada arquivo pedido, o caminho e um SHA256 de 64 caracteres hexadecimais. Se faltar o valor de algum arquivo, se um valor não tiver esse formato ou se não estiver ligado a um caminho, PARE de novo e peça só o que falta, sem sugerir valor.',
+      '- Só confira a forma da resposta. Quem compara o hash é o usuário.',
+      'Silêncio, "ok?" ou uma resposta sem o SHA256 pedido no formato pedido não são confirmação.',
     ]) {
       expect(step5, line).toContain(line);
     }
+  });
+
+  it('a SKILL.md não contém nenhuma sequência de 64 caracteres hexadecimais (a skill não mostra nem sugere hash)', () => {
+    expect(skill.match(/[0-9A-Fa-f]{64}/g) ?? []).toEqual([]);
   });
 
   it('registra os dois testes do modo auto em vez de afirmar como fato que o ask é aprovado sem perguntar', () => {
