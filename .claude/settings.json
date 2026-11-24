@@ -367,7 +367,20 @@
       "Edit(//c/ProgramData/Git/**)",
       "Edit(/.vscode/**)",
       "Edit(~/AppData/Roaming/Code/User/profiles/**)",
-      "Edit(~/.claude/plugins/**)"
+      "Edit(~/.claude/plugins/**)",
+      "Edit(/node_modules/**)",
+      "Edit(/.npmrc)",
+      "Edit(~/.npmrc)",
+      "Edit(~/AppData/Roaming/npm/**)",
+      "Edit(~/.bashrc)",
+      "Edit(~/.bash_profile)",
+      "Edit(~/.bash_login)",
+      "Edit(~/.profile)",
+      "Edit(~/.bash_logout)",
+      "Edit(~/Documents/WindowsPowerShell/**)",
+      "Edit(~/Documents/PowerShell/**)",
+      "Edit(~/.ssh/**)",
+      "Edit(~/AppData/Roaming/Microsoft/Windows/Start Menu/Programs/Startup/**)"
     ],
     "ask": [
       "Bash(git push *)",
