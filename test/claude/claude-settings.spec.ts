@@ -222,6 +222,26 @@ const EDIT_DENY = [
   'Edit(~/.claude/plugins/**)',
 ];
 
+// Regras de Edit em arquivos que executam código sem ninguém pedir: no próximo
+// npm (pacotes, .npmrc, o npm global), ao abrir um terminal (perfis do Git
+// Bash e do PowerShell), na próxima conexão ssh ou no logon do Windows (risco
+// 57, item C). Um teste por regra, para a falha dizer qual sumiu.
+const EXECUTABLE_EDIT_DENY = [
+  'Edit(/node_modules/**)',
+  'Edit(/.npmrc)',
+  'Edit(~/.npmrc)',
+  'Edit(~/AppData/Roaming/npm/**)',
+  'Edit(~/.bashrc)',
+  'Edit(~/.bash_profile)',
+  'Edit(~/.bash_login)',
+  'Edit(~/.profile)',
+  'Edit(~/.bash_logout)',
+  'Edit(~/Documents/WindowsPowerShell/**)',
+  'Edit(~/Documents/PowerShell/**)',
+  'Edit(~/.ssh/**)',
+  'Edit(~/AppData/Roaming/Microsoft/Windows/Start Menu/Programs/Startup/**)',
+];
+
 const MUST_BE_DENIED = [
   'git push --tags',
   'git push origin --tags',
@@ -468,6 +488,13 @@ describe('settings.json do Claude Code', () => {
   it('tem no deny as regras de Edit dos arquivos de configuração do git, do gh e do Claude Code', () => {
     expect(EDIT_DENY.filter((rule) => !deny.includes(rule))).toEqual([]);
   });
+
+  it.each(EXECUTABLE_EDIT_DENY)(
+    'tem no deny a regra %s (arquivo que executa código sem ninguém pedir)',
+    (rule) => {
+      expect(deny).toContain(rule);
+    },
+  );
 
   describe('matcher aproximado da sintaxe documentada', () => {
     it.each(SHELLS)(
