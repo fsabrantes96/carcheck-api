@@ -142,7 +142,7 @@ export class AppointmentsController {
     @ApiBodyErrorResponses()
     @ApiForbiddenResponse({ type: ErrorResponseDto, description: 'Você não pode confirmar este agendamento (só o vendedor)' })
     @ApiNotFoundResponse({ type: ErrorResponseDto, description: 'Agendamento não encontrado (ou você não participa dele)' })
-    @ApiConflictResponse({ type: ErrorResponseDto, description: 'Estado não permite, prazo expirado ou estado mudou' })
+    @ApiConflictResponse({ type: ErrorResponseDto, description: `Estado não permite, prazo expirado ou estado mudou, ${TRANSACTION_CONFLICT_DESCRIPTION}` })
     confirm(
         @Param('id', parseIdPipe) id: string,
         @CurrentUser() user: JwtPayload,
