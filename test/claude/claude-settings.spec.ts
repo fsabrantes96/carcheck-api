@@ -248,6 +248,11 @@ const EXECUTABLE_EDIT_DENY = [
   'Edit(~/AppData/Local/Packages/Microsoft.WindowsTerminal_8wekyb3d8bbwe/LocalState/**)',
 ];
 
+// Regras de Edit no spec das permissões, o deste repositório (test/claude/)
+// e o do carcheck-web (src/claude/): sem elas, o agente consegue enfraquecer
+// o spec ou trocar as constantes de hash (risco 57, item G). Um teste por regra.
+const SPEC_EDIT_DENY = ['Edit(/test/claude/**)', 'Edit(/src/claude/**)'];
+
 const MUST_BE_DENIED = [
   'git push --tags',
   'git push origin --tags',
@@ -497,6 +502,13 @@ describe('settings.json do Claude Code', () => {
 
   it.each(EXECUTABLE_EDIT_DENY)(
     'tem no deny a regra %s (arquivo que executa código sem ninguém pedir)',
+    (rule) => {
+      expect(deny).toContain(rule);
+    },
+  );
+
+  it.each(SPEC_EDIT_DENY)(
+    'tem no deny a regra %s (spec das permissões, editado à mão pelo usuário)',
     (rule) => {
       expect(deny).toContain(rule);
     },
