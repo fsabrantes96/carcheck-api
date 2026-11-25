@@ -753,6 +753,39 @@ describe('AppointmentsService: ações (accept, decline, confirm, cancel)', () =
       });
     });
 
+    it('trava o perfil do avaliador com SELECT ... FOR UPDATE na transação, antes de expirar e de gravar', async () => {
+      // Sem o lock, dois aceites sobrepostos do mesmo avaliador gravam ao mesmo
+      // tempo e cada um espera o outro na exclusion constraint (deadlock 40P01).
+      let inTransaction = false;
+      const lockedInTransaction: boolean[] = [];
+      prisma.$transaction.mockImplementation(async (fn: (tx: PrismaMock) => Promise<unknown>) => {
+        inTransaction = true;
+        try {
+          return await fn(prisma);
+        } finally {
+          inTransaction = false;
+        }
+      });
+      prisma.$queryRaw.mockImplementation(() => {
+        lockedInTransaction.push(inTransaction);
+        return Promise.resolve([{ verified: true }]);
+      });
+
+      await service.accept('a1', 'inspector');
+
+      const lockIndex = prisma.$queryRaw.mock.calls.findIndex(([strings]) =>
+        /FROM "InspectorProfile" WHERE "userId" = \?\s+FOR UPDATE/.test((strings as TemplateStringsArray).join('?')),
+      );
+      expect(lockIndex).toBeGreaterThanOrEqual(0);
+      const [, ...values] = prisma.$queryRaw.mock.calls[lockIndex] as [TemplateStringsArray, ...unknown[]];
+      expect(values).toEqual(['inspector']);
+      expect(lockedInTransaction[lockIndex]).toBe(true);
+      const lockOrder = prisma.$queryRaw.mock.invocationCallOrder[lockIndex];
+      const [expireOrder, writeOrder] = prisma.appointment.updateMany.mock.invocationCallOrder;
+      expect(lockOrder).toBeLessThan(expireOrder);
+      expect(lockOrder).toBeLessThan(writeOrder);
+    });
+
     it('deixa a violação da exclusion constraint (23P01) subir para o filtro global', async () => {
       const violation = exclusionViolationFromModelQuery();
       prisma.appointment.updateMany
