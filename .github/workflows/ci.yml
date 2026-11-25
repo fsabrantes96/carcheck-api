@@ -109,6 +109,23 @@ jobs:
       - run: npm run lint
       - run: npm run build
       - run: npm test
+      # Roda o spec das permissões sozinho, com a config própria (sem o
+      # vitest.config.ts nem o setupFiles dos unitários), e falha se ele não
+      # rodar, se rodar com zero testes ou se algum teste for pulado (risco 57,
+      # item G). Os nomes do relatório JSON são os do reporter do Vitest: se
+      # mudarem, a conferência falha fechado.
+      - name: Spec das permissões isolado (falha se não rodar)
+        run: |
+          report="$RUNNER_TEMP/claude-settings-report.json"
+          npx vitest run --config test/claude/vitest.claude.config.ts --reporter=default --reporter=json --outputFile.json="$report"
+          REPORT="$report" node -e '
+            const r = JSON.parse(require("fs").readFileSync(process.env.REPORT, "utf8"));
+            if (!(r.success && r.numTotalTests > 0 && r.numPassedTests === r.numTotalTests)) {
+              console.error(`::error::spec das permissões: ${r.numPassedTests} de ${r.numTotalTests} passaram`);
+              process.exit(1);
+            }
+            console.log(`spec das permissões: ${r.numPassedTests} testes passaram`);
+          '
       - name: Aplica as migrations no banco de teste
         run: npx prisma migrate deploy --config prisma7.config.ts
         env:
