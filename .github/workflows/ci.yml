@@ -106,18 +106,19 @@ jobs:
       # instaladas (não cobre o npm global do passo acima).
       - name: Confere as assinaturas das dependências
         run: npm audit signatures
-      - run: npm run lint
-      - run: npm run build
-      - run: npm test
       # Roda o spec das permissões sozinho, com a config própria (sem o
       # vitest.config.ts nem o setupFiles dos unitários), e falha se ele não
       # rodar, se rodar com zero testes ou se algum teste for pulado (risco 57,
-      # item G). Os nomes do relatório JSON são os do reporter do Vitest: se
-      # mudarem, a conferência falha fechado.
+      # item G). Fica antes do lint, do build e dos unitários para nenhum
+      # desses passos, que rodam código do projeto, mexer no workspace antes
+      # dele; só o postinstall do npm ci roda antes. O vitest vem do
+      # node_modules instalado pelo lock (sem npx, que baixaria outro do
+      # registry se ele faltasse). Se algum dos campos conferidos sumir do
+      # relatório JSON, a conferência falha fechado.
       - name: Spec das permissões isolado (falha se não rodar)
         run: |
           report="$RUNNER_TEMP/claude-settings-report.json"
-          npx vitest run --config test/claude/vitest.claude.config.ts --reporter=default --reporter=json --outputFile.json="$report"
+          ./node_modules/.bin/vitest run --config test/claude/vitest.claude.config.ts --reporter=default --reporter=json --outputFile.json="$report"
           REPORT="$report" node -e '
             const r = JSON.parse(require("fs").readFileSync(process.env.REPORT, "utf8"));
             if (!(r.success && r.numTotalTests > 0 && r.numPassedTests === r.numTotalTests)) {
@@ -126,6 +127,9 @@ jobs:
             }
             console.log(`spec das permissões: ${r.numPassedTests} testes passaram`);
           '
+      - run: npm run lint
+      - run: npm run build
+      - run: npm test
       - name: Aplica as migrations no banco de teste
         run: npx prisma migrate deploy --config prisma7.config.ts
         env:
