@@ -527,7 +527,6 @@ describe('Contrato OpenAPI (e2e)', () => {
 
     it.each([
       ['post', '/appointments/{id}/decline'],
-      ['post', '/appointments/{id}/confirm'],
       ['post', '/appointments/{id}/cancel'],
     ])('%s %s (um único updateMany, sem transação) não cita conflito de transação no 409', (method, path) => {
       expect(op(method, path).responses['409'].description).not.toContain('Conflito ao processar');
@@ -559,6 +558,7 @@ describe('Contrato OpenAPI (e2e)', () => {
       ['post', '/listings/{id}/mark-sold'],
       ['post', '/appointments'],
       ['post', '/appointments/{id}/accept'],
+      ['post', '/appointments/{id}/confirm'],
     ])('%s %s (com transação) cita no 409 o conflito de transação (repetir a requisição)', (method, path) => {
       expect(op(method, path).responses['409'].description).toContain(
         'Conflito ao processar, tente novamente',
