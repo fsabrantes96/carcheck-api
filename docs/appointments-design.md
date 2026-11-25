@@ -202,7 +202,7 @@ Arquivo `src/appointments/appointments.state-machine.ts`, só com funções pura
 3. Prazo vencido (`expiresAt <= agora`): grava `EXPIRED` e responde `409 "O prazo para esta ação expirou"`. **A gravação do `EXPIRED` precisa ser confirmada antes do 409**, fora de qualquer transação que o lançamento da exceção desfaria.
 4. Gravação com `updateMany({ where: { id, status: atual, expiresAt: { gt: agora } } })`. `count === 0` → `409 "O agendamento mudou de estado; recarregue e tente novamente"` (sem consulta de apoio: o 404 já foi decidido no passo 1). 23P01 no aceite → sobe para o filtro global: `409 "O agendamento mudou ou o horário não está mais disponível"`.
 
-O `ACCEPT` roda numa transação: confere `verified` no momento do aceite (`409 "Seu perfil de avaliador precisa estar verificado para aceitar"`), expira os `ACCEPTED`/`AWAITING_PAYMENT` vencidos do mesmo avaliador (nunca `PAID`) e grava.
+O `ACCEPT` roda numa transação: trava o perfil do avaliador (`SELECT 1 FROM "InspectorProfile" WHERE "userId" = ... FOR UPDATE`), para que dois aceites sobrepostos do mesmo avaliador entrem em fila e o perdedor receba o 23P01 em vez de um deadlock na checagem da exclusion constraint (risco 82 do `docs/audit.md`); confere `verified` no momento do aceite (`409 "Seu perfil de avaliador precisa estar verificado para aceitar"`), expira os `ACCEPTED`/`AWAITING_PAYMENT` vencidos do mesmo avaliador (nunca `PAID`) e grava.
 
 ## 4. Expiração
 
