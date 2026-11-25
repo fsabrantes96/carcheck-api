@@ -39,7 +39,7 @@ interface Settings {
 // nos dois repositórios. Este spec só trava a constante deste repositório; a
 // igualdade com o carcheck-web é conferida à mão, com o Get-FileHash nos dois.
 const SETTINGS_SHA256 =
-  '69836E232D1D989B54AD5FFC4B30FFDCCBBCE8EC7912EEEBAAAA74531E1E957F';
+  '2308B79325D8FA7ECBC746AC58FD58E29E8B78E5A610F897E53FDD0840199AA9';
 
 // Comandos do allowed-tools da ship-pr, os mesmos em Bash e em PowerShell.
 const SHIP_PR_ALLOWED_COMMANDS = [
@@ -247,6 +247,11 @@ const EXECUTABLE_EDIT_DENY = [
   'Edit(//c/node_modules/**)',
   'Edit(~/AppData/Local/Packages/Microsoft.WindowsTerminal_8wekyb3d8bbwe/LocalState/**)',
 ];
+
+// Regras de Edit no spec das permissões, o deste repositório (test/claude/)
+// e o do carcheck-web (src/claude/): sem elas, o agente consegue enfraquecer
+// o spec ou trocar as constantes de hash (risco 57, item G). Um teste por regra.
+const SPEC_EDIT_DENY = ['Edit(/test/claude/**)', 'Edit(/src/claude/**)'];
 
 const MUST_BE_DENIED = [
   'git push --tags',
@@ -497,6 +502,13 @@ describe('settings.json do Claude Code', () => {
 
   it.each(EXECUTABLE_EDIT_DENY)(
     'tem no deny a regra %s (arquivo que executa código sem ninguém pedir)',
+    (rule) => {
+      expect(deny).toContain(rule);
+    },
+  );
+
+  it.each(SPEC_EDIT_DENY)(
+    'tem no deny a regra %s (spec das permissões, editado à mão pelo usuário)',
     (rule) => {
       expect(deny).toContain(rule);
     },

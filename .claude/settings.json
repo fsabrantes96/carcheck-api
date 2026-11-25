@@ -368,6 +368,8 @@
       "Edit(/.vscode/**)",
       "Edit(~/AppData/Roaming/Code/User/profiles/**)",
       "Edit(~/.claude/plugins/**)",
+      "Edit(/test/claude/**)",
+      "Edit(/src/claude/**)",
       "Edit(/node_modules/**)",
       "Edit(/.npmrc)",
       "Edit(~/.npmrc)",
