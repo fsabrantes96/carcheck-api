@@ -257,6 +257,14 @@ export class AppointmentsService {
     const { snapshot, now } = await this.prepare(id, userId, 'ACCEPT');
 
     await this.prisma.$transaction(async (tx) => {
+      // Aceites do mesmo avaliador entram em fila: sem este lock, dois aceites
+      // sobrepostos gravam ao mesmo tempo e cada um espera o outro na exclusion
+      // constraint (deadlock 40P01, risco 82). Com ele, o segundo vê o primeiro
+      // já gravado e recebe o 23P01 (SLOT_UNAVAILABLE).
+      await tx.$queryRaw`
+        SELECT 1 FROM "InspectorProfile" WHERE "userId" = ${snapshot.inspectorUserId}
+        FOR UPDATE`;
+
       // Verificação no momento do aceite (o perfil pode ter perdido o verified).
       const profile = await tx.inspectorProfile.findUnique({
         where: { userId: snapshot.inspectorUserId },
