@@ -832,6 +832,31 @@ describe('AppointmentsService: ações (accept, decline, confirm, cancel)', () =
       expect(result).toBeInstanceOf(SellerAppointmentResponseDto);
     });
 
+    it('confirm trava o perfil do avaliador com SELECT ... FOR NO KEY UPDATE na transação, antes de gravar', async () => {
+      // O confirm mantém a linha no conjunto da exclusion constraint; sem o
+      // lock, um accept sobreposto do mesmo avaliador pode fechar um ciclo com
+      // ele na checagem da constraint (deadlock 40P01, risco 83). Mesmo desvio
+      // do teste do accept: um tx separado do prisma, para provar qual cliente
+      // roda o lock e a gravação.
+      prisma.appointment.findUnique.mockResolvedValue(snapshot('ACCEPTED'));
+      const tx = setupPrisma();
+      tx.$queryRaw.mockResolvedValue([]);
+      prisma.$transaction.mockImplementation((fn: (client: PrismaMock) => Promise<unknown>) => fn(tx));
+
+      await service.confirm('a1', 'seller', { meetingAddress: 'Rua A, 10' });
+
+      expect(prisma.$queryRaw).not.toHaveBeenCalled();
+      expect(tx.$queryRaw).toHaveBeenCalledTimes(1);
+      const [strings, ...values] = tx.$queryRaw.mock.calls[0] as [TemplateStringsArray, ...unknown[]];
+      expect(strings.join('?')).toMatch(/FROM "InspectorProfile" WHERE "userId" = \?\s+FOR NO KEY UPDATE\s*$/);
+      expect(values).toEqual(['inspector']);
+      expect(tx.appointment.updateMany).toHaveBeenCalledTimes(1);
+      expect(prisma.appointment.updateMany).not.toHaveBeenCalled();
+      const [lockOrder] = tx.$queryRaw.mock.invocationCallOrder;
+      const [writeOrder] = tx.appointment.updateMany.mock.invocationCallOrder;
+      expect(lockOrder).toBeLessThan(writeOrder);
+    });
+
     it.each([
       ['buyer', 'BUYER', BuyerAppointmentResponseDto],
       ['seller', 'SELLER', SellerAppointmentResponseDto],
@@ -847,7 +872,6 @@ describe('AppointmentsService: ações (accept, decline, confirm, cancel)', () =
 
     it.each([
       ['decline', 'inspector', 'REQUESTED'],
-      ['confirm', 'seller', 'ACCEPTED'],
       ['cancel', 'buyer', 'REQUESTED'],
     ] as const)('%s não abre transação (uma gravação só)', async (action, user, status) => {
       prisma.appointment.findUnique.mockResolvedValue(snapshot(status));
