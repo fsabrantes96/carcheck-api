@@ -753,6 +753,45 @@ describe('AppointmentsService: ações (accept, decline, confirm, cancel)', () =
       });
     });
 
+    it('409 INSPECTOR_NOT_VERIFIED quando o perfil do avaliador não existe, sem gravar o aceite', async () => {
+      prisma.inspectorProfile.findUnique.mockResolvedValue(null);
+
+      const promise = service.accept('a1', 'inspector');
+
+      await expect(promise).rejects.toBeInstanceOf(ConflictException);
+      await expect(promise).rejects.toThrow('Seu perfil de avaliador precisa estar verificado para aceitar');
+      expect(await rejectionCode(service.accept('a1', 'inspector'))).toBe('INSPECTOR_NOT_VERIFIED');
+      expect(prisma.appointment.updateMany).not.toHaveBeenCalled();
+    });
+
+    it('trava o perfil do avaliador com SELECT ... FOR NO KEY UPDATE na transação, antes do verified, de expirar e de gravar', async () => {
+      // Sem o lock, dois aceites sobrepostos do mesmo avaliador gravam ao mesmo
+      // tempo e cada um espera o outro na exclusion constraint (deadlock 40P01).
+      // Desvio do padrão do CLAUDE.md (o mock da transação chama o callback com
+      // o próprio mock): aqui o que se testa é justamente qual cliente roda o
+      // lock. Com o mesmo objeto, trocar tx.$queryRaw por this.prisma.$queryRaw
+      // passaria, e fora da transação o lock seria solto na hora.
+      const tx = setupPrisma();
+      tx.$queryRaw.mockResolvedValue([]);
+      prisma.$transaction.mockImplementation((fn: (client: PrismaMock) => Promise<unknown>) => fn(tx));
+
+      await service.accept('a1', 'inspector');
+
+      expect(prisma.$queryRaw).not.toHaveBeenCalled();
+      expect(tx.$queryRaw).toHaveBeenCalledTimes(1);
+      const [strings, ...values] = tx.$queryRaw.mock.calls[0] as [TemplateStringsArray, ...unknown[]];
+      expect(strings.join('?')).toMatch(/FROM "InspectorProfile" WHERE "userId" = \?\s+FOR NO KEY UPDATE\s*$/);
+      expect(values).toEqual(['inspector']);
+      expect(tx.inspectorProfile.findUnique).toHaveBeenCalledTimes(1);
+      expect(tx.appointment.updateMany).toHaveBeenCalledTimes(2);
+      const [lockOrder] = tx.$queryRaw.mock.invocationCallOrder;
+      const [verifiedOrder] = tx.inspectorProfile.findUnique.mock.invocationCallOrder;
+      const [expireOrder, writeOrder] = tx.appointment.updateMany.mock.invocationCallOrder;
+      expect(lockOrder).toBeLessThan(verifiedOrder);
+      expect(lockOrder).toBeLessThan(expireOrder);
+      expect(lockOrder).toBeLessThan(writeOrder);
+    });
+
     it('deixa a violação da exclusion constraint (23P01) subir para o filtro global', async () => {
       const violation = exclusionViolationFromModelQuery();
       prisma.appointment.updateMany

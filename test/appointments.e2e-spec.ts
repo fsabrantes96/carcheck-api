@@ -2,6 +2,7 @@ import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import { APPOINTMENT_OPEN_TRIPLET_INDEX } from '../src/appointments/appointments.constants.js';
+import { ErrorCode } from '../src/common/errors/error-code.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import {
   ERROR_KEYS,
@@ -207,13 +208,16 @@ describe('Appointments (e2e)', () => {
     BUYER: [...BASE_KEYS, 'priceCents'].sort(),
     INSPECTOR: [...BASE_KEYS, 'inspectorPayoutCents', 'platformFeeBps', 'platformFeeCents', 'priceCents'].sort(),
   };
-  /** Mensagens possíveis de quem perde uma corrida de transição. */
-  const RACE_MESSAGES = [
-    'O agendamento mudou ou o horário não está mais disponível',
-    'O agendamento mudou de estado; recarregue e tente novamente',
-    'Ação não permitida no estado atual',
-  ];
+  /**
+   * Codes possíveis de quem perde a corrida accept × cancel (um único
+   * agendamento, nenhum outro ocupa o horário: SLOT_UNAVAILABLE não acontece).
+   */
+  const RACE_CODES: ErrorCode[] = [ErrorCode.STATE_CHANGED, ErrorCode.INVALID_STATE];
   const NOT_FOUND = 'Agendamento não encontrado';
+  /** Code do erro (o front decide pelo code, nunca pela mensagem). */
+  function errorCode(res: request.Response | undefined): unknown {
+    return (res?.body as { code?: unknown } | undefined)?.code;
+  }
   type Role = keyof typeof KEYS_BY_ROLE;
   type Action = 'accept' | 'decline' | 'confirm' | 'cancel';
 
@@ -758,7 +762,7 @@ describe('Appointments (e2e)', () => {
         const statuses = responses.map((r) => r.status).sort((a, b) => a - b);
         expect(statuses, `rodada ${round}`).toEqual([200, 409]);
         const loser = responses.find((r) => r.status === 409);
-        expect(RACE_MESSAGES, `rodada ${round}`).toContain(loser?.body.message);
+        expect(errorCode(loser), `rodada ${round}`).toBe(ErrorCode.SLOT_UNAVAILABLE);
         expect(await prisma.appointment.count({ where: { status: 'ACCEPTED' } }), `rodada ${round}`).toBe(1);
         expect(await prisma.appointment.count({ where: { status: 'REQUESTED' } }), `rodada ${round}`).toBe(1);
       }
@@ -786,8 +790,8 @@ describe('Appointments (e2e)', () => {
           final: saved.status,
           endedBy: saved.endedBy,
         });
-        const conflicts = [accepted, cancelled].filter((r) => r.status === 409).map((r) => r.body.message);
-        for (const message of conflicts) expect(RACE_MESSAGES, `rodada ${round}`).toContain(message);
+        const conflicts = [accepted, cancelled].filter((r) => r.status === 409).map(errorCode);
+        for (const code of conflicts) expect(RACE_CODES, `rodada ${round}`).toContain(code);
       }
     });
 

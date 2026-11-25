@@ -257,6 +257,18 @@ export class AppointmentsService {
     const { snapshot, now } = await this.prepare(id, userId, 'ACCEPT');
 
     await this.prisma.$transaction(async (tx) => {
+      // Aceites do mesmo avaliador entram em fila: sem este lock, dois aceites
+      // sobrepostos gravam ao mesmo tempo e cada um espera o outro na exclusion
+      // constraint (deadlock 40P01, risco 82). Com ele, o segundo vê o primeiro
+      // já gravado e recebe o 23P01 (SLOT_UNAVAILABLE). FOR NO KEY UPDATE é o
+      // modo mínimo que conflita consigo mesmo, sem bloquear checagens de FK.
+      // Invariante: o lock do perfil é sempre a primeira instrução da
+      // transação. Quem travasse uma linha de Appointment antes e o perfil
+      // depois poderia fechar um ciclo de deadlock com este caminho.
+      await tx.$queryRaw`
+        SELECT 1 FROM "InspectorProfile" WHERE "userId" = ${snapshot.inspectorUserId}
+        FOR NO KEY UPDATE`;
+
       // Verificação no momento do aceite (o perfil pode ter perdido o verified).
       const profile = await tx.inspectorProfile.findUnique({
         where: { userId: snapshot.inspectorUserId },
