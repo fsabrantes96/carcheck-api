@@ -317,12 +317,25 @@ export class AppointmentsService {
   /** Vendedor confirma local e horário; abre a janela de pagamento. */
   async confirm(id: string, userId: string, dto: ConfirmAppointmentDto): Promise<SellerAppointmentResponseDto> {
     const { snapshot, now } = await this.prepare(id, userId, 'CONFIRM');
-    await this.write(this.prisma, snapshot, now, {
-      status: 'AWAITING_PAYMENT',
-      meetingAddress: dto.meetingAddress,
-      confirmedAt: now,
-      expiresAt: deadlineFor('AWAITING_PAYMENT', now, snapshot.startsAt),
+
+    await this.prisma.$transaction(async (tx) => {
+      // O confirm mantém a linha no conjunto da exclusion constraint (versão
+      // nova da linha, checada de novo). Sem este lock, um accept sobreposto do
+      // mesmo avaliador pode esperar este UPDATE na checagem enquanto este
+      // espera o accept (deadlock 40P01, risco 83). Mesmo lock e mesmo modo do
+      // accept, sempre como primeira instrução da transação.
+      await tx.$queryRaw`
+        SELECT 1 FROM "InspectorProfile" WHERE "userId" = ${snapshot.inspectorUserId}
+        FOR NO KEY UPDATE`;
+
+      await this.write(tx, snapshot, now, {
+        status: 'AWAITING_PAYMENT',
+        meetingAddress: dto.meetingAddress,
+        confirmedAt: now,
+        expiresAt: deadlineFor('AWAITING_PAYMENT', now, snapshot.startsAt),
+      });
     });
+
     return SellerAppointmentResponseDto.from(await this.load(id));
   }
 
