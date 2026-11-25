@@ -2,6 +2,7 @@ import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import { APPOINTMENT_OPEN_TRIPLET_INDEX } from '../src/appointments/appointments.constants.js';
+import { ErrorCode } from '../src/common/errors/error-code.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import {
   ERROR_KEYS,
@@ -207,8 +208,11 @@ describe('Appointments (e2e)', () => {
     BUYER: [...BASE_KEYS, 'priceCents'].sort(),
     INSPECTOR: [...BASE_KEYS, 'inspectorPayoutCents', 'platformFeeBps', 'platformFeeCents', 'priceCents'].sort(),
   };
-  /** Codes possíveis de quem perde uma corrida de transição. */
-  const RACE_CODES = ['SLOT_UNAVAILABLE', 'STATE_CHANGED', 'INVALID_STATE'];
+  /**
+   * Codes possíveis de quem perde a corrida accept × cancel (um único
+   * agendamento, nenhum outro ocupa o horário: SLOT_UNAVAILABLE não acontece).
+   */
+  const RACE_CODES: ErrorCode[] = [ErrorCode.STATE_CHANGED, ErrorCode.INVALID_STATE];
   const NOT_FOUND = 'Agendamento não encontrado';
   /** Code do erro (o front decide pelo code, nunca pela mensagem). */
   function errorCode(res: request.Response | undefined): unknown {
@@ -758,7 +762,7 @@ describe('Appointments (e2e)', () => {
         const statuses = responses.map((r) => r.status).sort((a, b) => a - b);
         expect(statuses, `rodada ${round}`).toEqual([200, 409]);
         const loser = responses.find((r) => r.status === 409);
-        expect(errorCode(loser), `rodada ${round}`).toBe('SLOT_UNAVAILABLE');
+        expect(errorCode(loser), `rodada ${round}`).toBe(ErrorCode.SLOT_UNAVAILABLE);
         expect(await prisma.appointment.count({ where: { status: 'ACCEPTED' } }), `rodada ${round}`).toBe(1);
         expect(await prisma.appointment.count({ where: { status: 'REQUESTED' } }), `rodada ${round}`).toBe(1);
       }
