@@ -845,6 +845,13 @@ describe('AppointmentsService: ações (accept, decline, confirm, cancel)', () =
 
       await service.confirm('a1', 'seller', { meetingAddress: 'Rua A, 10' });
 
+      // Uma transação só: em duas, o lock seria solto no commit da primeira.
+      expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+      // Primeira instrução: nenhuma leitura pelo tx antes (ou depois) do lock.
+      expect(tx.appointment.findUnique).not.toHaveBeenCalled();
+      expect(tx.appointment.findFirst).not.toHaveBeenCalled();
+      expect(tx.inspectorProfile.findUnique).not.toHaveBeenCalled();
+      expect(tx.inspectorProfile.findFirst).not.toHaveBeenCalled();
       expect(prisma.$queryRaw).not.toHaveBeenCalled();
       expect(tx.$queryRaw).toHaveBeenCalledTimes(1);
       const [strings, ...values] = tx.$queryRaw.mock.calls[0] as [TemplateStringsArray, ...unknown[]];
