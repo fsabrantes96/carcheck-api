@@ -74,6 +74,8 @@ O front decide pelo `code` (enum `ErrorCode` no `openapi.json`), nunca pela `mes
 | `npm run start:dev` | Sobe a API com hot reload |
 | `npm run build` | Compila para `dist/` |
 | `npm run openapi` | Regrava o `openapi.json` a partir do código (sem servidor e sem banco) |
+| `npm run format` | Formata com o Prettier tudo o que o `.prettierignore` não exclui |
+| `npm run format:check` | Confere a formatação sem alterar arquivos (o CI roda este) |
 | `npx prisma migrate dev` | Aplica/cria migrations |
 | `npx prisma generate` | Regenera o Prisma Client |
 | `npx prisma studio` | Interface web para ver o banco |
