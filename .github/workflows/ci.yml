@@ -127,6 +127,12 @@ jobs:
             }
             console.log(`spec das permissões: ${r.numPassedTests} testes passaram`);
           '
+      # Confere a formatação de tudo que o .prettierignore não exclui, com o
+      # Prettier do node_modules instalado pelo lock (versão exata no
+      # package.json). Fica depois do spec das permissões, como os demais
+      # passos que rodam ferramentas do projeto.
+      - name: Confere a formatação (Prettier)
+        run: npm run format:check
       - run: npm run lint
       - run: npm run build
       - run: npm test
