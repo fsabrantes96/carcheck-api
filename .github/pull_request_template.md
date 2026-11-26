@@ -1,10 +1,10 @@
 ## O que mudou
 
-- 
+-
 
 ## Como testar
 
-1. 
+1.
 
 ## Checklist
 

@@ -35,17 +35,27 @@ const MODES = {
   cwd: ['-e', 'console.log(process.cwd())'],
   unit: [vitest, 'run'],
   e2e: [vitest, 'run', '--config', './vitest.config.e2e.ts'],
-  mock: [vitest, 'run', 'test/support/vitest-root.spec.ts', 'src/auth/auth.service.spec.ts'],
+  mock: [
+    vitest,
+    'run',
+    'test/support/vitest-root.spec.ts',
+    'src/auth/auth.service.spec.ts',
+  ],
 };
 
 const mode = process.argv[2];
 if (process.argv.length !== 3 || !Object.hasOwn(MODES, mode)) {
-  console.error(`Uso: node scripts/run-with-lowercase-drive.mjs <${Object.keys(MODES).join('|')}>`);
+  console.error(
+    `Uso: node scripts/run-with-lowercase-drive.mjs <${Object.keys(MODES).join('|')}>`,
+  );
   process.exit(2);
 }
 
 console.error(`[lowercase-drive] cwd=${cwd} modo=${mode}`);
-const result = spawnSync(process.execPath, MODES[mode], { cwd, stdio: 'inherit' });
+const result = spawnSync(process.execPath, MODES[mode], {
+  cwd,
+  stdio: 'inherit',
+});
 if (result.error) {
   console.error(result.error);
   process.exit(1);
