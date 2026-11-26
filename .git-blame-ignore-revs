@@ -1,0 +1,4 @@
+# Commits só de formatação, que o git blame deve pular. O GitHub lê este
+# arquivo sozinho; localmente: git blame --ignore-revs-file .git-blame-ignore-revs
+# PR #39: formata os .ts de src/ e test/ com o Prettier 3.9.10.
+9fbd77d3c8543553511f0f79f8add9f74457b5e0

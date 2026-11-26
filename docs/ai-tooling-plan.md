@@ -3,7 +3,7 @@
 ## 1. Núcleo (preciso deles já)
 
 | Agente | O que faz | Permissão |
-|---|---|---|
+| --- | --- | --- |
 | **api-architect** | Desenha módulos, fronteiras e fluxos antes do código (máquinas de estado, novos domínios). Aponta trade-offs. | Leitura |
 | **nest-feature-builder** | Constrói um módulo completo (module, controller, service, DTOs, testes), seguindo as convenções do projeto. | Escrita |
 | **dto-contract-guardian** | Audita DTOs e o contrato OpenAPI. Identifica vazamento de entities, campos sensíveis (comissão visível apenas para o avaliador), falta de `@Type` e `@ApiProperty`, além de `@ApiResponse` ausentes. | Leitura |
@@ -16,7 +16,7 @@
 ## 2. Domínio do negócio
 
 | Agente | O que faz | Permissão |
-|---|---|---|
+| --- | --- | --- |
 | **appointment-flow-auditor** | Protege o fluxo central do produto. Compara código, tabela de regras e diagrama, procurando estados sem saída, transições proibidas e falhas relacionadas a no-show, expiração e disputas. | Leitura |
 | **payments-escrow-specialist** | Desenha e, no momento adequado, implementa o fluxo de pagamento retido: entidade `Payment`, comissão congelada, split, reembolso, webhooks idempotentes, conciliação e invariantes (nunca liberar e reembolsar o mesmo pagamento). | Escrita |
 | **jobs-and-notifications-specialist** | Gerencia expirações, janelas de 24h e 48h, liberações automáticas, lembretes, e-mails e notificações push. Avalia o uso de `@nestjs/schedule` ou filas com BullMQ. | Escrita |
@@ -27,7 +27,7 @@
 ## 3. Qualidade, processo e crescimento
 
 | Agente | O que faz | Permissão |
-|---|---|---|
+| --- | --- | --- |
 | **git-release-manager** | Gerencia nomes de branches, Conventional Commits, descrições de PR, atualização do roadmap do README e changelog. | Escrita |
 | **devops-ci-specialist** | Configura GitHub Actions (build, testes e banco de teste), Docker e variáveis de ambiente. Futuramente, também será responsável pelo deploy e hospedagem. | Escrita |
 | **frontend-integration-specialist** | Faz a integração com o frontend: gera tipos a partir do OpenAPI (`openapi-typescript` ou `orval`), organiza chamadas, trata erros e controla a exibição de botões conforme o `myRole`. | Escrita |
@@ -41,7 +41,7 @@
 ## 1. Construção (padrões do projeto)
 
 | Skill | Para que serve |
-|---|---|
+| --- | --- |
 | **new-nest-module** | Cria um módulo seguindo a estrutura padrão (`module`, `controller`, `service` e pasta `dto/`), incluindo `.js` nos imports e `import type` quando necessário. |
 | **new-dto-set** | Gera DTOs de Create, Update (`PartialType`), Query e Response, incluindo mapper e decorators de validação e Swagger. |
 | **response-dto-per-role** | Define o padrão para apresentar respostas diferentes conforme o perfil do usuário (ex.: avaliador visualiza a comissão, comprador não). |
@@ -58,7 +58,7 @@
 ## 2. Banco de dados e ambiente
 
 | Skill | Para que serve |
-|---|---|
+| --- | --- |
 | **prisma-migration-workflow** | Define o fluxo de alterações no schema: editar, executar `format` e `migrate dev`, conferir se `enums.ts` e `models/` foram regenerados e garantir que a migration foi incluída no commit. Criada a partir de um problema que já enfrentamos. |
 | **seed-dev-data** | Cria usuários de teste (comprador, vendedor, avaliador verificado e usuário externo), anúncios e agendamentos, evitando a necessidade de repetir cadastros manualmente a cada teste. |
 | **reset-local-env** | Remove e recria o banco de dados do Docker, reaplica as migrations e executa o seed. |
@@ -67,7 +67,7 @@
 ## 3. Qualidade e segurança
 
 | Skill | Para que serve |
-|---|---|
+| --- | --- |
 | **exhaustive-state-matrix-test** | Gera testes para todas as combinações de pessoa × ação × estado. |
 | **e2e-appointment-scenarios** | Automatiza os 17 cenários de teste definidos no Swagger, transformando-os em testes reais. |
 | **concurrency-test-pattern** | Executa duas ações simultaneamente e verifica que apenas uma delas seja concluída com sucesso. |
@@ -80,7 +80,7 @@
 ## 4. Processo e aprendizado
 
 | Skill | Para que serve |
-|---|---|
+| --- | --- |
 | **git-branch-pr-flow** | Documenta o fluxo desde `checkout -b` até o squash merge, seguindo os padrões de nomes e mensagens definidos no projeto. |
 | **ship-pr** ✅ criada | Acionada só pelo usuário (`/ship-pr`). Verifica branch, árvore limpa, lint, typecheck, unitários, e2e, linhas removidas de testes, arquivos sensíveis (segredos) e arquivos alterados que mudam permissões, o comportamento do agente ou o CI (em qualquer nível: pasta `.claude/` ou `.agents/`, `.mcp.json`, `.vscode/`, `.github/`, `.gitattributes`: o passo 5 para e só segue com a confirmação explícita do usuário, com o SHA256 de todo `settings.json` numa pasta `.claude/` e de toda `SKILL.md` em `.claude/skills/ship-pr/`, em qualquer nível, quando estiverem entre eles, no formato de 64 hexadecimais, calculado pelo usuário com `Get-FileHash`), mostra título e descrição para aprovação e então faz push da branch e abre a PR com o `gh`. É a única exceção à regra de que o agente não altera o remoto; merge, force push e remoção de branch continuam com o usuário. Diferente da `git-branch-pr-flow`, que só documenta o fluxo. |
 | **api-contract-sync** | Regenera os tipos do frontend a partir do OpenAPI e identifica possíveis incompatibilidades. |

@@ -1,7 +1,6 @@
 # CarCheck API
 
-Backend de um marketplace de veículos com um diferencial: o comprador pode agendar
-a avaliação do carro com um **avaliador** (mecânico/especialista) antes de fechar negócio.
+Backend de um marketplace de veículos com um diferencial: o comprador pode agendar a avaliação do carro com um **avaliador** (mecânico/especialista) antes de fechar negócio.
 
 > Projeto pessoal de estudo. Foco em boas práticas de contratos e DTOs entre backend e frontend.
 
@@ -45,8 +44,8 @@ A API sobe em `http://localhost:3000`.
 
 ## Documentação da API
 
-Swagger: `http://localhost:3000/docs`
-Contrato OpenAPI em JSON: `http://localhost:3000/docs-json`
+- Swagger: `http://localhost:3000/docs`
+- Contrato OpenAPI em JSON: `http://localhost:3000/docs-json`
 
 O mesmo contrato fica versionado em [openapi.json](openapi.json), na raiz, para o front gerar os tipos sem subir a API. Mudou um endpoint ou um DTO? Rode `npm run openapi` e versione o arquivo junto. O CI falha se ele estiver desatualizado.
 
@@ -72,10 +71,12 @@ O front decide pelo `code` (enum `ErrorCode` no `openapi.json`), nunca pela `mes
 ## Scripts úteis
 
 | Comando | O que faz |
-|---|---|
+| --- | --- |
 | `npm run start:dev` | Sobe a API com hot reload |
 | `npm run build` | Compila para `dist/` |
 | `npm run openapi` | Regrava o `openapi.json` a partir do código (sem servidor e sem banco) |
+| `npm run format` | Formata com o Prettier tudo o que o `.prettierignore` não exclui |
+| `npm run format:check` | Confere a formatação sem alterar arquivos (o CI roda este) |
 | `npx prisma migrate dev` | Aplica/cria migrations |
 | `npx prisma generate` | Regenera o Prisma Client |
 | `npx prisma studio` | Interface web para ver o banco |
@@ -102,7 +103,7 @@ src/
 ## Ciclo de vida do anúncio
 
 | De | Ação | Para |
-|---|---|---|
+| --- | --- | --- |
 | `ACTIVE` | `POST /listings/:id/pause` | `PAUSED` |
 | `PAUSED` | `POST /listings/:id/activate` | `ACTIVE` |
 | `ACTIVE`, `PAUSED` | `POST /listings/:id/mark-sold` | `SOLD` |
@@ -119,7 +120,7 @@ O desenho completo do agendamento, que depende destas regras, está em [docs/app
 Fluxo desta versão (desenho completo em [docs/appointments-design.md](docs/appointments-design.md)):
 
 | De | Ação | Para | Quem |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | — | `POST /appointments` | `REQUESTED` | comprador (qualquer usuário logado) |
 | `REQUESTED` | `POST /appointments/:id/accept` | `ACCEPTED` | avaliador |
 | `REQUESTED` | `POST /appointments/:id/decline` | `DECLINED` | avaliador |

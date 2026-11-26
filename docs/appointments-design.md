@@ -13,7 +13,7 @@ O comprador pede uma avaliação presencial de um anúncio ACTIVE com um avaliad
 ## 1. Escopo: três PRs
 
 | PR / branch | Entra |
-|---|---|
+| --- | --- |
 | **A. `feat/listing-lifecycle`** | `ARCHIVED` no enum do anúncio; `DELETE /listings/:id` arquiva; rotas `pause`, `activate` e `mark-sold` com máquina de estados; `status` sai do `PATCH`; `sellerId` e `status` saem da resposta pública; rotas do dono usam um DTO próprio com `status` |
 | **B. `feat/appointments`** | Model `Appointment` e SQL das constraints, cálculo da comissão, máquina de estados, criar, listar, detalhar, aceitar, recusar, confirmar e cancelar, expiração preguiçosa nas ações, DTOs por perfil, comissão em `GET /inspectors/me`, gancho no anúncio |
 | **C. `feat/appointment-expiry-job`** | `@nestjs/schedule` e job que expira os vencidos (desligável com `JOBS_ENABLED=false`) |
@@ -30,7 +30,7 @@ O comprador pede uma avaliação presencial de um anúncio ACTIVE com um avaliad
 - Transições do anúncio:
 
 | De | Ação (rota) | Para |
-|---|---|---|
+| --- | --- | --- |
 | `ACTIVE` | `PAUSE` (`POST /listings/:id/pause`) | `PAUSED` |
 | `ACTIVE` | `MARK_SOLD` (`POST /listings/:id/mark-sold`) | `SOLD` |
 | `PAUSED` | `ACTIVATE` (`POST /listings/:id/activate`) | `ACTIVE` |
@@ -162,31 +162,31 @@ ALTER TABLE "Appointment"
 Arquivo `src/appointments/appointments.state-machine.ts`, só com funções puras (skill `state-machine-pattern`).
 
 | De | Ação | Para | Condições extras (no service) |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | (nenhum) | `REQUEST` (`POST /appointments`) | `REQUESTED` | anúncio ACTIVE; avaliador `verified`; partes distintas; antecedência mínima; sem duplicado; preço mínimo |
 | `REQUESTED` | `ACCEPT` | `ACCEPTED` | `expiresAt > agora`; avaliador **continua** `verified`; EXCLUDE (horário) |
 | `REQUESTED` | `DECLINE` | `DECLINED` | `expiresAt > agora` |
 | `ACCEPTED` | `CONFIRM` (com `meetingAddress`) | `AWAITING_PAYMENT` | `expiresAt > agora` |
 | `REQUESTED`, `ACCEPTED`, `AWAITING_PAYMENT` | `CANCEL` | `CANCELLED` | nenhuma |
 | `REQUESTED`, `ACCEPTED`, `AWAITING_PAYMENT` | `EXPIRE` | `EXPIRED` | `expiresAt <= agora` |
-| `AWAITING_PAYMENT` | `MARK_PAID` *(declarado)* | `PAID` | webhook do provedor |
-| `PAID` | `SUBMIT_REPORT` *(declarado)* | `REPORT_SUBMITTED` | `agora >= startsAt` |
-| `REPORT_SUBMITTED` | `APPROVE` *(declarado)* | `COMPLETED` | nenhuma |
-| `REPORT_SUBMITTED` | `OPEN_DISPUTE` *(declarado)* | `DISPUTED` | dentro de 48h |
-| `REPORT_SUBMITTED` | `AUTO_RELEASE` *(declarado)* | `COMPLETED` | 48h sem resposta |
+| `AWAITING_PAYMENT` | `MARK_PAID` _(declarado)_ | `PAID` | webhook do provedor |
+| `PAID` | `SUBMIT_REPORT` _(declarado)_ | `REPORT_SUBMITTED` | `agora >= startsAt` |
+| `REPORT_SUBMITTED` | `APPROVE` _(declarado)_ | `COMPLETED` | nenhuma |
+| `REPORT_SUBMITTED` | `OPEN_DISPUTE` _(declarado)_ | `DISPUTED` | dentro de 48h |
+| `REPORT_SUBMITTED` | `AUTO_RELEASE` _(declarado)_ | `COMPLETED` | 48h sem resposta |
 
-| Ação | BUYER | SELLER | INSPECTOR | SYSTEM |
-|---|---|---|---|---|
-| `ACCEPT` | não | não | sim | não |
-| `DECLINE` | não | não | sim | não |
-| `CONFIRM` | não | sim | não | não |
-| `CANCEL` | sim | sim | sim | não |
-| `EXPIRE` | não | não | não | sim |
-| `MARK_PAID` | não | não | não | sim |
-| `SUBMIT_REPORT` | não | não | sim | não |
-| `APPROVE` | sim | não | não | não |
-| `OPEN_DISPUTE` | sim | não | não | não |
-| `AUTO_RELEASE` | não | não | não | sim |
+| Ação            | BUYER | SELLER | INSPECTOR | SYSTEM |
+| --------------- | ----- | ------ | --------- | ------ |
+| `ACCEPT`        | não   | não    | sim       | não    |
+| `DECLINE`       | não   | não    | sim       | não    |
+| `CONFIRM`       | não   | sim    | não       | não    |
+| `CANCEL`        | sim   | sim    | sim       | não    |
+| `EXPIRE`        | não   | não    | não       | sim    |
+| `MARK_PAID`     | não   | não    | não       | sim    |
+| `SUBMIT_REPORT` | não   | não    | sim       | não    |
+| `APPROVE`       | sim   | não    | não       | não    |
+| `OPEN_DISPUTE`  | sim   | não    | não       | não    |
+| `AUTO_RELEASE`  | não   | não    | não       | sim    |
 
 - O avaliador pode dar `CANCEL` em `REQUESTED` (efeito igual a recusar, mas vira `CANCELLED`); o front mostra "Recusar" nesse estado.
 - `CANCEL` em `PAID` proibido até existir política de reembolso.
@@ -210,13 +210,13 @@ O `ACCEPT` roda numa transação: trava o perfil do avaliador (`SELECT 1 FROM "I
 
 Horários vêm de um relógio injetável (`CLOCK`), nunca do `now()` do banco.
 
-| Estado | `expiresAt` |
-|---|---|
-| `REQUESTED` | `min(agora + 24h, startsAt)` |
-| `ACCEPTED` | `min(acceptedAt + 24h, startsAt)` |
+| Estado             | `expiresAt`                          |
+| ------------------ | ------------------------------------ |
+| `REQUESTED`        | `min(agora + 24h, startsAt)`         |
+| `ACCEPTED`         | `min(acceptedAt + 24h, startsAt)`    |
 | `AWAITING_PAYMENT` | `min(confirmedAt + 30min, startsAt)` |
-| `PAID` | `null` (no-show depois) |
-| `REPORT_SUBMITTED` | `submittedAt + 48h` (depois) |
+| `PAID`             | `null` (no-show depois)              |
+| `REPORT_SUBMITTED` | `submittedAt + 48h` (depois)         |
 
 - **Antecedência mínima:** `APPOINTMENT_MIN_NOTICE_HOURS`, padrão **24h** (substitui a regra de 1h). Horizonte máximo de 60 dias.
 - **Estratégia:** preguiçosa nas ações (PR B) + job a cada minuto com um único `updateMany` condicional e idempotente (PR C, abaixo). O job só faz faxina; a correção vem do `where` com `expiresAt > agora`.
@@ -243,7 +243,7 @@ Horários vêm de um relógio injetável (`CLOCK`), nunca do `now()` do banco.
 Todas com `@UseGuards(JwtAuthGuard)`, **sem `RolesGuard`** (vale o papel no agendamento, não a role global). `parseIdPipe` (uuid) em todo `:id`; 401 documentado em todas.
 
 | Método e caminho | Quem | Entrada | 2xx |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `POST /appointments` | autenticado (vira BUYER); limite próprio de 10/min | `CreateAppointmentDto { listingId, inspectorProfileId, startsAt }` | 201 `BuyerAppointmentResponseDto` |
 | `GET /appointments` | participante | `ListAppointmentsQueryDto { as?, status?, page<=10000, limit<=50 }` | 200 paginado, `items` com `oneOf` |
 | `GET /appointments/:id` | participante | — | 200 `oneOf` |
@@ -257,7 +257,7 @@ O vendedor vê o pedido desde `REQUESTED`.
 ### Erros de `POST /appointments` (ordem de checagem)
 
 | Caso | Código | Mensagem |
-|---|---|---|
+| --- | --- | --- |
 | Campo inválido ou desconhecido; `startsAt` sem fuso | 400 | "Dados inválidos" + `errors` (fuso: "startsAt precisa ter fuso horário (Z ou ±hh:mm)") |
 | `startsAt` ISO 8601 que não vira data válida (ex.: semana `2030-W02-4T14:00:00Z`, dia ordinal `2030-010T14:00:00Z`) | 400 | "startsAt inválido: use data e hora no formato aaaa-mm-ddThh:mm:ss com fuso (Z ou ±hh:mm)" |
 | `startsAt` antes de agora + antecedência mínima | 400 | "O agendamento precisa de pelo menos 24 horas de antecedência" (valor vindo da configuração) |
@@ -280,7 +280,7 @@ Sem 422: 400 entrada inválida; 403 quem chama não pode; 404 recurso invisível
 Base (sem dinheiro e **sem ids de usuário**): `id`, `status`, `myRole`, `listing { id, title, city, state }`, `inspector { profileId, name }`, `buyer { name }`, `seller { name }`, `startsAt`, `endsAt`, `expiresAt`, `meetingAddress`, `endedBy`, `availableActions`, `createdAt`.
 
 | DTO | `myRole` | Campos extras |
-|---|---|---|
+| --- | --- | --- |
 | `SellerAppointmentResponseDto` | `'SELLER'` | nenhum |
 | `BuyerAppointmentResponseDto` | `'BUYER'` | `priceCents` |
 | `InspectorAppointmentResponseDto` | `'INSPECTOR'` | `priceCents`, `platformFeeBps`, `platformFeeCents`, `inspectorPayoutCents` |
@@ -314,7 +314,7 @@ Base (sem dinheiro e **sem ids de usuário**): `id`, `status`, `myRole`, `listin
 ## 9. Decisões tomadas
 
 | # | Pergunta | Decisão |
-|---|---|---|
+| --- | --- | --- |
 | 1 | Pedidos que disputam o horário quando o avaliador aceita um | Os outros dão 409 no aceite e expiram sozinhos |
 | 2 | Duração do slot | Fixa, `APPOINTMENT_DURATION_MINUTES` = 60 |
 | 3 | Antecedência mínima × prazos | `expiresAt = min(janela, startsAt)`; antecedência mínima configurável `APPOINTMENT_MIN_NOTICE_HOURS`, padrão 24h |
