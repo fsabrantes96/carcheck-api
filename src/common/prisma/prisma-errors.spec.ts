@@ -16,7 +16,9 @@ import {
 
 describe('isPgError', () => {
   it('reconhece o 23P01 de uma query de model (formato real, P2039)', () => {
-    expect(isPgError(exclusionViolationFromModelQuery(), PG_EXCLUSION_VIOLATION)).toBe(true);
+    expect(
+      isPgError(exclusionViolationFromModelQuery(), PG_EXCLUSION_VIOLATION),
+    ).toBe(true);
   });
 
   it('reconhece o 23P01 de um $executeRaw (formato real, P2010)', () => {
@@ -28,7 +30,9 @@ describe('isPgError', () => {
   });
 
   it('usa cause.code quando originalCode não existe', () => {
-    const error = knownErrorWithMeta({ driverAdapterError: { cause: { code: '23P01' } } });
+    const error = knownErrorWithMeta({
+      driverAdapterError: { cause: { code: '23P01' } },
+    });
 
     expect(isPgError(error, '23P01')).toBe(true);
   });
@@ -38,13 +42,22 @@ describe('isPgError', () => {
     ['meta vazio', {}],
     ['meta sem driverAdapterError', { modelName: 'Appointment' }],
     ['driverAdapterError nulo', { driverAdapterError: null }],
-    ['driverAdapterError sem cause', { driverAdapterError: { name: 'DriverAdapterError' } }],
+    [
+      'driverAdapterError sem cause',
+      { driverAdapterError: { name: 'DriverAdapterError' } },
+    ],
     ['cause nulo', { driverAdapterError: { cause: null } }],
     ['cause que não é objeto', { driverAdapterError: { cause: '23P01' } }],
-    ['originalCode que não é string', { driverAdapterError: { cause: { originalCode: 23 } } }],
-  ])('devolve false, sem lançar, com formato incompleto: %s', (_label, meta) => {
-    expect(isPgError(knownErrorWithMeta(meta), '23P01')).toBe(false);
-  });
+    [
+      'originalCode que não é string',
+      { driverAdapterError: { cause: { originalCode: 23 } } },
+    ],
+  ])(
+    'devolve false, sem lançar, com formato incompleto: %s',
+    (_label, meta) => {
+      expect(isPgError(knownErrorWithMeta(meta), '23P01')).toBe(false);
+    },
+  );
 
   it.each([
     ['null', null],
@@ -53,24 +66,34 @@ describe('isPgError', () => {
     ['Error comum', new Error('23P01')],
     [
       'objeto com o mesmo formato, mas que não é erro do Prisma',
-      { code: 'P2039', meta: { driverAdapterError: { cause: { originalCode: '23P01' } } } },
+      {
+        code: 'P2039',
+        meta: { driverAdapterError: { cause: { originalCode: '23P01' } } },
+      },
     ],
-  ])('devolve false para o que não é erro conhecido do Prisma: %s', (_label, value) => {
-    expect(isPgError(value, '23P01')).toBe(false);
-  });
+  ])(
+    'devolve false para o que não é erro conhecido do Prisma: %s',
+    (_label, value) => {
+      expect(isPgError(value, '23P01')).toBe(false);
+    },
+  );
 });
 
 describe('isUniqueViolationOn', () => {
   it('reconhece o P2002 do índice pelo nome (formato real)', () => {
     const error = partialUniqueViolation('Appointment_open_triplet_key');
 
-    expect(isUniqueViolationOn(error, 'Appointment_open_triplet_key')).toBe(true);
+    expect(isUniqueViolationOn(error, 'Appointment_open_triplet_key')).toBe(
+      true,
+    );
   });
 
   it('devolve false para o P2002 de outro índice', () => {
     const error = partialUniqueViolation('User_email_key');
 
-    expect(isUniqueViolationOn(error, 'Appointment_open_triplet_key')).toBe(false);
+    expect(isUniqueViolationOn(error, 'Appointment_open_triplet_key')).toBe(
+      false,
+    );
   });
 
   it.each([
@@ -78,16 +101,27 @@ describe('isUniqueViolationOn', () => {
     ['sem driverAdapterError', {}],
     ['sem cause', { driverAdapterError: {} }],
     ['sem constraint', { driverAdapterError: { cause: {} } }],
-    ['constraint nula', { driverAdapterError: { cause: { constraint: null } } }],
-  ])('devolve false, sem lançar, com formato incompleto: %s', (_label, meta) => {
-    const error = partialUniqueViolation('x');
-    error.meta = meta as Record<string, unknown> | undefined;
+    [
+      'constraint nula',
+      { driverAdapterError: { cause: { constraint: null } } },
+    ],
+  ])(
+    'devolve false, sem lançar, com formato incompleto: %s',
+    (_label, meta) => {
+      const error = partialUniqueViolation('x');
+      error.meta = meta as Record<string, unknown> | undefined;
 
-    expect(isUniqueViolationOn(error, 'x')).toBe(false);
-  });
+      expect(isUniqueViolationOn(error, 'x')).toBe(false);
+    },
+  );
 
   it('devolve false para erro que não é P2002', () => {
-    expect(isUniqueViolationOn(exclusionViolationFromModelQuery(), 'Appointment_open_triplet_key')).toBe(false);
+    expect(
+      isUniqueViolationOn(
+        exclusionViolationFromModelQuery(),
+        'Appointment_open_triplet_key',
+      ),
+    ).toBe(false);
   });
 });
 

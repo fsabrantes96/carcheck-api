@@ -31,19 +31,28 @@ describe('splitPlatformFee', () => {
       [1, 10000, 1, 0],
       [0, 0, 0, 0],
       [15000, 1000, 1500, 13500],
-    ])('preço %i com %i bps: comissão %i e repasse %i', (price, bps, fee, payout) => {
-      expect(splitPlatformFee(price, bps)).toEqual({
-        platformFeeCents: fee,
-        inspectorPayoutCents: payout,
+    ])(
+      'preço %i com %i bps: comissão %i e repasse %i',
+      (price, bps, fee, payout) => {
+        expect(splitPlatformFee(price, bps)).toEqual({
+          platformFeeCents: fee,
+          inspectorPayoutCents: payout,
+        });
+      },
+    );
+
+    it('empate (1, 5000): 0,5 centavo arredonda para cima, comissão 1', () => {
+      expect(splitPlatformFee(1, 5000)).toEqual({
+        platformFeeCents: 1,
+        inspectorPayoutCents: 0,
       });
     });
 
-    it('empate (1, 5000): 0,5 centavo arredonda para cima, comissão 1', () => {
-      expect(splitPlatformFee(1, 5000)).toEqual({ platformFeeCents: 1, inspectorPayoutCents: 0 });
-    });
-
     it('empate (3, 5000): 1,5 centavo arredonda para cima, comissão 2', () => {
-      expect(splitPlatformFee(3, 5000)).toEqual({ platformFeeCents: 2, inspectorPayoutCents: 1 });
+      expect(splitPlatformFee(3, 5000)).toEqual({
+        platformFeeCents: 2,
+        inspectorPayoutCents: 1,
+      });
     });
 
     it('logo abaixo do empate arredonda para baixo (5555 com 1 bps = 0,5555 → 1; 4999 com 1 bps = 0,4999 → 0)', () => {
@@ -53,18 +62,28 @@ describe('splitPlatformFee', () => {
   });
 
   describe('entradas inválidas', () => {
-    it.each([-1, 1.5, Number.NaN, Number.POSITIVE_INFINITY, Number.MAX_SAFE_INTEGER + 1])(
-      'lança RangeError para priceCents = %s',
-      (price) => {
-        expect(() => splitPlatformFee(price, 1000)).toThrow(RangeError);
-        expect(() => splitPlatformFee(price, 1000)).toThrow('priceCents deve ser um inteiro >= 0');
+    it.each([
+      -1,
+      1.5,
+      Number.NaN,
+      Number.POSITIVE_INFINITY,
+      Number.MAX_SAFE_INTEGER + 1,
+    ])('lança RangeError para priceCents = %s', (price) => {
+      expect(() => splitPlatformFee(price, 1000)).toThrow(RangeError);
+      expect(() => splitPlatformFee(price, 1000)).toThrow(
+        'priceCents deve ser um inteiro >= 0',
+      );
+    });
+
+    it.each([-1, 10001, 0.5, Number.NaN])(
+      'lança RangeError para feeBps = %s',
+      (bps) => {
+        expect(() => splitPlatformFee(15000, bps)).toThrow(RangeError);
+        expect(() => splitPlatformFee(15000, bps)).toThrow(
+          'feeBps deve ser um inteiro entre 0 e 10000',
+        );
       },
     );
-
-    it.each([-1, 10001, 0.5, Number.NaN])('lança RangeError para feeBps = %s', (bps) => {
-      expect(() => splitPlatformFee(15000, bps)).toThrow(RangeError);
-      expect(() => splitPlatformFee(15000, bps)).toThrow('feeBps deve ser um inteiro entre 0 e 10000');
-    });
 
     it('lança RangeError quando price * bps sai da faixa de inteiros seguros', () => {
       expect(() => splitPlatformFee(Number.MAX_SAFE_INTEGER, 10000)).toThrow(
@@ -87,7 +106,8 @@ describe('splitPlatformFee', () => {
     it('fee + payout === price, 0 <= fee <= price, inteiros e fee igual à referência em BigInt', () => {
       const failures: string[] = [];
       for (const { price, bps } of cases) {
-        const { platformFeeCents: fee, inspectorPayoutCents: payout } = splitPlatformFee(price, bps);
+        const { platformFeeCents: fee, inspectorPayoutCents: payout } =
+          splitPlatformFee(price, bps);
         const ok =
           Number.isInteger(fee) &&
           Number.isInteger(payout) &&
@@ -95,10 +115,16 @@ describe('splitPlatformFee', () => {
           fee >= 0 &&
           fee <= price &&
           fee === referenceFee(price, bps);
-        if (!ok) failures.push(`(price=${price}, bps=${bps}) -> fee=${fee}, payout=${payout}`);
+        if (!ok)
+          failures.push(
+            `(price=${price}, bps=${bps}) -> fee=${fee}, payout=${payout}`,
+          );
       }
 
-      expect(failures, `seed ${SEED}: ${failures.slice(0, 5).join('; ')}`).toEqual([]);
+      expect(
+        failures,
+        `seed ${SEED}: ${failures.slice(0, 5).join('; ')}`,
+      ).toEqual([]);
     });
 
     it('o gerador não é degenerado (mais de 900 valores distintos de bps)', () => {

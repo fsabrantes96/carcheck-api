@@ -1,14 +1,26 @@
 import type { OpenAPIObject } from '@nestjs/swagger';
-import { applyEnumDescriptions, NAMED_ENUM_DESCRIPTIONS } from './enum-descriptions.js';
+import {
+  applyEnumDescriptions,
+  NAMED_ENUM_DESCRIPTIONS,
+} from './enum-descriptions.js';
 
 function documentWith(schemas: Record<string, object>): OpenAPIObject {
-  return { openapi: '3.0.0', info: { title: 't', version: '0' }, paths: {}, components: { schemas } };
+  return {
+    openapi: '3.0.0',
+    info: { title: 't', version: '0' },
+    paths: {},
+    components: { schemas },
+  };
 }
 
 function allEnums(extra: Record<string, object> = {}): Record<string, object> {
   const schemas: Record<string, object> = {};
   for (const name of Object.keys(NAMED_ENUM_DESCRIPTIONS)) {
-    schemas[name] = { type: 'string', enum: ['A'], description: 'descrição do campo que registrou' };
+    schemas[name] = {
+      type: 'string',
+      enum: ['A'],
+      description: 'descrição do campo que registrou',
+    };
   }
   return { ...schemas, ...extra };
 }
@@ -25,11 +37,17 @@ describe('applyEnumDescriptions', () => {
   });
 
   it('não mexe em enum fora do mapa (ex.: ErrorCode)', () => {
-    const document = documentWith(allEnums({ ErrorCode: { type: 'string', enum: ['X'], description: 'própria' } }));
+    const document = documentWith(
+      allEnums({
+        ErrorCode: { type: 'string', enum: ['X'], description: 'própria' },
+      }),
+    );
 
     applyEnumDescriptions(document);
 
-    expect(document.components?.schemas?.ErrorCode).toMatchObject({ description: 'própria' });
+    expect(document.components?.schemas?.ErrorCode).toMatchObject({
+      description: 'própria',
+    });
   });
 
   it('falha quando o mapa cita um enum que não existe no documento', () => {

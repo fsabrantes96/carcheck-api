@@ -198,8 +198,12 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const statusCode = exception.getStatus();
     const res = exception.getResponse();
 
-    const body = typeof res === 'string' ? {} : (res as { message?: unknown; code?: unknown });
-    const rawMessage = typeof res === 'string' ? res : (body.message ?? exception.message);
+    const body =
+      typeof res === 'string'
+        ? {}
+        : (res as { message?: unknown; code?: unknown });
+    const rawMessage =
+      typeof res === 'string' ? res : (body.message ?? exception.message);
 
     // O ValidationPipe devolve a lista de problemas em "message".
     if (Array.isArray(rawMessage)) {
@@ -214,7 +218,9 @@ export class AllExceptionsFilter implements ExceptionFilter {
     return {
       statusCode,
       // Code do throw (withCode) se for do enum; senão, o padrão do status.
-      code: isErrorCode(body.code) ? body.code : defaultCodeForStatus(statusCode),
+      code: isErrorCode(body.code)
+        ? body.code
+        : defaultCodeForStatus(statusCode),
       message: typeof rawMessage === 'string' ? rawMessage : exception.message,
     };
   }

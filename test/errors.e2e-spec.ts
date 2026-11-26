@@ -355,7 +355,11 @@ describe('Contrato de erros da camada HTTP (e2e, fix/error-contract)', () => {
     await closeTestApp(app);
   });
 
-  function expectError(res: request.Response, statusCode: number, message: string) {
+  function expectError(
+    res: request.Response,
+    statusCode: number,
+    message: string,
+  ) {
     expect(res.status).toBe(statusCode);
     expect(res.headers['content-type']).toBe(JSON_CONTENT_TYPE);
     expect(res.headers['cache-control']).toBe('no-store');
@@ -370,13 +374,18 @@ describe('Contrato de erros da camada HTTP (e2e, fix/error-contract)', () => {
       ['GET', '/docs/%FF'],
       ['DELETE', '/auth/login'],
       ['POST', '/listings/a/b/c'],
-    ])('responde 404 "Rota não encontrada" a %s %s, sem repetir a URL na mensagem', async (method, path) => {
-      const res = await request(app.getHttpServer())[method.toLowerCase() as 'get'](path);
+    ])(
+      'responde 404 "Rota não encontrada" a %s %s, sem repetir a URL na mensagem',
+      async (method, path) => {
+        const res = await request(app.getHttpServer())[
+          method.toLowerCase() as 'get'
+        ](path);
 
-      expectError(res, 404, 'Rota não encontrada');
-      expect(res.body.message).not.toContain('Cannot');
-      expect(res.body.message).not.toContain(path);
-    });
+        expectError(res, 404, 'Rota não encontrada');
+        expect(res.body.message).not.toContain('Cannot');
+        expect(res.body.message).not.toContain(path);
+      },
+    );
 
     it('mantém a mensagem do service no 404 de recurso', async () => {
       const res = await request(app.getHttpServer()).get(
@@ -435,7 +444,12 @@ describe('Contrato de erros da camada HTTP (e2e, fix/error-contract)', () => {
       const res = await request(app.getHttpServer())
         .post('/auth/login')
         .set('Content-Type', contentType)
-        .send(JSON.stringify({ email: 'ninguem@x.com', password: DEFAULT_PASSWORD }));
+        .send(
+          JSON.stringify({
+            email: 'ninguem@x.com',
+            password: DEFAULT_PASSWORD,
+          }),
+        );
 
       expectError(res, 401, 'E-mail ou senha inválidos');
     });
@@ -452,37 +466,49 @@ describe('Contrato de erros da camada HTTP (e2e, fix/error-contract)', () => {
     it.each([
       ['sem Content-Type', undefined],
       ['com Content-Type text/plain e corpo vazio', 'text/plain'],
-    ])('deixa passar um POST sem corpo (pause) %s', async (_caso, contentType) => {
-      const seller = await registerAndLogin(app, 'vendedor@x.com');
-      const created = await request(app.getHttpServer())
-        .post('/listings')
-        .set('Authorization', `Bearer ${seller.token}`)
-        .send(listingPayload())
-        .expect(201);
+    ])(
+      'deixa passar um POST sem corpo (pause) %s',
+      async (_caso, contentType) => {
+        const seller = await registerAndLogin(app, 'vendedor@x.com');
+        const created = await request(app.getHttpServer())
+          .post('/listings')
+          .set('Authorization', `Bearer ${seller.token}`)
+          .send(listingPayload())
+          .expect(201);
 
-      const req = request(app.getHttpServer())
-        .post(`/listings/${created.body.id}/pause`)
-        .set('Authorization', `Bearer ${seller.token}`);
-      if (contentType) req.set('Content-Type', contentType);
-      const res = await req;
+        const req = request(app.getHttpServer())
+          .post(`/listings/${created.body.id}/pause`)
+          .set('Authorization', `Bearer ${seller.token}`);
+        if (contentType) req.set('Content-Type', contentType);
+        const res = await req;
 
-      expect(res.status).toBe(200);
-      expect(res.body.status).toBe('PAUSED');
-    });
+        expect(res.status).toBe(200);
+        expect(res.body.status).toBe('PAUSED');
+      },
+    );
   });
 
   it.each([
-    ['Content-Encoding desconhecido', { 'Content-Type': 'application/json', 'Content-Encoding': 'xpto' }],
-    ['charset não suportado', { 'Content-Type': 'application/json; charset=latin9' }],
-  ])('responde 415 "Formato da requisição não suportado" a %s', async (_caso, headers) => {
-    const res = await request(app.getHttpServer())
-      .post('/auth/login')
-      .set(headers)
-      .send('{}');
+    [
+      'Content-Encoding desconhecido',
+      { 'Content-Type': 'application/json', 'Content-Encoding': 'xpto' },
+    ],
+    [
+      'charset não suportado',
+      { 'Content-Type': 'application/json; charset=latin9' },
+    ],
+  ])(
+    'responde 415 "Formato da requisição não suportado" a %s',
+    async (_caso, headers) => {
+      const res = await request(app.getHttpServer())
+        .post('/auth/login')
+        .set(headers)
+        .send('{}');
 
-    expectError(res, 415, UNSUPPORTED);
-    expect(JSON.stringify(res.body)).not.toMatch(/xpto|latin9/i);
-  });
+      expectError(res, 415, UNSUPPORTED);
+      expect(JSON.stringify(res.body)).not.toMatch(/xpto|latin9/i);
+    },
+  );
 
   it('responde 413 "Corpo da requisição muito grande" a parâmetros demais no urlencoded', async () => {
     const res = await request(app.getHttpServer())
@@ -494,9 +520,25 @@ describe('Contrato de erros da camada HTTP (e2e, fix/error-contract)', () => {
   });
 
   it.each([
-    ['400 de validação', () => request(app.getHttpServer()).post('/auth/login').send({}), 400],
-    ['401 sem token', () => request(app.getHttpServer()).get('/listings/mine'), 401],
-    ['400 de JSON malformado', () => request(app.getHttpServer()).post('/auth/login').set('Content-Type', 'application/json').send('{"a":'), 400],
+    [
+      '400 de validação',
+      () => request(app.getHttpServer()).post('/auth/login').send({}),
+      400,
+    ],
+    [
+      '401 sem token',
+      () => request(app.getHttpServer()).get('/listings/mine'),
+      401,
+    ],
+    [
+      '400 de JSON malformado',
+      () =>
+        request(app.getHttpServer())
+          .post('/auth/login')
+          .set('Content-Type', 'application/json')
+          .send('{"a":'),
+      400,
+    ],
   ])('grava Cache-Control: no-store no %s', async (_caso, send, status) => {
     const res = await send();
 
@@ -518,20 +560,27 @@ describe('Erro depois do envio dos cabeçalhos (e2e, risco 69)', () => {
       // Um middleware do teste que começa a resposta e falha no meio, como um
       // asset do /docs cujo arquivo some durante o stream.
       beforeInit: (created) =>
-        created.use('/teste-falha-no-meio', (_req: Request, res: Response, next: NextFunction) => {
-          res.writeHead(200, { 'Content-Type': 'text/plain' });
-          res.write('parcial');
-          next(new Error('falha no meio do envio'));
-        }),
+        created.use(
+          '/teste-falha-no-meio',
+          (_req: Request, res: Response, next: NextFunction) => {
+            res.writeHead(200, { 'Content-Type': 'text/plain' });
+            res.write('parcial');
+            next(new Error('falha no meio do envio'));
+          },
+        ),
     });
     server = app.getHttpServer() as unknown as http.Server;
-    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    await new Promise<void>((resolve) =>
+      server.listen(0, '127.0.0.1', resolve),
+    );
     process.on('unhandledRejection', onUnhandled);
   });
 
   beforeEach(() => {
     unhandled.length = 0;
-    loggerError = vi.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+    loggerError = vi
+      .spyOn(Logger.prototype, 'error')
+      .mockImplementation(() => undefined);
   });
 
   afterEach(() => {
@@ -544,19 +593,24 @@ describe('Erro depois do envio dos cabeçalhos (e2e, risco 69)', () => {
   });
 
   /** GET cru: devolve o que chegou e se a conexão foi encerrada sem terminar a resposta. */
-  function rawGet(path: string): Promise<{ status?: number; body: string; aborted: boolean }> {
+  function rawGet(
+    path: string,
+  ): Promise<{ status?: number; body: string; aborted: boolean }> {
     const { port } = server.address() as AddressInfo;
     return new Promise((resolve) => {
       let body = '';
       let status: number | undefined;
-      const req = http.get({ host: '127.0.0.1', port, path, agent: false }, (res) => {
-        status = res.statusCode;
-        res.setEncoding('utf8');
-        res.on('data', (chunk: string) => (body += chunk));
-        res.on('end', () => resolve({ status, body, aborted: false }));
-        res.on('aborted', () => resolve({ status, body, aborted: true }));
-        res.on('error', () => resolve({ status, body, aborted: true }));
-      });
+      const req = http.get(
+        { host: '127.0.0.1', port, path, agent: false },
+        (res) => {
+          status = res.statusCode;
+          res.setEncoding('utf8');
+          res.on('data', (chunk: string) => (body += chunk));
+          res.on('end', () => resolve({ status, body, aborted: false }));
+          res.on('aborted', () => resolve({ status, body, aborted: true }));
+          res.on('error', () => resolve({ status, body, aborted: true }));
+        },
+      );
       req.on('error', () => resolve({ status, body, aborted: true }));
     });
   }

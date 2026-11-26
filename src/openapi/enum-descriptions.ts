@@ -5,7 +5,8 @@ import type { OpenAPIObject } from '@nestjs/swagger';
  * removidos nem renomeados, e o cliente precisa aceitar um valor que ainda
  * não conhece (mesma regra do ErrorCode).
  */
-export const OPEN_ENUM_NOTE = 'A lista pode crescer; trate valor desconhecido sem quebrar.';
+export const OPEN_ENUM_NOTE =
+  'A lista pode crescer; trate valor desconhecido sem quebrar.';
 
 /**
  * Descrição própria de cada enum nomeado. O @nestjs/swagger copia para o
@@ -36,7 +37,9 @@ export function applyEnumDescriptions(document: OpenAPIObject): void {
   for (const [name, description] of Object.entries(NAMED_ENUM_DESCRIPTIONS)) {
     const schema = schemas[name];
     if (!schema || !('enum' in schema)) {
-      throw new Error(`NAMED_ENUM_DESCRIPTIONS cita ${name}, que não é um enum do documento OpenAPI`);
+      throw new Error(
+        `NAMED_ENUM_DESCRIPTIONS cita ${name}, que não é um enum do documento OpenAPI`,
+      );
     }
     schema.description = description;
   }

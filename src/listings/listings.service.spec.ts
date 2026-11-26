@@ -87,7 +87,9 @@ type PrismaMock = {
 
 // Instancia o DTO de verdade para herdar os defaults (page = 1, limit = 20),
 // como faz o ValidationPipe com transform.
-function query(params: Partial<ListListingsQueryDto> = {}): ListListingsQueryDto {
+function query(
+  params: Partial<ListListingsQueryDto> = {},
+): ListListingsQueryDto {
   return Object.assign(new ListListingsQueryDto(), params);
 }
 
@@ -253,7 +255,9 @@ describe('ListingsService', () => {
       const promise = service.update('l1', 'u1', updateDto({ priceCents: 1 }));
 
       await expect(promise).rejects.toBeInstanceOf(ConflictException);
-      await expect(promise).rejects.toThrow('Anúncio arquivado não pode ser alterado');
+      await expect(promise).rejects.toThrow(
+        'Anúncio arquivado não pode ser alterado',
+      );
     });
 
     it('repassa o erro original quando o update falha com P2025 e o anúncio não está arquivado', async () => {
@@ -603,12 +607,17 @@ describe('ListingsService', () => {
     it.each(cases)(
       '%s lança ForbiddenException quando o anúncio é de outro usuário',
       async (method, from) => {
-        prisma.listing.findUnique.mockResolvedValue({ sellerId: 'outro', status: from });
+        prisma.listing.findUnique.mockResolvedValue({
+          sellerId: 'outro',
+          status: from,
+        });
 
         const promise = service[method]('l1', 'u1');
 
         await expect(promise).rejects.toBeInstanceOf(ForbiddenException);
-        await expect(promise).rejects.toThrow('Este anúncio não pertence a você');
+        await expect(promise).rejects.toThrow(
+          'Este anúncio não pertence a você',
+        );
         expect(prisma.listing.updateMany).not.toHaveBeenCalled();
       },
     );
@@ -616,7 +625,10 @@ describe('ListingsService', () => {
     it.each(cases)(
       '%s lança ConflictException quando a ação não é permitida no status atual',
       async (method, _from, _to, invalid) => {
-        prisma.listing.findUnique.mockResolvedValue({ sellerId: 'u1', status: invalid });
+        prisma.listing.findUnique.mockResolvedValue({
+          sellerId: 'u1',
+          status: invalid,
+        });
 
         const promise = service[method]('l1', 'u1');
 
@@ -631,7 +643,10 @@ describe('ListingsService', () => {
     it.each(cases)(
       '%s lança ConflictException quando outra requisição muda o status antes da gravação',
       async (method, from) => {
-        prisma.listing.findUnique.mockResolvedValue({ sellerId: 'u1', status: from });
+        prisma.listing.findUnique.mockResolvedValue({
+          sellerId: 'u1',
+          status: from,
+        });
         prisma.listing.updateMany.mockResolvedValue({ count: 0 });
 
         const promise = service[method]('l1', 'u1');
@@ -647,9 +662,14 @@ describe('ListingsService', () => {
     it.each(cases)(
       '%s grava com updateMany filtrando pelo dono e pelo status lido (%s → %s)',
       async (method, from, to) => {
-        prisma.listing.findUnique.mockResolvedValue({ sellerId: 'u1', status: from });
+        prisma.listing.findUnique.mockResolvedValue({
+          sellerId: 'u1',
+          status: from,
+        });
         prisma.listing.updateMany.mockResolvedValue({ count: 1 });
-        prisma.listing.findUniqueOrThrow.mockResolvedValue(listingEntity({ status: to }));
+        prisma.listing.findUniqueOrThrow.mockResolvedValue(
+          listingEntity({ status: to }),
+        );
 
         await service[method]('l1', 'u1');
 
@@ -667,9 +687,14 @@ describe('ListingsService', () => {
     it.each(cases)(
       '%s devolve o anúncio atualizado como ListingResponseDto',
       async (method, from, to) => {
-        prisma.listing.findUnique.mockResolvedValue({ sellerId: 'u1', status: from });
+        prisma.listing.findUnique.mockResolvedValue({
+          sellerId: 'u1',
+          status: from,
+        });
         prisma.listing.updateMany.mockResolvedValue({ count: 1 });
-        prisma.listing.findUniqueOrThrow.mockResolvedValue(listingEntity({ status: to }));
+        prisma.listing.findUniqueOrThrow.mockResolvedValue(
+          listingEntity({ status: to }),
+        );
 
         const result = await service[method]('l1', 'u1');
 
@@ -688,24 +713,39 @@ describe('ListingsService', () => {
     it('anúncio inexistente: LISTING_NOT_FOUND', async () => {
       prisma.listing.findUnique.mockResolvedValue(null);
 
-      expect(await rejectionCode(service.pause('l1', 'u1'))).toBe('LISTING_NOT_FOUND');
+      expect(await rejectionCode(service.pause('l1', 'u1'))).toBe(
+        'LISTING_NOT_FOUND',
+      );
     });
 
     it('transição inválida: INVALID_STATE', async () => {
-      prisma.listing.findUnique.mockResolvedValue({ sellerId: 'u1', status: 'SOLD' });
+      prisma.listing.findUnique.mockResolvedValue({
+        sellerId: 'u1',
+        status: 'SOLD',
+      });
 
-      expect(await rejectionCode(service.pause('l1', 'u1'))).toBe('INVALID_STATE');
+      expect(await rejectionCode(service.pause('l1', 'u1'))).toBe(
+        'INVALID_STATE',
+      );
     });
 
     it('status mudou antes da gravação: STATE_CHANGED', async () => {
-      prisma.listing.findUnique.mockResolvedValue({ sellerId: 'u1', status: 'ACTIVE' });
+      prisma.listing.findUnique.mockResolvedValue({
+        sellerId: 'u1',
+        status: 'ACTIVE',
+      });
       prisma.listing.updateMany.mockResolvedValue({ count: 0 });
 
-      expect(await rejectionCode(service.pause('l1', 'u1'))).toBe('STATE_CHANGED');
+      expect(await rejectionCode(service.pause('l1', 'u1'))).toBe(
+        'STATE_CHANGED',
+      );
     });
 
     it('agendamento pago em andamento: LISTING_HAS_PAID_APPOINTMENT', async () => {
-      prisma.listing.findUnique.mockResolvedValue({ sellerId: 'u1', status: 'ACTIVE' });
+      prisma.listing.findUnique.mockResolvedValue({
+        sellerId: 'u1',
+        status: 'ACTIVE',
+      });
       prisma.listing.updateMany.mockResolvedValue({ count: 1 });
       prisma.appointment.findFirst.mockResolvedValue({ id: 'pago' });
 
@@ -715,7 +755,10 @@ describe('ListingsService', () => {
     });
 
     it('anúncio de outro usuário: FORBIDDEN', async () => {
-      prisma.listing.findUnique.mockResolvedValue({ sellerId: 'outro', status: 'ACTIVE' });
+      prisma.listing.findUnique.mockResolvedValue({
+        sellerId: 'outro',
+        status: 'ACTIVE',
+      });
 
       expect(await rejectionCode(service.pause('l1', 'u1'))).toBe('FORBIDDEN');
     });
@@ -725,8 +768,14 @@ describe('ListingsService', () => {
     const NOW = new Date('2030-01-01T12:00:00.000Z');
 
     beforeEach(() => {
-      service = new ListingsService(prisma as unknown as PrismaService, new FakeClock(NOW));
-      prisma.listing.findUnique.mockResolvedValue({ sellerId: 'u1', status: 'ACTIVE' });
+      service = new ListingsService(
+        prisma as unknown as PrismaService,
+        new FakeClock(NOW),
+      );
+      prisma.listing.findUnique.mockResolvedValue({
+        sellerId: 'u1',
+        status: 'ACTIVE',
+      });
       prisma.listing.updateMany.mockResolvedValue({ count: 1 });
       prisma.listing.findUniqueOrThrow.mockResolvedValue(listingEntity());
     });
@@ -743,7 +792,10 @@ describe('ListingsService', () => {
         await run(service);
 
         expect(prisma.appointment.updateMany).toHaveBeenCalledWith({
-          where: { listingId: 'l1', status: { in: ['REQUESTED', 'ACCEPTED', 'AWAITING_PAYMENT'] } },
+          where: {
+            listingId: 'l1',
+            status: { in: ['REQUESTED', 'ACCEPTED', 'AWAITING_PAYMENT'] },
+          },
           data: { status: 'CANCELLED', endedBy: 'SELLER', endedAt: NOW },
         });
       },
@@ -755,9 +807,14 @@ describe('ListingsService', () => {
         await run(service);
 
         expect(prisma.$transaction).toHaveBeenCalledTimes(1);
-        const listingUpdate = prisma.listing.updateMany.mock.invocationCallOrder[0];
-        expect(listingUpdate).toBeLessThan(prisma.appointment.findFirst.mock.invocationCallOrder[0]);
-        expect(listingUpdate).toBeLessThan(prisma.appointment.updateMany.mock.invocationCallOrder[0]);
+        const listingUpdate =
+          prisma.listing.updateMany.mock.invocationCallOrder[0];
+        expect(listingUpdate).toBeLessThan(
+          prisma.appointment.findFirst.mock.invocationCallOrder[0],
+        );
+        expect(listingUpdate).toBeLessThan(
+          prisma.appointment.updateMany.mock.invocationCallOrder[0],
+        );
       },
     );
 
@@ -781,7 +838,10 @@ describe('ListingsService', () => {
     );
 
     it('PAUSED → SOLD com agendamento PAID também responde 409 com a mesma mensagem', async () => {
-      prisma.listing.findUnique.mockResolvedValue({ sellerId: 'u1', status: 'PAUSED' });
+      prisma.listing.findUnique.mockResolvedValue({
+        sellerId: 'u1',
+        status: 'PAUSED',
+      });
       prisma.appointment.findFirst.mockResolvedValue({ id: 'pago' });
 
       const promise = service.markSold('l1', 'u1');
@@ -793,7 +853,10 @@ describe('ListingsService', () => {
     });
 
     it('activate (PAUSED → ACTIVE) não mexe em agendamentos', async () => {
-      prisma.listing.findUnique.mockResolvedValue({ sellerId: 'u1', status: 'PAUSED' });
+      prisma.listing.findUnique.mockResolvedValue({
+        sellerId: 'u1',
+        status: 'PAUSED',
+      });
 
       await service.activate('l1', 'u1');
 
@@ -802,12 +865,17 @@ describe('ListingsService', () => {
     });
 
     it('não mexe em agendamentos quando a transição é inválida (409 antes da transação)', async () => {
-      prisma.listing.findUnique.mockResolvedValue({ sellerId: 'u1', status: 'ARCHIVED' });
+      prisma.listing.findUnique.mockResolvedValue({
+        sellerId: 'u1',
+        status: 'ARCHIVED',
+      });
 
       const promise = service.pause('l1', 'u1');
 
       await expect(promise).rejects.toBeInstanceOf(ConflictException);
-      await expect(promise).rejects.toThrow('Ação não permitida no status atual do anúncio');
+      await expect(promise).rejects.toThrow(
+        'Ação não permitida no status atual do anúncio',
+      );
       expect(prisma.$transaction).not.toHaveBeenCalled();
       expect(prisma.appointment.updateMany).not.toHaveBeenCalled();
     });
@@ -844,7 +912,11 @@ describe('ListingsService', () => {
       prisma.listing.findUnique.mockResolvedValue({ sellerId: 'u1' });
       prisma.listing.update.mockResolvedValue(listingEntity());
 
-      const result = await service.update('l1', 'u1', updateDto({ priceCents: 1 }));
+      const result = await service.update(
+        'l1',
+        'u1',
+        updateDto({ priceCents: 1 }),
+      );
 
       expect(result).toBeInstanceOf(MyListingResponseDto);
       expect(result).not.toHaveProperty('sellerId');
@@ -855,7 +927,10 @@ describe('ListingsService', () => {
       ['activate', 'PAUSED'],
       ['markSold', 'ACTIVE'],
     ] as const)('%s devolve MyListingResponseDto', async (method, from) => {
-      prisma.listing.findUnique.mockResolvedValue({ sellerId: 'u1', status: from });
+      prisma.listing.findUnique.mockResolvedValue({
+        sellerId: 'u1',
+        status: from,
+      });
       prisma.listing.updateMany.mockResolvedValue({ count: 1 });
       prisma.listing.findUniqueOrThrow.mockResolvedValue(listingEntity());
 
@@ -888,7 +963,10 @@ describe('ListingsService', () => {
     });
 
     it('arquiva o anúncio (status ARCHIVED) em vez de apagar quando o usuário é o dono', async () => {
-      prisma.listing.findUnique.mockResolvedValue({ sellerId: 'u1', status: 'ACTIVE' });
+      prisma.listing.findUnique.mockResolvedValue({
+        sellerId: 'u1',
+        status: 'ACTIVE',
+      });
       prisma.listing.updateMany.mockResolvedValue({ count: 1 });
 
       await expect(service.remove('l1', 'u1')).resolves.toBeUndefined();
@@ -900,7 +978,10 @@ describe('ListingsService', () => {
     });
 
     it('lança ConflictException quando o anúncio já está arquivado', async () => {
-      prisma.listing.findUnique.mockResolvedValue({ sellerId: 'u1', status: 'ARCHIVED' });
+      prisma.listing.findUnique.mockResolvedValue({
+        sellerId: 'u1',
+        status: 'ARCHIVED',
+      });
 
       const promise = service.remove('l1', 'u1');
 
@@ -912,7 +993,10 @@ describe('ListingsService', () => {
     });
 
     it('lança ConflictException quando outra requisição muda o status antes da gravação', async () => {
-      prisma.listing.findUnique.mockResolvedValue({ sellerId: 'u1', status: 'ACTIVE' });
+      prisma.listing.findUnique.mockResolvedValue({
+        sellerId: 'u1',
+        status: 'ACTIVE',
+      });
       prisma.listing.updateMany.mockResolvedValue({ count: 0 });
 
       const promise = service.remove('l1', 'u1');

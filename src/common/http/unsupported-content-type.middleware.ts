@@ -37,7 +37,10 @@ export function rejectUnsupportedContentType(
   }
   next(
     new UnsupportedMediaTypeException(
-      withCode(ErrorCode.UNSUPPORTED_MEDIA_TYPE, UNSUPPORTED_MEDIA_TYPE_MESSAGE),
+      withCode(
+        ErrorCode.UNSUPPORTED_MEDIA_TYPE,
+        UNSUPPORTED_MEDIA_TYPE_MESSAGE,
+      ),
     ),
   );
 }

@@ -162,7 +162,13 @@ describe('Auth (e2e)', () => {
         .expect(200);
 
       expect(res.body.roles).toEqual(['USER']);
-      expect(Object.keys(res.body).sort()).toEqual(['createdAt', 'email', 'id', 'name', 'roles']);
+      expect(Object.keys(res.body).sort()).toEqual([
+        'createdAt',
+        'email',
+        'id',
+        'name',
+        'roles',
+      ]);
     });
 
     it('traz INSPECTOR em roles com o mesmo token logo depois de criar o perfil (lido do banco, não do token)', async () => {
@@ -183,7 +189,10 @@ describe('Auth (e2e)', () => {
 
     it('reflete na hora uma mudança de roles feita no banco', async () => {
       const user = await registerAndLogin(app, 'maria@x.com', 'Maria');
-      await prisma.user.update({ where: { id: user.id }, data: { roles: ['USER', 'ADMIN'] } });
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { roles: ['USER', 'ADMIN'] },
+      });
 
       const res = await request(app.getHttpServer())
         .get('/auth/me')
@@ -196,10 +205,19 @@ describe('Auth (e2e)', () => {
     it('POST /auth/register continua sem roles (só o /auth/me ganhou o campo)', async () => {
       const res = await request(app.getHttpServer())
         .post('/auth/register')
-        .send({ name: 'Maria', email: 'maria@x.com', password: DEFAULT_PASSWORD })
+        .send({
+          name: 'Maria',
+          email: 'maria@x.com',
+          password: DEFAULT_PASSWORD,
+        })
         .expect(201);
 
-      expect(Object.keys(res.body).sort()).toEqual(['createdAt', 'email', 'id', 'name']);
+      expect(Object.keys(res.body).sort()).toEqual([
+        'createdAt',
+        'email',
+        'id',
+        'name',
+      ]);
     });
 
     it('POST /auth/login continua com user sem roles', async () => {
@@ -210,7 +228,12 @@ describe('Auth (e2e)', () => {
         .send({ email: 'maria@x.com', password: DEFAULT_PASSWORD })
         .expect(200);
 
-      expect(Object.keys(res.body.user).sort()).toEqual(['createdAt', 'email', 'id', 'name']);
+      expect(Object.keys(res.body.user).sort()).toEqual([
+        'createdAt',
+        'email',
+        'id',
+        'name',
+      ]);
     });
 
     it('responde 401 "Token inválido ou expirado" com a assinatura adulterada', async () => {

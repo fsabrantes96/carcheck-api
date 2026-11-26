@@ -253,7 +253,11 @@ describe('AppExpressAdapter.setNotFoundHandler (risco 68)', () => {
     const next = vi.fn();
     const middleware = registeredMiddleware(original);
 
-    middleware({ originalUrl: '/docs/swagger-ui.css%00', method: 'GET' }, {}, next);
+    middleware(
+      { originalUrl: '/docs/swagger-ui.css%00', method: 'GET' },
+      {},
+      next,
+    );
 
     expect(original).not.toHaveBeenCalled();
     expect(next).toHaveBeenCalledTimes(1);
@@ -281,14 +285,18 @@ describe('AppExpressAdapter: code dos erros da camada do Express', () => {
 
   it('responde INVALID_URL_PARAM ao URIError do router', () => {
     expect(
-      codeOf(Object.assign(new URIError("Failed to decode param '%FF'"), { status: 400 })),
+      codeOf(
+        Object.assign(new URIError("Failed to decode param '%FF'"), {
+          status: 400,
+        }),
+      ),
     ).toBe('INVALID_URL_PARAM');
   });
 
   it('responde INVALID_BODY ao erro de descompressão', () => {
-    expect(codeOf(decompressionError('Z_DATA_ERROR', 'incorrect header check'))).toBe(
-      'INVALID_BODY',
-    );
+    expect(
+      codeOf(decompressionError('Z_DATA_ERROR', 'incorrect header check')),
+    ).toBe('INVALID_BODY');
   });
 
   it.each([

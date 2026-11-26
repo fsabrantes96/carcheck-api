@@ -16,18 +16,30 @@ const BPS_DENOMINATOR = 10_000;
  * Lança RangeError se `priceCents` não for inteiro seguro >= 0, se `feeBps`
  * não for inteiro entre 0 e 10000, ou se `price * bps` sair da faixa segura.
  */
-export function splitPlatformFee(priceCents: number, feeBps: number): PlatformFeeSplit {
+export function splitPlatformFee(
+  priceCents: number,
+  feeBps: number,
+): PlatformFeeSplit {
   if (!Number.isSafeInteger(priceCents) || priceCents < 0) {
-    throw new RangeError(`priceCents deve ser um inteiro >= 0 (recebido: ${priceCents})`);
+    throw new RangeError(
+      `priceCents deve ser um inteiro >= 0 (recebido: ${priceCents})`,
+    );
   }
   if (!Number.isSafeInteger(feeBps) || feeBps < 0 || feeBps > BPS_DENOMINATOR) {
-    throw new RangeError(`feeBps deve ser um inteiro entre 0 e 10000 (recebido: ${feeBps})`);
+    throw new RangeError(
+      `feeBps deve ser um inteiro entre 0 e 10000 (recebido: ${feeBps})`,
+    );
   }
   const scaled = priceCents * feeBps + BPS_DENOMINATOR / 2;
   if (!Number.isSafeInteger(scaled)) {
-    throw new RangeError(`priceCents grande demais para o cálculo exato (recebido: ${priceCents})`);
+    throw new RangeError(
+      `priceCents grande demais para o cálculo exato (recebido: ${priceCents})`,
+    );
   }
 
   const platformFeeCents = Math.floor(scaled / BPS_DENOMINATOR);
-  return { platformFeeCents, inspectorPayoutCents: priceCents - platformFeeCents };
+  return {
+    platformFeeCents,
+    inspectorPayoutCents: priceCents - platformFeeCents,
+  };
 }

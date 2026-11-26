@@ -19,7 +19,11 @@ const WINDOW_MINUTES: Record<ExpirableStatus, number> = {
  * Prazo do estado: `min(entrada no estado + janela, startsAt)`. Nunca passa
  * do início da avaliação (desenho, seção 4).
  */
-export function deadlineFor(status: ExpirableStatus, enteredAt: Date, startsAt: Date): Date {
+export function deadlineFor(
+  status: ExpirableStatus,
+  enteredAt: Date,
+  startsAt: Date,
+): Date {
   const windowEnd = enteredAt.getTime() + WINDOW_MINUTES[status] * 60_000;
   return new Date(Math.min(windowEnd, startsAt.getTime()));
 }
@@ -31,8 +35,16 @@ export function deadlineFor(status: ExpirableStatus, enteredAt: Date, startsAt: 
  */
 
 /** O agendamento venceu? Mesmo critério de `dueWhere`, para um registro já lido. */
-export function isDue(status: AppointmentStatus, expiresAt: Date | null, now: Date): boolean {
-  return EXPIRABLE_STATUSES.includes(status) && expiresAt !== null && expiresAt.getTime() <= now.getTime();
+export function isDue(
+  status: AppointmentStatus,
+  expiresAt: Date | null,
+  now: Date,
+): boolean {
+  return (
+    EXPIRABLE_STATUSES.includes(status) &&
+    expiresAt !== null &&
+    expiresAt.getTime() <= now.getTime()
+  );
 }
 
 /**
@@ -46,7 +58,8 @@ export function dueWhere(
   status: AppointmentStatus | readonly AppointmentStatus[] = EXPIRABLE_STATUSES,
 ): Prisma.AppointmentWhereInput {
   for (const each of typeof status === 'string' ? [status] : status) {
-    if (!EXPIRABLE_STATUSES.includes(each)) throw new RangeError(`dueWhere: o estado ${each} não expira`);
+    if (!EXPIRABLE_STATUSES.includes(each))
+      throw new RangeError(`dueWhere: o estado ${each} não expira`);
   }
   return {
     status: typeof status === 'string' ? status : { in: [...status] },
@@ -56,5 +69,9 @@ export function dueWhere(
 
 /** Campos gravados ao expirar: estado final, encerrado pelo sistema, agora. */
 export function expiredData(now: Date) {
-  return { status: 'EXPIRED', endedBy: 'SYSTEM', endedAt: now } satisfies Prisma.AppointmentUpdateManyMutationInput;
+  return {
+    status: 'EXPIRED',
+    endedBy: 'SYSTEM',
+    endedAt: now,
+  } satisfies Prisma.AppointmentUpdateManyMutationInput;
 }

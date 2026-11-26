@@ -42,7 +42,10 @@ describe('rejectUnsupportedContentType', () => {
   });
 
   it('deixa passar Content-Length: 0 mesmo com Content-Type text/plain', () => {
-    const { next } = run({ 'content-length': '0', 'content-type': 'text/plain' }, false);
+    const { next } = run(
+      { 'content-length': '0', 'content-type': 'text/plain' },
+      false,
+    );
 
     expect(next).toHaveBeenCalledWith();
   });
@@ -59,7 +62,10 @@ describe('rejectUnsupportedContentType', () => {
 
   it.each([
     ['Content-Length', { 'content-length': '1', 'content-type': 'text/plain' }],
-    ['Transfer-Encoding', { 'transfer-encoding': 'chunked', 'content-type': 'text/plain' }],
+    [
+      'Transfer-Encoding',
+      { 'transfer-encoding': 'chunked', 'content-type': 'text/plain' },
+    ],
     ['corpo sem Content-Type', { 'content-length': '5' }],
   ])(
     'passa ao filtro um 415 "Formato da requisição não suportado" (%s)',
@@ -75,7 +81,10 @@ describe('rejectUnsupportedContentType', () => {
   );
 
   it('passa o 415 com o code UNSUPPORTED_MEDIA_TYPE', () => {
-    const { next } = run({ 'content-length': '1', 'content-type': 'text/plain' }, false);
+    const { next } = run(
+      { 'content-length': '1', 'content-type': 'text/plain' },
+      false,
+    );
 
     const error = next.mock.calls[0][0] as UnsupportedMediaTypeException;
     expect(error.getResponse()).toEqual({
@@ -89,7 +98,10 @@ describe('rejectUnsupportedContentType', () => {
     const next = vi.fn();
 
     rejectUnsupportedContentType(
-      fakeRequest({ 'content-length': '1', 'content-type': 'text/plain' }, false) as unknown as Request,
+      fakeRequest(
+        { 'content-length': '1', 'content-type': 'text/plain' },
+        false,
+      ) as unknown as Request,
       res as unknown as Response,
       next as NextFunction,
     );

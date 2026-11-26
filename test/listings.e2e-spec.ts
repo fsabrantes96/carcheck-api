@@ -155,7 +155,10 @@ describe('Listings (e2e)', () => {
   });
 
   describe('GET /listings/mine (paginação)', () => {
-    function getMine(query: Record<string, unknown> = {}, token = seller.token) {
+    function getMine(
+      query: Record<string, unknown> = {},
+      token = seller.token,
+    ) {
       return request(app.getHttpServer())
         .get('/listings/mine')
         .set('Authorization', `Bearer ${token}`)
@@ -166,8 +169,11 @@ describe('Listings (e2e)', () => {
       const ids: string[] = [];
       for (let n = 1; n <= count; n++) {
         ids.push(
-          (await createListing(listingPayload({ title: `Anúncio número ${n}` })))
-            .id,
+          (
+            await createListing(
+              listingPayload({ title: `Anúncio número ${n}` }),
+            )
+          ).id,
         );
       }
       return ids;
@@ -227,21 +233,25 @@ describe('Listings (e2e)', () => {
       [{ limit: 0 }, 'limit must not be less than 1'],
       [{ limit: 51 }, 'limit must not be greater than 50'],
       [{ page: 1.5 }, 'page must be an integer number'],
-    ])(
-      'responde 400 no formato de validação com %o',
-      async (query, error) => {
-        const res = await getMine(query).expect(400);
+    ])('responde 400 no formato de validação com %o', async (query, error) => {
+      const res = await getMine(query).expect(400);
 
-        expect(res.body.message).toBe('Dados inválidos');
-        expect(Object.keys(res.body).sort()).toEqual(VALIDATION_ERROR_KEYS);
-        expect(res.body.errors).toContain(error);
-      },
-    );
+      expect(res.body.message).toBe('Dados inválidos');
+      expect(Object.keys(res.body).sort()).toEqual(VALIDATION_ERROR_KEYS);
+      expect(res.body.errors).toContain(error);
+    });
 
     it('traz só os anúncios do dono: os de outro vendedor não entram nos itens nem no total', async () => {
       const own = await createMany(2);
-      const other = await registerAndLogin(app, 'outro@x.com', 'Outro Vendedor');
-      await createListing(listingPayload({ title: 'Anúncio de outra pessoa' }), other.token);
+      const other = await registerAndLogin(
+        app,
+        'outro@x.com',
+        'Outro Vendedor',
+      );
+      await createListing(
+        listingPayload({ title: 'Anúncio de outra pessoa' }),
+        other.token,
+      );
 
       const res = await getMine().expect(200);
 
@@ -753,8 +763,15 @@ describe('Listings (e2e)', () => {
 
     it('GET /listings/mine documenta a resposta paginada com itens MyListingResponseDto e os parâmetros page e limit', () => {
       const op = doc.paths['/listings/mine'].get as {
-        parameters: { name: string; in: string; schema: Record<string, unknown> }[];
-        responses: Record<string, { content: Record<string, { schema: unknown }> }>;
+        parameters: {
+          name: string;
+          in: string;
+          schema: Record<string, unknown>;
+        }[];
+        responses: Record<
+          string,
+          { content: Record<string, { schema: unknown }> }
+        >;
       };
 
       expect(op.responses['200'].content['application/json'].schema).toEqual({
@@ -773,8 +790,16 @@ describe('Listings (e2e)', () => {
       });
       const param = (name: string) =>
         op.parameters.find((p) => p.name === name && p.in === 'query')?.schema;
-      expect(param('page')).toMatchObject({ minimum: 1, maximum: 200, default: 1 });
-      expect(param('limit')).toMatchObject({ minimum: 1, maximum: 50, default: 20 });
+      expect(param('page')).toMatchObject({
+        minimum: 1,
+        maximum: 200,
+        default: 1,
+      });
+      expect(param('limit')).toMatchObject({
+        minimum: 1,
+        maximum: 50,
+        default: 20,
+      });
     });
 
     it.each(['pause', 'activate', 'mark-sold'])(

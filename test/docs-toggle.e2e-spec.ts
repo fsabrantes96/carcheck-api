@@ -26,19 +26,24 @@ describe('DOCS_ENABLED (e2e)', () => {
       vi.unstubAllEnvs();
     });
 
-    it.each(DOCS_PATHS)('responde 404 ROUTE_NOT_FOUND no formato global a GET %s', async (path) => {
-      const res = await request(app.getHttpServer()).get(path);
+    it.each(DOCS_PATHS)(
+      'responde 404 ROUTE_NOT_FOUND no formato global a GET %s',
+      async (path) => {
+        const res = await request(app.getHttpServer()).get(path);
 
-      expect(res.status).toBe(404);
-      expect(res.body).toMatchObject({
-        statusCode: 404,
-        code: 'ROUTE_NOT_FOUND',
-        message: 'Rota não encontrada',
-      });
-      expect(Object.keys(res.body).sort()).toEqual(ERROR_KEYS);
-      expect(res.headers['cache-control']).toBe('no-store');
-      expect(res.headers['content-type']).toBe('application/json; charset=utf-8');
-    });
+        expect(res.status).toBe(404);
+        expect(res.body).toMatchObject({
+          statusCode: 404,
+          code: 'ROUTE_NOT_FOUND',
+          message: 'Rota não encontrada',
+        });
+        expect(Object.keys(res.body).sort()).toEqual(ERROR_KEYS);
+        expect(res.headers['cache-control']).toBe('no-store');
+        expect(res.headers['content-type']).toBe(
+          'application/json; charset=utf-8',
+        );
+      },
+    );
 
     it('continua servindo a API', async () => {
       await request(app.getHttpServer()).get('/listings').expect(200);
@@ -58,8 +63,11 @@ describe('DOCS_ENABLED (e2e)', () => {
       vi.unstubAllEnvs();
     });
 
-    it.each(['/docs/', '/docs-json', '/docs/swagger-ui.css'])('responde 200 a GET %s', async (path) => {
-      await request(app.getHttpServer()).get(path).expect(200);
-    });
+    it.each(['/docs/', '/docs-json', '/docs/swagger-ui.css'])(
+      'responde 200 a GET %s',
+      async (path) => {
+        await request(app.getHttpServer()).get(path).expect(200);
+      },
+    );
   });
 });

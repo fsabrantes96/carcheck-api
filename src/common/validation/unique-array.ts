@@ -12,7 +12,8 @@ export function UniqueArray(options?: ValidationOptions): PropertyDecorator {
     {
       name: ARRAY_UNIQUE,
       validator: {
-        validate: (value: unknown) => Array.isArray(value) && new Set(value).size === value.length,
+        validate: (value: unknown) =>
+          Array.isArray(value) && new Set(value).size === value.length,
         defaultMessage: (args?: ValidationArguments) =>
           `All ${args?.property ?? 'array'}'s elements must be unique`,
       },

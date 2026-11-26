@@ -251,7 +251,14 @@ describe('AllExceptionsFilter', () => {
           path: ACCEPT_URL,
         });
         expect(Object.keys(body).sort()).toEqual(
-          ['code', 'error', 'message', 'path', 'statusCode', 'timestamp'].sort(),
+          [
+            'code',
+            'error',
+            'message',
+            'path',
+            'statusCode',
+            'timestamp',
+          ].sort(),
         );
       },
     );
@@ -500,7 +507,11 @@ describe('AllExceptionsFilter', () => {
 
     it('responde 415 "Formato da requisição não suportado" a um charset não suportado', () => {
       const { response, body } = run(
-        bodyParserError('charset.unsupported', 415, 'unsupported charset "LATIN9"'),
+        bodyParserError(
+          'charset.unsupported',
+          415,
+          'unsupported charset "LATIN9"',
+        ),
       );
 
       expect(response.status).toHaveBeenCalledWith(
@@ -515,7 +526,9 @@ describe('AllExceptionsFilter', () => {
         bodyParserError('parameters.too.many', 413, 'too many parameters'),
       );
 
-      expect(response.status).toHaveBeenCalledWith(HttpStatus.PAYLOAD_TOO_LARGE);
+      expect(response.status).toHaveBeenCalledWith(
+        HttpStatus.PAYLOAD_TOO_LARGE,
+      );
       expect(body.message).toBe('Corpo da requisição muito grande');
     });
 
@@ -618,7 +631,10 @@ describe('AllExceptionsFilter', () => {
     ])('grava Cache-Control: no-store em %s', (_caso, exception) => {
       const { response } = run(exception);
 
-      expect(response.setHeader).toHaveBeenCalledWith('Cache-Control', 'no-store');
+      expect(response.setHeader).toHaveBeenCalledWith(
+        'Cache-Control',
+        'no-store',
+      );
     });
 
     it('grava o no-store depois de remover os cabeçalhos do arquivo e antes do json', () => {
@@ -634,13 +650,19 @@ describe('AllExceptionsFilter', () => {
 
   describe('cabeçalhos já enviados (risco 69)', () => {
     function runAfterHeadersSent(exception: unknown) {
-      const { host, response } = createHost('/docs/swagger-ui.css', 'GET', true);
+      const { host, response } = createHost(
+        '/docs/swagger-ui.css',
+        'GET',
+        true,
+      );
       new AllExceptionsFilter().catch(exception, host);
       return response;
     }
 
     it('não chama status nem json, que lançariam ERR_HTTP_HEADERS_SENT', () => {
-      const response = runAfterHeadersSent(new Error('falha no meio do stream'));
+      const response = runAfterHeadersSent(
+        new Error('falha no meio do stream'),
+      );
 
       expect(response.status).not.toHaveBeenCalled();
       expect(response.json).not.toHaveBeenCalled();
@@ -648,7 +670,9 @@ describe('AllExceptionsFilter', () => {
     });
 
     it('encerra a resposta incompleta com destroy', () => {
-      const response = runAfterHeadersSent(new Error('falha no meio do stream'));
+      const response = runAfterHeadersSent(
+        new Error('falha no meio do stream'),
+      );
 
       expect(response.destroy).toHaveBeenCalledTimes(1);
     });
@@ -683,17 +707,27 @@ describe('AllExceptionsFilter', () => {
       ['413', new HttpException('x', 413), 'PAYLOAD_TOO_LARGE'],
       ['415', new HttpException('x', 415), 'UNSUPPORTED_MEDIA_TYPE'],
       ['416', new HttpException('x', 416), 'RANGE_NOT_SATISFIABLE'],
-      ['429 do throttler', new ThrottlerException('Muitas requisições.'), 'TOO_MANY_REQUESTS'],
+      [
+        '429 do throttler',
+        new ThrottlerException('Muitas requisições.'),
+        'TOO_MANY_REQUESTS',
+      ],
       ['4xx fora do mapa', new HttpException('x', 418), 'BAD_REQUEST'],
-    ])('usa o code padrão do status numa HttpException sem code (%s)', (_caso, exception, code) => {
-      const { body } = run(exception);
+    ])(
+      'usa o code padrão do status numa HttpException sem code (%s)',
+      (_caso, exception, code) => {
+        const { body } = run(exception);
 
-      expect(body.code).toBe(code);
-    });
+        expect(body.code).toBe(code);
+      },
+    );
 
     it('usa o code que veio no corpo da exceção', () => {
       const { body } = run(
-        new BadRequestException({ code: 'INVALID_ID', message: 'Identificador inválido' }),
+        new BadRequestException({
+          code: 'INVALID_ID',
+          message: 'Identificador inválido',
+        }),
       );
 
       expect(body).toMatchObject({
@@ -712,9 +746,7 @@ describe('AllExceptionsFilter', () => {
     });
 
     it('responde VALIDATION_FAILED ao 400 do ValidationPipe', () => {
-      const { body } = run(
-        new BadRequestException(['email must be an email']),
-      );
+      const { body } = run(new BadRequestException(['email must be an email']));
 
       expect(body).toMatchObject({
         code: 'VALIDATION_FAILED',
@@ -731,39 +763,54 @@ describe('AllExceptionsFilter', () => {
       ['encoding.unsupported', 415, 'UNSUPPORTED_MEDIA_TYPE'],
       ['charset.unsupported', 415, 'UNSUPPORTED_MEDIA_TYPE'],
       ['request.aborted', 400, 'BAD_REQUEST'],
-    ])('responde o code %s → %i %s nos 4xx do body-parser', (type, status, code) => {
-      const { body } = run(bodyParserError(type, status, 'mensagem crua'));
+    ])(
+      'responde o code %s → %i %s nos 4xx do body-parser',
+      (type, status, code) => {
+        const { body } = run(bodyParserError(type, status, 'mensagem crua'));
 
-      expect(body.statusCode).toBe(status);
-      expect(body.code).toBe(code);
-    });
+        expect(body.statusCode).toBe(status);
+        expect(body.code).toBe(code);
+      },
+    );
 
     it.each([
       ['P2002', 'CONFLICT'],
       ['P2003', 'CONFLICT'],
       ['P2025', 'NOT_FOUND'],
-    ])('responde o code %s → %s nos erros mapeados do Prisma', (prismaCode, code) => {
-      const { body } = run(prismaError(prismaCode));
+    ])(
+      'responde o code %s → %s nos erros mapeados do Prisma',
+      (prismaCode, code) => {
+        const { body } = run(prismaError(prismaCode));
 
-      expect(body.code).toBe(code);
-    });
+        expect(body.code).toBe(code);
+      },
+    );
 
     it('responde TRANSACTION_CONFLICT ao deadlock', () => {
       vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
 
       const { body } = run(deadlockFromRawQuery());
 
-      expect(body).toMatchObject({ statusCode: 409, code: 'TRANSACTION_CONFLICT' });
+      expect(body).toMatchObject({
+        statusCode: 409,
+        code: 'TRANSACTION_CONFLICT',
+      });
     });
 
     it.each([
       ['query de model (P2039)', exclusionViolationFromModelQuery()],
       ['query crua (P2010)', exclusionViolationFromRawQuery()],
-    ])('responde SLOT_UNAVAILABLE à violação da exclusion constraint do horário (%s)', (_caso, exception) => {
-      const { body } = run(exception);
+    ])(
+      'responde SLOT_UNAVAILABLE à violação da exclusion constraint do horário (%s)',
+      (_caso, exception) => {
+        const { body } = run(exception);
 
-      expect(body).toMatchObject({ statusCode: 409, code: 'SLOT_UNAVAILABLE' });
-    });
+        expect(body).toMatchObject({
+          statusCode: 409,
+          code: 'SLOT_UNAVAILABLE',
+        });
+      },
+    );
 
     it('responde INTERNAL_ERROR ao erro não tratado', () => {
       const { body } = run(new Error('falhou'));
@@ -799,11 +846,17 @@ describe('AllExceptionsFilter', () => {
 
       run(exception, '/listings?city=Boituva&email=maria@x.com');
 
-      expect(loggerError).toHaveBeenCalledWith('Erro não tratado em GET /listings', exception.stack);
+      expect(loggerError).toHaveBeenCalledWith(
+        'Erro não tratado em GET /listings',
+        exception.stack,
+      );
     });
 
     it('registra o padrão da rota, sem ids, quando há rota casada', () => {
-      const { host } = createHost('/appointments/0b7c6f2e-3f4a-4d5b-9c8d-1e2f3a4b5c6d/accept?x=1', 'POST');
+      const { host } = createHost(
+        '/appointments/0b7c6f2e-3f4a-4d5b-9c8d-1e2f3a4b5c6d/accept?x=1',
+        'POST',
+      );
       const request = host.switchToHttp().getRequest<Record<string, unknown>>();
       request.route = { path: '/appointments/:id/accept' };
       const exception = new Error('falhou');

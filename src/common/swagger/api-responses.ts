@@ -26,7 +26,8 @@ export const UNAUTHORIZED_DESCRIPTION = 'Token ausente, inválido ou expirado';
  */
 export const UNAUTHORIZED_OR_DELETED_ACCOUNT_DESCRIPTION =
   'Token ausente, inválido ou expirado, ou token válido de uma conta que não existe mais';
-export const INVALID_UUID_DESCRIPTION = 'Identificador inválido: o id precisa ser uuid';
+export const INVALID_UUID_DESCRIPTION =
+  'Identificador inválido: o id precisa ser uuid';
 /**
  * Deadlock ou falha de serialização no banco (AllExceptionsFilter): o cliente
  * repete. Só nas rotas que abrem transação ($transaction).

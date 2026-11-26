@@ -64,14 +64,20 @@ describe('RolesGuard', () => {
 
   describe('quando a rota não exige roles', () => {
     it('libera o acesso sem consultar o banco quando não há @Roles', async () => {
-      const ctx = criarContexto(SemRolesController, SemRolesController.prototype.rota);
+      const ctx = criarContexto(
+        SemRolesController,
+        SemRolesController.prototype.rota,
+      );
 
       await expect(guard.canActivate(ctx)).resolves.toBe(true);
       expect(prisma.user.findUnique).not.toHaveBeenCalled();
     });
 
     it('libera o acesso mesmo sem usuário autenticado', async () => {
-      const ctx = criarContexto(SemRolesController, SemRolesController.prototype.rota);
+      const ctx = criarContexto(
+        SemRolesController,
+        SemRolesController.prototype.rota,
+      );
 
       await expect(guard.canActivate(ctx)).resolves.toBe(true);
     });
@@ -122,12 +128,21 @@ describe('RolesGuard', () => {
 
   describe('quando a rota exige roles', () => {
     const rotaInspectorOuAdmin = () =>
-      criarContexto(HandlerController, HandlerController.prototype.inspectorOuAdmin, usuario);
+      criarContexto(
+        HandlerController,
+        HandlerController.prototype.inspectorOuAdmin,
+        usuario,
+      );
 
     it('lança 401 sem consultar o banco quando não há usuário na requisição', async () => {
-      const ctx = criarContexto(HandlerController, HandlerController.prototype.inspectorOuAdmin);
+      const ctx = criarContexto(
+        HandlerController,
+        HandlerController.prototype.inspectorOuAdmin,
+      );
 
-      await expect(guard.canActivate(ctx)).rejects.toThrow(UnauthorizedException);
+      await expect(guard.canActivate(ctx)).rejects.toThrow(
+        UnauthorizedException,
+      );
       expect(prisma.user.findUnique).not.toHaveBeenCalled();
     });
 
@@ -148,7 +163,10 @@ describe('RolesGuard', () => {
     });
 
     it('responde "Token inválido ou expirado" quando não há usuário na requisição (risco 71)', async () => {
-      const ctx = criarContexto(HandlerController, HandlerController.prototype.inspectorOuAdmin);
+      const ctx = criarContexto(
+        HandlerController,
+        HandlerController.prototype.inspectorOuAdmin,
+      );
 
       await expect(guard.canActivate(ctx)).rejects.toThrow(
         new UnauthorizedException('Token inválido ou expirado'),
@@ -174,7 +192,9 @@ describe('RolesGuard', () => {
     ])('libera o acesso quando o usuário tem %s', async (_descricao, roles) => {
       prisma.user.findUnique.mockResolvedValue({ roles });
 
-      await expect(guard.canActivate(rotaInspectorOuAdmin())).resolves.toBe(true);
+      await expect(guard.canActivate(rotaInspectorOuAdmin())).resolves.toBe(
+        true,
+      );
     });
 
     it.each<[string, Role[]]>([

@@ -1,7 +1,4 @@
-import {
-  ConflictException,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { ConflictException, UnauthorizedException } from '@nestjs/common';
 import type { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { rejectionCode } from '../../test/support/error-code.js';

@@ -9,8 +9,33 @@ import { UpdateListingDto } from '../../listings/dto/update-listing.dto.js';
 
 /** As 27 unidades federativas (26 estados e o Distrito Federal). */
 const UFS = [
-  'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA',
-  'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO',
+  'AC',
+  'AL',
+  'AP',
+  'AM',
+  'BA',
+  'CE',
+  'DF',
+  'ES',
+  'GO',
+  'MA',
+  'MT',
+  'MS',
+  'MG',
+  'PA',
+  'PB',
+  'PR',
+  'PE',
+  'PI',
+  'RJ',
+  'RN',
+  'RS',
+  'RO',
+  'RR',
+  'SC',
+  'SP',
+  'SE',
+  'TO',
 ];
 
 const listing = {
@@ -84,19 +109,15 @@ describe('state: sigla de uma das 27 UFs', () => {
       expect(dto.state).toBe(expected);
     });
 
-    it.each([
-      ['XX'],
-      ['12'],
-      ['S️P️'],
-      ['SPP'],
-      [''],
-      ['São Paulo'],
-    ])('recusa %o com o erro de state', async (input) => {
-      const { errors } = await check(cls, base, input);
+    it.each([['XX'], ['12'], ['S️P️'], ['SPP'], [''], ['São Paulo']])(
+      'recusa %o com o erro de state',
+      async (input) => {
+        const { errors } = await check(cls, base, input);
 
-      expect(errors.map((e) => e.property)).toEqual(['state']);
-      expect(errors[0].constraints).toHaveProperty('isIn');
-    });
+        expect(errors.map((e) => e.property)).toEqual(['state']);
+        expect(errors[0].constraints).toHaveProperty('isIn');
+      },
+    );
 
     it('recusa uma lista de UFs (state repetido na query string)', async () => {
       const { errors } = await check(cls, base, ['SP', 'RJ']);

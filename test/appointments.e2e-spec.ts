@@ -14,7 +14,11 @@ import {
   verifiedInspector,
 } from './support/fixtures.js';
 import type { TestInspector, TestUser } from './support/fixtures.js';
-import { closeTestApp, createTestApp, resetDatabase } from './support/test-app.js';
+import {
+  closeTestApp,
+  createTestApp,
+  resetDatabase,
+} from './support/test-app.js';
 
 describe('Appointments (e2e)', () => {
   let app: INestApplication<App>;
@@ -32,7 +36,11 @@ describe('Appointments (e2e)', () => {
     await resetDatabase(app);
     seller = await registerAndLogin(app, 'vendedor@x.com', 'Vera Vendedora');
     buyer = await registerAndLogin(app, 'comprador@x.com', 'Bruno Comprador');
-    inspector = await verifiedInspector(app, 'avaliador@x.com', 'Ivo Avaliador');
+    inspector = await verifiedInspector(
+      app,
+      'avaliador@x.com',
+      'Ivo Avaliador',
+    );
   });
 
   afterAll(async () => {
@@ -74,7 +82,11 @@ describe('Appointments (e2e)', () => {
 
     it('continua ocupando o horário: outro pedido no mesmo horário recebe 409', async () => {
       await paidWithStaleDeadline();
-      const otherBuyer = await registerAndLogin(app, 'outro.comprador@x.com', 'Olga');
+      const otherBuyer = await registerAndLogin(
+        app,
+        'outro.comprador@x.com',
+        'Olga',
+      );
       const otherListing = await createListing();
 
       const res = await request(app.getHttpServer())
@@ -87,18 +99,28 @@ describe('Appointments (e2e)', () => {
         })
         .expect(409);
 
-      expect(res.body.message).toBe('O avaliador não está disponível nesse horário');
+      expect(res.body.message).toBe(
+        'O avaliador não está disponível nesse horário',
+      );
     });
 
     it('não é expirado pela limpeza do aceite de outro agendamento do mesmo avaliador', async () => {
       const paidId = await paidWithStaleDeadline();
-      const otherBuyer = await registerAndLogin(app, 'outro.comprador@x.com', 'Olga');
+      const otherBuyer = await registerAndLogin(
+        app,
+        'outro.comprador@x.com',
+        'Olga',
+      );
       const otherListing = await createListing();
       // Horário que não se sobrepõe: o aceite passa e roda a limpeza dos vencidos.
       const other = await request(app.getHttpServer())
         .post('/appointments')
         .set(auth(otherBuyer))
-        .send({ listingId: otherListing, inspectorProfileId: inspector.profileId, startsAt: hoursFromNow(72) })
+        .send({
+          listingId: otherListing,
+          inspectorProfileId: inspector.profileId,
+          startsAt: hoursFromNow(72),
+        })
         .expect(201);
 
       await request(app.getHttpServer())
@@ -106,7 +128,9 @@ describe('Appointments (e2e)', () => {
         .set(auth(inspector))
         .expect(200);
 
-      const paid = await prisma.appointment.findUniqueOrThrow({ where: { id: paidId } });
+      const paid = await prisma.appointment.findUniqueOrThrow({
+        where: { id: paidId },
+      });
       expect(paid.status).toBe('PAID');
       expect(paid.endedBy).toBeNull();
     });
@@ -124,7 +148,9 @@ describe('Appointments (e2e)', () => {
           .set(auth(seller))
           .expect(200);
 
-        const saved = await prisma.appointment.findUniqueOrThrow({ where: { id: created.body.id } });
+        const saved = await prisma.appointment.findUniqueOrThrow({
+          where: { id: created.body.id },
+        });
         expect(saved).toMatchObject({ status: 'CANCELLED', endedBy: 'SELLER' });
         expect(saved.endedAt).toBeInstanceOf(Date);
       },
@@ -134,9 +160,14 @@ describe('Appointments (e2e)', () => {
       const listingId = await createListing();
       const created = await requestAppointment(listingId).expect(201);
 
-      await request(app.getHttpServer()).delete(`/listings/${listingId}`).set(auth(seller)).expect(204);
+      await request(app.getHttpServer())
+        .delete(`/listings/${listingId}`)
+        .set(auth(seller))
+        .expect(204);
 
-      const saved = await prisma.appointment.findUniqueOrThrow({ where: { id: created.body.id } });
+      const saved = await prisma.appointment.findUniqueOrThrow({
+        where: { id: created.body.id },
+      });
       expect(saved).toMatchObject({ status: 'CANCELLED', endedBy: 'SELLER' });
     });
 
@@ -154,9 +185,20 @@ describe('Appointments (e2e)', () => {
         .set(auth(seller))
         .expect(409);
 
-      expect(res.body.message).toBe('O anúncio tem avaliação paga em andamento; não é possível pausar, vender ou arquivar');
-      expect((await prisma.listing.findUniqueOrThrow({ where: { id: listingId } })).status).toBe('ACTIVE');
-      expect((await prisma.appointment.findUniqueOrThrow({ where: { id: created.body.id } })).status).toBe('PAID');
+      expect(res.body.message).toBe(
+        'O anúncio tem avaliação paga em andamento; não é possível pausar, vender ou arquivar',
+      );
+      expect(
+        (await prisma.listing.findUniqueOrThrow({ where: { id: listingId } }))
+          .status,
+      ).toBe('ACTIVE');
+      expect(
+        (
+          await prisma.appointment.findUniqueOrThrow({
+            where: { id: created.body.id },
+          })
+        ).status,
+      ).toBe('PAID');
     });
 
     it('criação e pausa simultâneas: nunca 500 e nunca sobra agendamento aberto em anúncio pausado', async () => {
@@ -167,18 +209,31 @@ describe('Appointments (e2e)', () => {
 
         const [created, paused] = await Promise.all([
           requestAppointment(listingId),
-          request(app.getHttpServer()).post(`/listings/${listingId}/pause`).set(auth(seller)),
+          request(app.getHttpServer())
+            .post(`/listings/${listingId}/pause`)
+            .set(auth(seller)),
         ]);
 
         expect([201, 404]).toContain(created.status);
         expect(paused.status).toBe(200);
         const open = await prisma.appointment.count({
-          where: { listingId, status: { in: ['REQUESTED', 'ACCEPTED', 'AWAITING_PAYMENT'] } },
+          where: {
+            listingId,
+            status: { in: ['REQUESTED', 'ACCEPTED', 'AWAITING_PAYMENT'] },
+          },
         });
-        expect(open, `rodada ${round}: agendamento aberto em anúncio pausado`).toBe(0);
+        expect(
+          open,
+          `rodada ${round}: agendamento aberto em anúncio pausado`,
+        ).toBe(0);
         if (created.status === 201) {
-          const saved = await prisma.appointment.findUniqueOrThrow({ where: { id: created.body.id } });
-          expect(saved).toMatchObject({ status: 'CANCELLED', endedBy: 'SELLER' });
+          const saved = await prisma.appointment.findUniqueOrThrow({
+            where: { id: created.body.id },
+          });
+          expect(saved).toMatchObject({
+            status: 'CANCELLED',
+            endedBy: 'SELLER',
+          });
         }
       }
     });
@@ -206,13 +261,22 @@ describe('Appointments (e2e)', () => {
   const KEYS_BY_ROLE = {
     SELLER: [...BASE_KEYS].sort(),
     BUYER: [...BASE_KEYS, 'priceCents'].sort(),
-    INSPECTOR: [...BASE_KEYS, 'inspectorPayoutCents', 'platformFeeBps', 'platformFeeCents', 'priceCents'].sort(),
+    INSPECTOR: [
+      ...BASE_KEYS,
+      'inspectorPayoutCents',
+      'platformFeeBps',
+      'platformFeeCents',
+      'priceCents',
+    ].sort(),
   };
   /**
    * Codes possíveis de quem perde a corrida accept × cancel (um único
    * agendamento, nenhum outro ocupa o horário: SLOT_UNAVAILABLE não acontece).
    */
-  const RACE_CODES: ErrorCode[] = [ErrorCode.STATE_CHANGED, ErrorCode.INVALID_STATE];
+  const RACE_CODES: ErrorCode[] = [
+    ErrorCode.STATE_CHANGED,
+    ErrorCode.INVALID_STATE,
+  ];
   const NOT_FOUND = 'Agendamento não encontrado';
   /** Code do erro (o front decide pelo code, nunca pela mensagem). */
   function errorCode(res: request.Response | undefined): unknown {
@@ -254,11 +318,15 @@ describe('Appointments (e2e)', () => {
   }
 
   function getOne(user: TestUser, id: string) {
-    return request(app.getHttpServer()).get(`/appointments/${id}`).set(auth(user));
+    return request(app.getHttpServer())
+      .get(`/appointments/${id}`)
+      .set(auth(user));
   }
 
   async function requestedAppointment(listingId?: string): Promise<string> {
-    const res = await requestAppointment(listingId ?? (await createListing())).expect(201);
+    const res = await requestAppointment(
+      listingId ?? (await createListing()),
+    ).expect(201);
     return (res.body as { id: string }).id;
   }
 
@@ -294,7 +362,12 @@ describe('Appointments (e2e)', () => {
         myRole: 'BUYER',
         status: 'REQUESTED',
         priceCents: 15000,
-        listing: { id: listingId, title: 'Gol 1.0 2018 completo', city: 'Boituva', state: 'SP' },
+        listing: {
+          id: listingId,
+          title: 'Gol 1.0 2018 completo',
+          city: 'Boituva',
+          state: 'SP',
+        },
         inspector: { profileId: inspector.profileId, name: 'Ivo Avaliador' },
         buyer: { name: 'Bruno Comprador' },
         seller: { name: 'Vera Vendedora' },
@@ -324,11 +397,19 @@ describe('Appointments (e2e)', () => {
     it('o vendedor confirma: 200 no formato do vendedor, AWAITING_PAYMENT e endereço sem espaços nas pontas', async () => {
       const id = await acceptedAppointment();
 
-      const res = await act(seller, id, 'confirm', { meetingAddress: `   ${ADDRESS}   ` }).expect(200);
+      const res = await act(seller, id, 'confirm', {
+        meetingAddress: `   ${ADDRESS}   `,
+      }).expect(200);
 
-      expect(res.body).toMatchObject({ myRole: 'SELLER', status: 'AWAITING_PAYMENT', meetingAddress: ADDRESS });
+      expect(res.body).toMatchObject({
+        myRole: 'SELLER',
+        status: 'AWAITING_PAYMENT',
+        meetingAddress: ADDRESS,
+      });
       expect(Object.keys(res.body).sort()).toEqual(KEYS_BY_ROLE.SELLER);
-      const saved = await prisma.appointment.findUniqueOrThrow({ where: { id } });
+      const saved = await prisma.appointment.findUniqueOrThrow({
+        where: { id },
+      });
       expect(saved.meetingAddress).toBe(ADDRESS);
     });
 
@@ -339,7 +420,11 @@ describe('Appointments (e2e)', () => {
 
         const res = await getOne(userFor(role), id).expect(200);
 
-        expect(res.body).toMatchObject({ id, myRole: role, status: 'AWAITING_PAYMENT' });
+        expect(res.body).toMatchObject({
+          id,
+          myRole: role,
+          status: 'AWAITING_PAYMENT',
+        });
         expect(Object.keys(res.body).sort()).toEqual(KEYS_BY_ROLE[role]);
       },
     );
@@ -349,11 +434,20 @@ describe('Appointments (e2e)', () => {
       const created = await requestAppointment(listingId).expect(201);
       const id = (created.body as { id: string }).id;
       const accepted = await act(inspector, id, 'accept').expect(200);
-      const confirmed = await act(seller, id, 'confirm', { meetingAddress: ADDRESS }).expect(200);
+      const confirmed = await act(seller, id, 'confirm', {
+        meetingAddress: ADDRESS,
+      }).expect(200);
       const bodies: unknown[] = [created.body, accepted.body, confirmed.body];
       for (const user of [buyer, seller, inspector]) {
         bodies.push((await getOne(user, id).expect(200)).body);
-        bodies.push((await request(app.getHttpServer()).get('/appointments').set(auth(user)).expect(200)).body);
+        bodies.push(
+          (
+            await request(app.getHttpServer())
+              .get('/appointments')
+              .set(auth(user))
+              .expect(200)
+          ).body,
+        );
       }
 
       for (const body of bodies) expectNoUserIds(body);
@@ -363,10 +457,15 @@ describe('Appointments (e2e)', () => {
       const ref = (name: string) => `#/components/schemas/${name}`;
 
       it('o 200 de GET /appointments/{id} é oneOf dos 3 perfis com discriminador myRole', async () => {
-        const res = await request(app.getHttpServer()).get('/docs-json').expect(200);
+        const res = await request(app.getHttpServer())
+          .get('/docs-json')
+          .expect(200);
 
         // A rota referencia o schema nomeado da união, que tem o oneOf e o discriminador.
-        const routeSchema = res.body.paths['/appointments/{id}'].get.responses['200'].content['application/json'].schema;
+        const routeSchema =
+          res.body.paths['/appointments/{id}'].get.responses['200'].content[
+            'application/json'
+          ].schema;
         expect(routeSchema).toEqual({ $ref: ref('AppointmentResponseDto') });
         const schema = res.body.components.schemas.AppointmentResponseDto;
         expect(schema.oneOf).toEqual([
@@ -388,32 +487,52 @@ describe('Appointments (e2e)', () => {
         ['SellerAppointmentResponseDto', 'SELLER'],
         ['BuyerAppointmentResponseDto', 'BUYER'],
         ['InspectorAppointmentResponseDto', 'INSPECTOR'],
-      ] as const)('o schema %s tem exatamente as propriedades do papel %s', async (name, role) => {
-        const res = await request(app.getHttpServer()).get('/docs-json').expect(200);
+      ] as const)(
+        'o schema %s tem exatamente as propriedades do papel %s',
+        async (name, role) => {
+          const res = await request(app.getHttpServer())
+            .get('/docs-json')
+            .expect(200);
 
-        const schema = res.body.components.schemas[name];
-        expect(Object.keys(schema.properties).sort()).toEqual(KEYS_BY_ROLE[role]);
-        expect(schema.properties.myRole.enum).toEqual([role]);
-      });
+          const schema = res.body.components.schemas[name];
+          expect(Object.keys(schema.properties).sort()).toEqual(
+            KEYS_BY_ROLE[role],
+          );
+          expect(schema.properties.myRole.enum).toEqual([role]);
+        },
+      );
     });
 
     describe('GET /appointments (filtros)', () => {
       /** Comprador num agendamento (anúncio da Vera) e vendedor em outro (anúncio dele, pedido pela Vera). */
-      async function buyerInBothRoles(): Promise<{ asBuyer: string; asSeller: string }> {
+      async function buyerInBothRoles(): Promise<{
+        asBuyer: string;
+        asSeller: string;
+      }> {
         const asBuyer = await requestedAppointment();
         const buyersListing = await createListingAs(buyer);
-        const res = await requestAs(seller, buyersListing, hoursFromNow(72)).expect(201);
+        const res = await requestAs(
+          seller,
+          buyersListing,
+          hoursFromNow(72),
+        ).expect(201);
         return { asBuyer, asSeller: (res.body as { id: string }).id };
       }
 
       it('sem filtro traz os agendamentos em que o usuário participa, cada um no formato do seu papel', async () => {
         const { asBuyer, asSeller } = await buyerInBothRoles();
 
-        const res = await request(app.getHttpServer()).get('/appointments').set(auth(buyer)).expect(200);
+        const res = await request(app.getHttpServer())
+          .get('/appointments')
+          .set(auth(buyer))
+          .expect(200);
 
         expect(res.body).toMatchObject({ total: 2, page: 1, limit: 20 });
         const roles = Object.fromEntries(
-          (res.body.items as { id: string; myRole: string }[]).map((i) => [i.id, i.myRole]),
+          (res.body.items as { id: string; myRole: string }[]).map((i) => [
+            i.id,
+            i.myRole,
+          ]),
         );
         expect(roles).toEqual({ [asBuyer]: 'BUYER', [asSeller]: 'SELLER' });
       });
@@ -421,19 +540,22 @@ describe('Appointments (e2e)', () => {
       it.each([
         ['BUYER', 'asBuyer'],
         ['SELLER', 'asSeller'],
-      ] as const)('?as=%s traz só os agendamentos em que o usuário tem esse papel', async (as, key) => {
-        const ids = await buyerInBothRoles();
+      ] as const)(
+        '?as=%s traz só os agendamentos em que o usuário tem esse papel',
+        async (as, key) => {
+          const ids = await buyerInBothRoles();
 
-        const res = await request(app.getHttpServer())
-          .get('/appointments')
-          .query({ as })
-          .set(auth(buyer))
-          .expect(200);
+          const res = await request(app.getHttpServer())
+            .get('/appointments')
+            .query({ as })
+            .set(auth(buyer))
+            .expect(200);
 
-        expect(res.body.total).toBe(1);
-        expect(res.body.items).toHaveLength(1);
-        expect(res.body.items[0]).toMatchObject({ id: ids[key], myRole: as });
-      });
+          expect(res.body.total).toBe(1);
+          expect(res.body.items).toHaveLength(1);
+          expect(res.body.items[0]).toMatchObject({ id: ids[key], myRole: as });
+        },
+      );
 
       it('?status=ACCEPTED traz só os aceitos', async () => {
         const { asBuyer } = await buyerInBothRoles();
@@ -446,7 +568,9 @@ describe('Appointments (e2e)', () => {
           .expect(200);
 
         expect(res.body.total).toBe(1);
-        expect(res.body.items.map((i: { id: string }) => i.id)).toEqual([asBuyer]);
+        expect(res.body.items.map((i: { id: string }) => i.id)).toEqual([
+          asBuyer,
+        ]);
       });
 
       it('responde 400 no formato de validação com limit=51', async () => {
@@ -461,16 +585,21 @@ describe('Appointments (e2e)', () => {
         expect(res.body.errors).toEqual(['limit must not be greater than 50']);
       });
 
-      it.each(['1e20', '10001'])('responde 400 (não 500) com page=%s, acima do teto de 10000', async (page) => {
-        const res = await request(app.getHttpServer())
-          .get('/appointments')
-          .query({ page })
-          .set(auth(buyer))
-          .expect(400);
+      it.each(['1e20', '10001'])(
+        'responde 400 (não 500) com page=%s, acima do teto de 10000',
+        async (page) => {
+          const res = await request(app.getHttpServer())
+            .get('/appointments')
+            .query({ page })
+            .set(auth(buyer))
+            .expect(400);
 
-        expect(res.body.message).toBe('Dados inválidos');
-        expect(res.body.errors).toEqual(['page must not be greater than 10000']);
-      });
+          expect(res.body.message).toBe('Dados inválidos');
+          expect(res.body.errors).toEqual([
+            'page must not be greater than 10000',
+          ]);
+        },
+      );
 
       it('aceita page=10000 (o teto) e devolve página vazia', async () => {
         const res = await request(app.getHttpServer())
@@ -511,21 +640,37 @@ describe('Appointments (e2e)', () => {
 
     it('responde 404 "Anúncio não encontrado" quando o anúncio está PAUSED', async () => {
       const listingId = await createListing();
-      await request(app.getHttpServer()).post(`/listings/${listingId}/pause`).set(auth(seller)).expect(200);
+      await request(app.getHttpServer())
+        .post(`/listings/${listingId}/pause`)
+        .set(auth(seller))
+        .expect(200);
 
-      await expectError(await requestAppointment(listingId), 404, 'Anúncio não encontrado');
+      await expectError(
+        await requestAppointment(listingId),
+        404,
+        'Anúncio não encontrado',
+      );
     });
 
     it('responde 404 "Avaliador não encontrado" quando o avaliador não é verificado', async () => {
       const listingId = await createListing();
-      const unverified = await registerAndLogin(app, 'naoverificado@x.com', 'Nico Não Verificado');
+      const unverified = await registerAndLogin(
+        app,
+        'naoverificado@x.com',
+        'Nico Não Verificado',
+      );
       const profile = await request(app.getHttpServer())
         .post('/inspectors/me')
         .set(auth(unverified))
         .send(inspectorProfilePayload)
         .expect(201);
 
-      const res = await requestAs(buyer, listingId, hoursFromNow(48), profile.body.id);
+      const res = await requestAs(
+        buyer,
+        listingId,
+        hoursFromNow(48),
+        profile.body.id,
+      );
 
       await expectError(res, 404, 'Avaliador não encontrado');
     });
@@ -583,10 +728,15 @@ describe('Appointments (e2e)', () => {
     it('responde 400 quando startsAt não tem fuso horário', async () => {
       const listingId = await createListing();
 
-      const res = await requestAppointment(listingId, hoursFromNow(48).replace('Z', '')).expect(400);
+      const res = await requestAppointment(
+        listingId,
+        hoursFromNow(48).replace('Z', ''),
+      ).expect(400);
 
       expect(res.body.message).toBe('Dados inválidos');
-      expect(res.body.errors).toEqual(['startsAt precisa ter fuso horário (Z ou ±hh:mm)']);
+      expect(res.body.errors).toEqual([
+        'startsAt precisa ter fuso horário (Z ou ±hh:mm)',
+      ]);
       expect(await prisma.appointment.count()).toBe(0);
     });
 
@@ -598,20 +748,37 @@ describe('Appointments (e2e)', () => {
         data: { basePriceCents: 4999 },
       });
 
-      await expectError(await requestAppointment(listingId), 409, 'Este avaliador está indisponível no momento');
+      await expectError(
+        await requestAppointment(listingId),
+        409,
+        'Este avaliador está indisponível no momento',
+      );
     });
 
     it('responde 409 quando o horário se sobrepõe a um agendamento ACCEPTED do mesmo avaliador', async () => {
       const listingId = await createListing();
-      const other = await registerAndLogin(app, 'outro@x.com', 'Otto Comprador');
+      const other = await registerAndLogin(
+        app,
+        'outro@x.com',
+        'Otto Comprador',
+      );
       const startsAt = new Date(hoursFromNow(48));
-      const taken = await requestAs(other, listingId, startsAt.toISOString()).expect(201);
+      const taken = await requestAs(
+        other,
+        listingId,
+        startsAt.toISOString(),
+      ).expect(201);
       await act(inspector, taken.body.id, 'accept').expect(200);
 
-      const res = await requestAppointment(listingId, hoursFromNow(0.5, startsAt));
+      const res = await requestAppointment(
+        listingId,
+        hoursFromNow(0.5, startsAt),
+      );
 
       expect(res.status).toBe(409);
-      expect(res.body.message).toBe('O avaliador não está disponível nesse horário');
+      expect(res.body.message).toBe(
+        'O avaliador não está disponível nesse horário',
+      );
       expect(await prisma.appointment.count()).toBe(1);
     });
 
@@ -622,7 +789,9 @@ describe('Appointments (e2e)', () => {
       const res = await requestAppointment(listingId, hoursFromNow(96));
 
       expect(res.status).toBe(409);
-      expect(res.body.message).toBe('Você já tem um agendamento em andamento para este anúncio com este avaliador');
+      expect(res.body.message).toBe(
+        'Você já tem um agendamento em andamento para este anúncio com este avaliador',
+      );
       expect(Object.keys(res.body).sort()).toEqual(ERROR_KEYS);
       expect(await prisma.appointment.count()).toBe(1);
     });
@@ -634,36 +803,53 @@ describe('Appointments (e2e)', () => {
       ['priceCents', 1],
       ['buyerId', '00000000-0000-4000-8000-000000000001'],
       ['sellerId', '00000000-0000-4000-8000-000000000002'],
-    ])('POST /appointments com %s responde 400 "Dados inválidos" e não cria nada', async (field, value) => {
-      const listingId = await createListing();
+    ])(
+      'POST /appointments com %s responde 400 "Dados inválidos" e não cria nada',
+      async (field, value) => {
+        const listingId = await createListing();
 
-      const res = await request(app.getHttpServer())
-        .post('/appointments')
-        .set(auth(buyer))
-        .send({ listingId, inspectorProfileId: inspector.profileId, startsAt: hoursFromNow(48), [field]: value })
-        .expect(400);
+        const res = await request(app.getHttpServer())
+          .post('/appointments')
+          .set(auth(buyer))
+          .send({
+            listingId,
+            inspectorProfileId: inspector.profileId,
+            startsAt: hoursFromNow(48),
+            [field]: value,
+          })
+          .expect(400);
 
-      expect(res.body.message).toBe('Dados inválidos');
-      expect(Object.keys(res.body).sort()).toEqual(VALIDATION_ERROR_KEYS);
-      expect(res.body.errors).toEqual([`property ${field} should not exist`]);
-      expect(await prisma.appointment.count()).toBe(0);
-    });
+        expect(res.body.message).toBe('Dados inválidos');
+        expect(Object.keys(res.body).sort()).toEqual(VALIDATION_ERROR_KEYS);
+        expect(res.body.errors).toEqual([`property ${field} should not exist`]);
+        expect(await prisma.appointment.count()).toBe(0);
+      },
+    );
 
     it('confirm com campo extra responde 400 e não muda o estado', async () => {
       const id = await acceptedAppointment();
 
-      const res = await act(seller, id, 'confirm', { meetingAddress: ADDRESS, status: 'PAID' }).expect(400);
+      const res = await act(seller, id, 'confirm', {
+        meetingAddress: ADDRESS,
+        status: 'PAID',
+      }).expect(400);
 
       expect(res.body.message).toBe('Dados inválidos');
       expect(res.body.errors).toEqual(['property status should not exist']);
-      expect((await prisma.appointment.findUniqueOrThrow({ where: { id } })).status).toBe('ACCEPTED');
+      expect(
+        (await prisma.appointment.findUniqueOrThrow({ where: { id } })).status,
+      ).toBe('ACCEPTED');
     });
   });
 
   describe('privacidade e estado', () => {
     it('terceiro (não participante) recebe 404 em GET /appointments/:id', async () => {
       const id = await requestedAppointment();
-      const third = await registerAndLogin(app, 'terceiro@x.com', 'Tereza Terceira');
+      const third = await registerAndLogin(
+        app,
+        'terceiro@x.com',
+        'Tereza Terceira',
+      );
 
       const res = await getOne(third, id).expect(404);
 
@@ -675,41 +861,64 @@ describe('Appointments (e2e)', () => {
       'terceiro (não participante) recebe 404 em %s e nada muda',
       async (action) => {
         const id = await requestedAppointment();
-        const third = await registerAndLogin(app, 'terceiro@x.com', 'Tereza Terceira');
+        const third = await registerAndLogin(
+          app,
+          'terceiro@x.com',
+          'Tereza Terceira',
+        );
 
         // Só o confirm lê o corpo; as outras ações o ignoram.
-        const res = await act(third, id, action, { meetingAddress: ADDRESS }).expect(404);
+        const res = await act(third, id, action, {
+          meetingAddress: ADDRESS,
+        }).expect(404);
 
         expect(res.body.message).toBe(NOT_FOUND);
-        expect((await prisma.appointment.findUniqueOrThrow({ where: { id } })).status).toBe('REQUESTED');
+        expect(
+          (await prisma.appointment.findUniqueOrThrow({ where: { id } }))
+            .status,
+        ).toBe('REQUESTED');
       },
     );
 
-    it.each(['BUYER', 'SELLER'] as const)('%s recebe 403 ao tentar aceitar', async (role) => {
-      const id = await requestedAppointment();
+    it.each(['BUYER', 'SELLER'] as const)(
+      '%s recebe 403 ao tentar aceitar',
+      async (role) => {
+        const id = await requestedAppointment();
 
-      const res = await act(userFor(role), id, 'accept').expect(403);
+        const res = await act(userFor(role), id, 'accept').expect(403);
 
-      expect(res.body.message).toBe('Você não pode aceitar este agendamento');
-      expect((await prisma.appointment.findUniqueOrThrow({ where: { id } })).status).toBe('REQUESTED');
-    });
+        expect(res.body.message).toBe('Você não pode aceitar este agendamento');
+        expect(
+          (await prisma.appointment.findUniqueOrThrow({ where: { id } }))
+            .status,
+        ).toBe('REQUESTED');
+      },
+    );
 
     it('o avaliador recebe 403 ao tentar confirmar', async () => {
       const id = await acceptedAppointment();
 
-      const res = await act(inspector, id, 'confirm', { meetingAddress: ADDRESS }).expect(403);
+      const res = await act(inspector, id, 'confirm', {
+        meetingAddress: ADDRESS,
+      }).expect(403);
 
       expect(res.body.message).toBe('Você não pode confirmar este agendamento');
-      expect((await prisma.appointment.findUniqueOrThrow({ where: { id } })).status).toBe('ACCEPTED');
+      expect(
+        (await prisma.appointment.findUniqueOrThrow({ where: { id } })).status,
+      ).toBe('ACCEPTED');
     });
 
     it('confirm em REQUESTED responde 409 "Ação não permitida no estado atual"', async () => {
       const id = await requestedAppointment();
 
-      const res = await act(seller, id, 'confirm', { meetingAddress: ADDRESS }).expect(409);
+      const res = await act(seller, id, 'confirm', {
+        meetingAddress: ADDRESS,
+      }).expect(409);
 
       expect(res.body.message).toBe('Ação não permitida no estado atual');
-      expect((await prisma.appointment.findUniqueOrThrow({ where: { id } })).status).toBe('REQUESTED');
+      expect(
+        (await prisma.appointment.findUniqueOrThrow({ where: { id } })).status,
+      ).toBe('REQUESTED');
     });
 
     it('cancel depois de CANCELLED responde 409 e mantém quem cancelou', async () => {
@@ -719,7 +928,9 @@ describe('Appointments (e2e)', () => {
       const res = await act(seller, id, 'cancel').expect(409);
 
       expect(res.body.message).toBe('Ação não permitida no estado atual');
-      const saved = await prisma.appointment.findUniqueOrThrow({ where: { id } });
+      const saved = await prisma.appointment.findUniqueOrThrow({
+        where: { id },
+      });
       expect(saved).toMatchObject({ status: 'CANCELLED', endedBy: 'BUYER' });
     });
 
@@ -747,12 +958,24 @@ describe('Appointments (e2e)', () => {
 
     it('dois accepts simultâneos de horários sobrepostos: um 200, um 409 e exatamente um ACCEPTED', async () => {
       const listingId = await createListing();
-      const other = await registerAndLogin(app, 'outro@x.com', 'Otto Comprador');
+      const other = await registerAndLogin(
+        app,
+        'outro@x.com',
+        'Otto Comprador',
+      );
       for (let round = 0; round < ROUNDS; round++) {
         await prisma.appointment.deleteMany();
         const startsAt = new Date(hoursFromNow(48));
-        const first = await requestAs(buyer, listingId, startsAt.toISOString()).expect(201);
-        const second = await requestAs(other, listingId, hoursFromNow(0.5, startsAt)).expect(201);
+        const first = await requestAs(
+          buyer,
+          listingId,
+          startsAt.toISOString(),
+        ).expect(201);
+        const second = await requestAs(
+          other,
+          listingId,
+          hoursFromNow(0.5, startsAt),
+        ).expect(201);
 
         const responses = await Promise.all([
           act(inspector, first.body.id, 'accept'),
@@ -762,9 +985,17 @@ describe('Appointments (e2e)', () => {
         const statuses = responses.map((r) => r.status).sort((a, b) => a - b);
         expect(statuses, `rodada ${round}`).toEqual([200, 409]);
         const loser = responses.find((r) => r.status === 409);
-        expect(errorCode(loser), `rodada ${round}`).toBe(ErrorCode.SLOT_UNAVAILABLE);
-        expect(await prisma.appointment.count({ where: { status: 'ACCEPTED' } }), `rodada ${round}`).toBe(1);
-        expect(await prisma.appointment.count({ where: { status: 'REQUESTED' } }), `rodada ${round}`).toBe(1);
+        expect(errorCode(loser), `rodada ${round}`).toBe(
+          ErrorCode.SLOT_UNAVAILABLE,
+        );
+        expect(
+          await prisma.appointment.count({ where: { status: 'ACCEPTED' } }),
+          `rodada ${round}`,
+        ).toBe(1);
+        expect(
+          await prisma.appointment.count({ where: { status: 'REQUESTED' } }),
+          `rodada ${round}`,
+        ).toBe(1);
       }
     });
 
@@ -781,17 +1012,25 @@ describe('Appointments (e2e)', () => {
         await prisma.appointment.deleteMany();
         const id = await requestedAppointment(listingId);
 
-        const [accepted, cancelled] = await Promise.all([act(inspector, id, 'accept'), act(buyer, id, 'cancel')]);
+        const [accepted, cancelled] = await Promise.all([
+          act(inspector, id, 'accept'),
+          act(buyer, id, 'cancel'),
+        ]);
 
-        const saved = await prisma.appointment.findUniqueOrThrow({ where: { id } });
+        const saved = await prisma.appointment.findUniqueOrThrow({
+          where: { id },
+        });
         expect(allowed, `rodada ${round}`).toContainEqual({
           accept: accepted.status,
           cancel: cancelled.status,
           final: saved.status,
           endedBy: saved.endedBy,
         });
-        const conflicts = [accepted, cancelled].filter((r) => r.status === 409).map(errorCode);
-        for (const code of conflicts) expect(RACE_CODES, `rodada ${round}`).toContain(code);
+        const conflicts = [accepted, cancelled]
+          .filter((r) => r.status === 409)
+          .map(errorCode);
+        for (const code of conflicts)
+          expect(RACE_CODES, `rodada ${round}`).toContain(code);
       }
     });
 

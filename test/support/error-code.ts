@@ -4,7 +4,9 @@ import { HttpException } from '@nestjs/common';
  * Code da HttpException com que a promise rejeita (o `code` do corpo da
  * exceção, posto com withCode), ou undefined se não houver.
  */
-export async function rejectionCode(promise: Promise<unknown>): Promise<unknown> {
+export async function rejectionCode(
+  promise: Promise<unknown>,
+): Promise<unknown> {
   const error = await promise.then(
     () => {
       throw new Error('a promise não rejeitou');

@@ -91,7 +91,11 @@ export class AppExpressAdapter extends ExpressAdapter {
     prefix?: SetNotFoundHandlerArgs[1],
     excludedRoutes?: SetNotFoundHandlerArgs[2],
   ): unknown {
-    const routeNotFound = (_req: Request, _res: Response, next: NextFunction) => {
+    const routeNotFound = (
+      _req: Request,
+      _res: Response,
+      next: NextFunction,
+    ) => {
       next(
         new NotFoundException(
           withCode(ErrorCode.ROUTE_NOT_FOUND, ROUTE_NOT_FOUND_MESSAGE),

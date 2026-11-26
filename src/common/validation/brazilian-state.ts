@@ -6,8 +6,33 @@ import { STATE_LENGTH } from '../limits.js';
 
 /** As 27 unidades federativas: 26 estados e o Distrito Federal. */
 export const BRAZILIAN_STATES = [
-  'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA',
-  'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO',
+  'AC',
+  'AL',
+  'AP',
+  'AM',
+  'BA',
+  'CE',
+  'DF',
+  'ES',
+  'GO',
+  'MA',
+  'MT',
+  'MS',
+  'MG',
+  'PA',
+  'PB',
+  'PR',
+  'PE',
+  'PI',
+  'RJ',
+  'RN',
+  'RS',
+  'RO',
+  'RR',
+  'SC',
+  'SP',
+  'SE',
+  'TO',
 ] as const;
 
 export type BrazilianState = (typeof BRAZILIAN_STATES)[number];
@@ -28,7 +53,8 @@ const SWAGGER = {
 /** Na entrada, o Swagger também diz o que a API normaliza. */
 const SWAGGER_INPUT = {
   ...SWAGGER,
-  description: 'Sigla da UF (uma das 27). Espaços nas pontas e minúsculas são normalizados ("sp" vira "SP")',
+  description:
+    'Sigla da UF (uma das 27). Espaços nas pontas e minúsculas são normalizados ("sp" vira "SP")',
 };
 
 /** Para os Response DTOs: só a documentação (o valor vem do banco). */
@@ -47,7 +73,9 @@ export function BrazilianStateField(
   options: { optional?: boolean } = {},
 ): PropertyDecorator {
   return applyDecorators(
-    options.optional ? ApiPropertyOptional(SWAGGER_INPUT) : ApiProperty(SWAGGER_INPUT),
+    options.optional
+      ? ApiPropertyOptional(SWAGGER_INPUT)
+      : ApiProperty(SWAGGER_INPUT),
     ...(options.optional ? [IsOptional()] : []),
     Transform(({ value }: { value: unknown }) =>
       typeof value === 'string' ? value.trim().toUpperCase() : value,

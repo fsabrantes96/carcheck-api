@@ -5,7 +5,11 @@ import type { ListingAction } from './listings.state-machine.js';
 // Matriz completa (4 ações × 4 status), escrita à mão a partir do desenho
 // aprovado. Não é gerada a partir da tabela TRANSITIONS de propósito: se a
 // tabela mudar, este teste precisa discordar dela.
-const matrix: [ListingAction, ListingStatus, ListingStatus | 'INVALID_STATE'][] = [
+const matrix: [
+  ListingAction,
+  ListingStatus,
+  ListingStatus | 'INVALID_STATE',
+][] = [
   ['PAUSE', 'ACTIVE', 'PAUSED'],
   ['PAUSE', 'PAUSED', 'INVALID_STATE'],
   ['PAUSE', 'SOLD', 'INVALID_STATE'],
@@ -29,7 +33,12 @@ const matrix: [ListingAction, ListingStatus, ListingStatus | 'INVALID_STATE'][] 
 
 describe('decideListingTransition', () => {
   it('a matriz cobre todas as combinações de ação e status', () => {
-    const actions: ListingAction[] = ['PAUSE', 'ACTIVATE', 'MARK_SOLD', 'ARCHIVE'];
+    const actions: ListingAction[] = [
+      'PAUSE',
+      'ACTIVATE',
+      'MARK_SOLD',
+      'ARCHIVE',
+    ];
     // Vem do enum gerado: um status novo no schema obriga a atualizar a matriz.
     const statuses = Object.values(ListingStatus);
     const all = actions.flatMap((a) => statuses.map((s) => `${a}:${s}`));

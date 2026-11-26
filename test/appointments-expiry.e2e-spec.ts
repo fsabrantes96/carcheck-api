@@ -4,7 +4,10 @@ import type { App } from 'supertest/types.js';
 import { AppointmentExpiryCron } from '../src/appointments/appointment-expiry.cron.js';
 import { AppointmentExpiryService } from '../src/appointments/appointment-expiry.service.js';
 import { CLOCK } from '../src/common/clock/clock.js';
-import { isPgError, PG_EXCLUSION_VIOLATION } from '../src/common/prisma/prisma-errors.js';
+import {
+  isPgError,
+  PG_EXCLUSION_VIOLATION,
+} from '../src/common/prisma/prisma-errors.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { FakeClock } from './support/fake-clock.js';
 import {
@@ -15,7 +18,11 @@ import {
   verifiedInspector,
 } from './support/fixtures.js';
 import type { TestInspector, TestUser } from './support/fixtures.js';
-import { closeTestApp, createTestApp, resetDatabase } from './support/test-app.js';
+import {
+  closeTestApp,
+  createTestApp,
+  resetDatabase,
+} from './support/test-app.js';
 
 /**
  * Job de expiração (PR C) contra o Postgres real. O cron não roda nos e2e
@@ -39,7 +46,9 @@ describe('Appointments: job de expiração (e2e com FakeClock)', () => {
 
   beforeAll(async () => {
     clock = new FakeClock(START);
-    app = await createTestApp({ configure: (b) => b.overrideProvider(CLOCK).useValue(clock) });
+    app = await createTestApp({
+      configure: (b) => b.overrideProvider(CLOCK).useValue(clock),
+    });
     prisma = app.get(PrismaService);
     expiry = app.get(AppointmentExpiryService);
   });
@@ -49,7 +58,11 @@ describe('Appointments: job de expiração (e2e com FakeClock)', () => {
     await resetDatabase(app);
     seller = await registerAndLogin(app, 'vendedor@x.com', 'Vera Vendedora');
     buyerCount = 0;
-    inspector = await verifiedInspector(app, 'avaliador@x.com', 'Ivo Avaliador');
+    inspector = await verifiedInspector(
+      app,
+      'avaliador@x.com',
+      'Ivo Avaliador',
+    );
     const listing = await request(app.getHttpServer())
       .post('/listings')
       .set(auth(seller))
@@ -67,7 +80,10 @@ describe('Appointments: job de expiração (e2e com FakeClock)', () => {
   }
 
   function act(user: TestUser, id: string, action: string, body: object = {}) {
-    return request(app.getHttpServer()).post(`/appointments/${id}/${action}`).set(auth(user)).send(body);
+    return request(app.getHttpServer())
+      .post(`/appointments/${id}/${action}`)
+      .set(auth(user))
+      .send(body);
   }
 
   type OpenState = 'REQUESTED' | 'ACCEPTED' | 'AWAITING_PAYMENT';
@@ -78,17 +94,29 @@ describe('Appointments: job de expiração (e2e com FakeClock)', () => {
    * chamada cadastra um comprador novo (índice do trio em aberto) e o
    * devolve: use sempre o `buyer` retornado.
    */
-  async function appointmentIn(state: OpenState, hoursAhead = 72): Promise<{ id: string; buyer: TestUser }> {
+  async function appointmentIn(
+    state: OpenState,
+    hoursAhead = 72,
+  ): Promise<{ id: string; buyer: TestUser }> {
     buyerCount += 1;
-    const owner = await registerAndLogin(app, `comprador-${buyerCount}@x.com`, 'Bruno Comprador');
+    const owner = await registerAndLogin(
+      app,
+      `comprador-${buyerCount}@x.com`,
+      'Bruno Comprador',
+    );
     const res = await request(app.getHttpServer())
       .post('/appointments')
       .set(auth(owner))
-      .send({ listingId, inspectorProfileId: inspector.profileId, startsAt: hoursFromNow(hoursAhead, clock.now()) })
+      .send({
+        listingId,
+        inspectorProfileId: inspector.profileId,
+        startsAt: hoursFromNow(hoursAhead, clock.now()),
+      })
       .expect(201);
     const id: string = res.body.id;
     if (state !== 'REQUESTED') await act(inspector, id, 'accept').expect(200);
-    if (state === 'AWAITING_PAYMENT') await act(seller, id, 'confirm', { meetingAddress: ADDRESS }).expect(200);
+    if (state === 'AWAITING_PAYMENT')
+      await act(seller, id, 'confirm', { meetingAddress: ADDRESS }).expect(200);
     return { id, buyer: owner };
   }
 
@@ -129,13 +157,20 @@ describe('Appointments: job de expiração (e2e com FakeClock)', () => {
     it('não muda PAID, mesmo com expiresAt no passado', async () => {
       const { id } = await appointmentIn('AWAITING_PAYMENT');
       // Sem rota de pagamento: avança direto no banco, mantendo o expiresAt herdado (risco 47).
-      await prisma.appointment.update({ where: { id }, data: { status: 'PAID' } });
+      await prisma.appointment.update({
+        where: { id },
+        data: { status: 'PAID' },
+      });
       clock.advanceMinutes(AFTER_ALL_DEADLINES_MINUTES);
 
       const count = await expiry.expireDue(clock.now());
 
       expect(count).toBe(0);
-      expect(await load(id)).toMatchObject({ status: 'PAID', endedBy: null, endedAt: null });
+      expect(await load(id)).toMatchObject({
+        status: 'PAID',
+        endedBy: null,
+        endedAt: null,
+      });
     });
 
     it('não muda agendamentos já encerrados (cancelado, recusado, expirado)', async () => {
@@ -146,14 +181,20 @@ describe('Appointments: job de expiração (e2e com FakeClock)', () => {
       const expired = await appointmentIn('AWAITING_PAYMENT', 120);
       clock.advanceMinutes(31);
       await expiry.expireDue(clock.now());
-      const before = await Promise.all([cancelled.id, declined.id, expired.id].map(load));
+      const before = await Promise.all(
+        [cancelled.id, declined.id, expired.id].map(load),
+      );
       clock.advanceMinutes(AFTER_ALL_DEADLINES_MINUTES);
 
       const count = await expiry.expireDue(clock.now());
 
       expect(count).toBe(0);
-      const after = await Promise.all([cancelled.id, declined.id, expired.id].map(load));
-      expect(after.map((a) => [a.status, a.endedBy, a.endedAt?.toISOString()])).toEqual([
+      const after = await Promise.all(
+        [cancelled.id, declined.id, expired.id].map(load),
+      );
+      expect(
+        after.map((a) => [a.status, a.endedBy, a.endedAt?.toISOString()]),
+      ).toEqual([
         ['CANCELLED', 'BUYER', before[0].endedAt?.toISOString()],
         ['DECLINED', 'INSPECTOR', before[1].endedAt?.toISOString()],
         ['EXPIRED', 'SYSTEM', before[2].endedAt?.toISOString()],
@@ -169,7 +210,9 @@ describe('Appointments: job de expiração (e2e com FakeClock)', () => {
       clock.advanceMinutes(1);
       expect(await expiry.expireDue(clock.now())).toBe(0);
 
-      expect((await load(id)).endedAt?.toISOString()).toBe(firstRun.toISOString());
+      expect((await load(id)).endedAt?.toISOString()).toBe(
+        firstRun.toISOString(),
+      );
     });
   });
 
@@ -179,7 +222,11 @@ describe('Appointments: job de expiração (e2e com FakeClock)', () => {
       async (state) => {
         const { id } = await appointmentIn(state);
         const original = await load(id);
-        const other = await registerAndLogin(app, 'concorrente@x.com', 'Carla Concorrente');
+        const other = await registerAndLogin(
+          app,
+          'concorrente@x.com',
+          'Carla Concorrente',
+        );
         clock.advanceMinutes(AFTER_ALL_DEADLINES_MINUTES);
         // Insere direto no banco, sem passar pelo accept (que limparia os
         // vencidos sozinho): só a exclusion constraint decide.
@@ -231,11 +278,19 @@ describe('Appointments: job de expiração (e2e com FakeClock)', () => {
         await expiry.expireDue(clock.now());
         const actor = { inspector, seller, buyer: appointment.buyer }[who];
 
-        const res = await act(actor, appointment.id, action, action === 'confirm' ? { meetingAddress: ADDRESS } : {});
+        const res = await act(
+          actor,
+          appointment.id,
+          action,
+          action === 'confirm' ? { meetingAddress: ADDRESS } : {},
+        );
 
         expect(res.status).toBe(409);
         expect(Object.keys(res.body).sort()).toEqual(ERROR_KEYS);
-        expect(res.body).toMatchObject({ statusCode: 409, message: 'Ação não permitida no estado atual' });
+        expect(res.body).toMatchObject({
+          statusCode: 409,
+          message: 'Ação não permitida no estado atual',
+        });
         expect((await load(appointment.id)).status).toBe('EXPIRED');
       },
     );
@@ -244,16 +299,27 @@ describe('Appointments: job de expiração (e2e com FakeClock)', () => {
       ['buyer', 'BUYER'],
       ['seller', 'SELLER'],
       ['inspector', 'INSPECTOR'],
-    ] as const)('o detalhe mostra EXPIRED para o %s, sem ações disponíveis', async (who, role) => {
-      const { id, buyer } = await appointmentIn('REQUESTED');
-      clock.advanceMinutes(AFTER_ALL_DEADLINES_MINUTES);
-      await expiry.expireDue(clock.now());
-      const actor = { buyer, seller, inspector }[who];
+    ] as const)(
+      'o detalhe mostra EXPIRED para o %s, sem ações disponíveis',
+      async (who, role) => {
+        const { id, buyer } = await appointmentIn('REQUESTED');
+        clock.advanceMinutes(AFTER_ALL_DEADLINES_MINUTES);
+        await expiry.expireDue(clock.now());
+        const actor = { buyer, seller, inspector }[who];
 
-      const res = await request(app.getHttpServer()).get(`/appointments/${id}`).set(auth(actor)).expect(200);
+        const res = await request(app.getHttpServer())
+          .get(`/appointments/${id}`)
+          .set(auth(actor))
+          .expect(200);
 
-      expect(res.body).toMatchObject({ myRole: role, status: 'EXPIRED', endedBy: 'SYSTEM', availableActions: [] });
-    });
+        expect(res.body).toMatchObject({
+          myRole: role,
+          status: 'EXPIRED',
+          endedBy: 'SYSTEM',
+          availableActions: [],
+        });
+      },
+    );
 
     it('a listagem filtrada por EXPIRED traz o agendamento expirado pelo job', async () => {
       const { id, buyer } = await appointmentIn('REQUESTED');
@@ -266,19 +332,34 @@ describe('Appointments: job de expiração (e2e com FakeClock)', () => {
         .expect(200);
 
       expect(res.body.total).toBe(1);
-      expect(res.body.items[0]).toMatchObject({ id, status: 'EXPIRED', endedBy: 'SYSTEM', myRole: 'BUYER' });
+      expect(res.body.items[0]).toMatchObject({
+        id,
+        status: 'EXPIRED',
+        endedBy: 'SYSTEM',
+        myRole: 'BUYER',
+      });
     });
 
-    it.each(['BuyerAppointmentResponseDto', 'SellerAppointmentResponseDto', 'InspectorAppointmentResponseDto'])(
+    it.each([
+      'BuyerAppointmentResponseDto',
+      'SellerAppointmentResponseDto',
+      'InspectorAppointmentResponseDto',
+    ])(
       'o schema %s no OpenAPI admite status EXPIRED e endedBy SYSTEM',
       async (name) => {
-        const res = await request(app.getHttpServer()).get('/docs-json').expect(200);
+        const res = await request(app.getHttpServer())
+          .get('/docs-json')
+          .expect(200);
 
         // Os valores ficam nos enums nomeados, referenciados pelas propriedades.
         const { schemas } = res.body.components;
         const { properties } = schemas[name];
-        expect(properties.status.allOf).toEqual([{ $ref: '#/components/schemas/AppointmentStatus' }]);
-        expect(properties.endedBy.allOf).toEqual([{ $ref: '#/components/schemas/AppointmentActor' }]);
+        expect(properties.status.allOf).toEqual([
+          { $ref: '#/components/schemas/AppointmentStatus' },
+        ]);
+        expect(properties.endedBy.allOf).toEqual([
+          { $ref: '#/components/schemas/AppointmentActor' },
+        ]);
         expect(schemas.AppointmentStatus.enum).toContain('EXPIRED');
         expect(schemas.AppointmentActor.enum).toContain('SYSTEM');
       },
@@ -288,7 +369,9 @@ describe('Appointments: job de expiração (e2e com FakeClock)', () => {
   describe('com JOBS_ENABLED=false (configuração dos e2e)', () => {
     it('a app não tem a classe do cron, mas tem o AppointmentExpiryService', () => {
       expect(() => app.get(AppointmentExpiryCron, { strict: false })).toThrow();
-      expect(app.get(AppointmentExpiryService, { strict: false })).toBeInstanceOf(AppointmentExpiryService);
+      expect(
+        app.get(AppointmentExpiryService, { strict: false }),
+      ).toBeInstanceOf(AppointmentExpiryService);
     });
   });
 });

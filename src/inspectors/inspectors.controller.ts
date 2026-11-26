@@ -1,24 +1,32 @@
-import { Body, Controller, Get, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import {
-    ApiBadRequestResponse,
-    ApiBearerAuth,
-    ApiConflictResponse,
-    ApiCreatedResponse,
-    ApiForbiddenResponse,
-    ApiNotFoundResponse,
-    ApiOkResponse,
-    ApiTags,
-    ApiUnauthorizedResponse,
+  Body,
+  Controller,
+  Get,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  ApiBadRequestResponse,
+  ApiBearerAuth,
+  ApiConflictResponse,
+  ApiCreatedResponse,
+  ApiForbiddenResponse,
+  ApiNotFoundResponse,
+  ApiOkResponse,
+  ApiTags,
+  ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { ErrorResponseDto } from '../common/dto/error-response.dto.js';
 import { PageQueryDto, PAGINATION_RULE } from '../common/dto/page-query.dto.js';
 import {
-    ApiBodyErrorResponses,
-    ApiCommonErrorResponses,
-    ApiOperationId,
-    TRANSACTION_CONFLICT_DESCRIPTION,
-    UNAUTHORIZED_DESCRIPTION,
-    UNAUTHORIZED_OR_DELETED_ACCOUNT_DESCRIPTION,
+  ApiBodyErrorResponses,
+  ApiCommonErrorResponses,
+  ApiOperationId,
+  TRANSACTION_CONFLICT_DESCRIPTION,
+  UNAUTHORIZED_DESCRIPTION,
+  UNAUTHORIZED_OR_DELETED_ACCOUNT_DESCRIPTION,
 } from '../common/swagger/api-responses.js';
 import { CurrentUser } from '../auth/current-user.decorator.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
@@ -33,67 +41,113 @@ import { UpdateInspectorProfileDto } from './dto/update-inspector-profile.dto.js
 import { InspectorsService } from './inspectors.service.js';
 
 /** Mensagem do RolesGuard quando o usuário não tem a role INSPECTOR. */
-const NOT_INSPECTOR_DESCRIPTION = '"Sem permissão para esta ação": o usuário não tem a role INSPECTOR';
+const NOT_INSPECTOR_DESCRIPTION =
+  '"Sem permissão para esta ação": o usuário não tem a role INSPECTOR';
 
 @ApiTags('inspectors')
 @ApiCommonErrorResponses()
 @Controller('inspectors')
 export class InspectorsController {
-    constructor(private readonly inspectors: InspectorsService) { }
+  constructor(private readonly inspectors: InspectorsService) {}
 
+  @Get()
+  @ApiOperationId('listInspectors')
+  @ApiOkResponse({
+    type: PaginatedInspectorsResponseDto,
+    description: 'Perfis verificados, paginados',
+  })
+  @ApiBadRequestResponse({
+    type: ErrorResponseDto,
+    description: `Paginação inválida (${PAGINATION_RULE})`,
+  })
+  findAll(
+    @Query() query: PageQueryDto,
+  ): Promise<PaginatedInspectorsResponseDto> {
+    return this.inspectors.findAllVerified(query);
+  }
 
-    @Get()
-    @ApiOperationId('listInspectors')
-    @ApiOkResponse({ type: PaginatedInspectorsResponseDto, description: 'Perfis verificados, paginados' })
-    @ApiBadRequestResponse({ type: ErrorResponseDto, description: `Paginação inválida (${PAGINATION_RULE})` })
-    findAll(@Query() query: PageQueryDto): Promise<PaginatedInspectorsResponseDto> {
-        return this.inspectors.findAllVerified(query);
-    }
+  @Post('me')
+  @ApiOperationId('createMyInspectorProfile')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiCreatedResponse({ type: InspectorResponseDto })
+  @ApiBadRequestResponse({
+    type: ErrorResponseDto,
+    description:
+      'Dados inválidos ou preço base abaixo de MIN_INSPECTION_PRICE_CENTS',
+  })
+  @ApiBodyErrorResponses()
+  @ApiConflictResponse({
+    type: ErrorResponseDto,
+    description: `"Você já possui perfil de avaliador", ${TRANSACTION_CONFLICT_DESCRIPTION}`,
+  })
+  @ApiUnauthorizedResponse({
+    type: ErrorResponseDto,
+    description: UNAUTHORIZED_DESCRIPTION,
+  })
+  create(
+    @CurrentUser() user: JwtPayload,
+    @Body() dto: CreateInspectorProfileDto,
+  ): Promise<InspectorResponseDto> {
+    return this.inspectors.create(user.sub, dto);
+  }
 
-    @Post('me')
-    @ApiOperationId('createMyInspectorProfile')
-    @UseGuards(JwtAuthGuard)
-    @ApiBearerAuth()
-    @ApiCreatedResponse({ type: InspectorResponseDto })
-    @ApiBadRequestResponse({ type: ErrorResponseDto, description: 'Dados inválidos ou preço base abaixo de MIN_INSPECTION_PRICE_CENTS' })
-    @ApiBodyErrorResponses()
-    @ApiConflictResponse({ type: ErrorResponseDto, description: `"Você já possui perfil de avaliador", ${TRANSACTION_CONFLICT_DESCRIPTION}` })
-    @ApiUnauthorizedResponse({ type: ErrorResponseDto, description: UNAUTHORIZED_DESCRIPTION })
-    create(
-        @CurrentUser() user: JwtPayload,
-        @Body() dto: CreateInspectorProfileDto,
-    ): Promise<InspectorResponseDto> {
-        return this.inspectors.create(user.sub, dto);
-    }
+  @Get('me')
+  @ApiOperationId('getMyInspectorProfile')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('INSPECTOR')
+  @ApiBearerAuth()
+  @ApiOkResponse({
+    type: MyInspectorProfileResponseDto,
+    description:
+      'Perfil do avaliador com a comissão atual e o repasse estimado',
+  })
+  @ApiUnauthorizedResponse({
+    type: ErrorResponseDto,
+    description: UNAUTHORIZED_OR_DELETED_ACCOUNT_DESCRIPTION,
+  })
+  @ApiForbiddenResponse({
+    type: ErrorResponseDto,
+    description: NOT_INSPECTOR_DESCRIPTION,
+  })
+  @ApiNotFoundResponse({
+    type: ErrorResponseDto,
+    description: 'Perfil de avaliador não encontrado',
+  })
+  findMine(
+    @CurrentUser() user: JwtPayload,
+  ): Promise<MyInspectorProfileResponseDto> {
+    return this.inspectors.findMine(user.sub);
+  }
 
-    @Get('me')
-    @ApiOperationId('getMyInspectorProfile')
-    @UseGuards(JwtAuthGuard, RolesGuard)
-    @Roles('INSPECTOR')
-    @ApiBearerAuth()
-    @ApiOkResponse({ type: MyInspectorProfileResponseDto, description: 'Perfil do avaliador com a comissão atual e o repasse estimado' })
-    @ApiUnauthorizedResponse({ type: ErrorResponseDto, description: UNAUTHORIZED_OR_DELETED_ACCOUNT_DESCRIPTION })
-    @ApiForbiddenResponse({ type: ErrorResponseDto, description: NOT_INSPECTOR_DESCRIPTION })
-    @ApiNotFoundResponse({ type: ErrorResponseDto, description: 'Perfil de avaliador não encontrado' })
-    findMine(@CurrentUser() user: JwtPayload): Promise<MyInspectorProfileResponseDto> {
-        return this.inspectors.findMine(user.sub);
-    }
-
-    @Patch('me')
-    @ApiOperationId('updateMyInspectorProfile')
-    @UseGuards(JwtAuthGuard, RolesGuard)
-    @Roles('INSPECTOR')
-    @ApiBearerAuth()
-    @ApiOkResponse({ type: InspectorResponseDto })
-    @ApiBadRequestResponse({ type: ErrorResponseDto, description: 'Dados inválidos ou basePriceCents (quando enviado) abaixo de MIN_INSPECTION_PRICE_CENTS' })
-    @ApiBodyErrorResponses()
-    @ApiUnauthorizedResponse({ type: ErrorResponseDto, description: UNAUTHORIZED_OR_DELETED_ACCOUNT_DESCRIPTION })
-    @ApiForbiddenResponse({ type: ErrorResponseDto, description: NOT_INSPECTOR_DESCRIPTION })
-    @ApiNotFoundResponse({ type: ErrorResponseDto, description: 'Perfil de avaliador não encontrado' })
-    update(
-        @CurrentUser() user: JwtPayload,
-        @Body() dto: UpdateInspectorProfileDto,
-    ): Promise<InspectorResponseDto> {
-        return this.inspectors.update(user.sub, dto);
-    }
+  @Patch('me')
+  @ApiOperationId('updateMyInspectorProfile')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('INSPECTOR')
+  @ApiBearerAuth()
+  @ApiOkResponse({ type: InspectorResponseDto })
+  @ApiBadRequestResponse({
+    type: ErrorResponseDto,
+    description:
+      'Dados inválidos ou basePriceCents (quando enviado) abaixo de MIN_INSPECTION_PRICE_CENTS',
+  })
+  @ApiBodyErrorResponses()
+  @ApiUnauthorizedResponse({
+    type: ErrorResponseDto,
+    description: UNAUTHORIZED_OR_DELETED_ACCOUNT_DESCRIPTION,
+  })
+  @ApiForbiddenResponse({
+    type: ErrorResponseDto,
+    description: NOT_INSPECTOR_DESCRIPTION,
+  })
+  @ApiNotFoundResponse({
+    type: ErrorResponseDto,
+    description: 'Perfil de avaliador não encontrado',
+  })
+  update(
+    @CurrentUser() user: JwtPayload,
+    @Body() dto: UpdateInspectorProfileDto,
+  ): Promise<InspectorResponseDto> {
+    return this.inspectors.update(user.sub, dto);
+  }
 }

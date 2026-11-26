@@ -75,13 +75,19 @@ describe('RegisterDto', () => {
   });
 
   it('aceita e-mail com 254 caracteres', async () => {
-    const dto = plainToInstance(RegisterDto, { ...base, email: emailOfLength(254) });
+    const dto = plainToInstance(RegisterDto, {
+      ...base,
+      email: emailOfLength(254),
+    });
 
     expect(await validate(dto)).toHaveLength(0);
   });
 
   it('rejeita e-mail com 255 caracteres', async () => {
-    const dto = plainToInstance(RegisterDto, { ...base, email: emailOfLength(255) });
+    const dto = plainToInstance(RegisterDto, {
+      ...base,
+      email: emailOfLength(255),
+    });
 
     const errors = await validate(dto);
 
@@ -92,28 +98,42 @@ describe('RegisterDto', () => {
   it.each([
     ['acentos', 'é'.repeat(36)],
     ['emoji', '😀'.repeat(18)],
-  ])('aceita senha com %s que ocupa exatamente 72 bytes', async (_, password) => {
-    expect(Buffer.byteLength(password, 'utf8')).toBe(72);
-    const dto = plainToInstance(RegisterDto, { ...base, email: 'maria@x.com', password });
+  ])(
+    'aceita senha com %s que ocupa exatamente 72 bytes',
+    async (_, password) => {
+      expect(Buffer.byteLength(password, 'utf8')).toBe(72);
+      const dto = plainToInstance(RegisterDto, {
+        ...base,
+        email: 'maria@x.com',
+        password,
+      });
 
-    expect(await validate(dto)).toHaveLength(0);
-  });
+      expect(await validate(dto)).toHaveLength(0);
+    },
+  );
 
   it.each([
     ['acentos', 'é'.repeat(37)],
     ['emoji', '😀'.repeat(19)],
-  ])('rejeita senha com %s acima de 72 bytes, mesmo com menos de 72 caracteres', async (_, password) => {
-    expect(password.length).toBeLessThanOrEqual(72);
-    expect(Buffer.byteLength(password, 'utf8')).toBeGreaterThan(72);
-    const dto = plainToInstance(RegisterDto, { ...base, email: 'maria@x.com', password });
+  ])(
+    'rejeita senha com %s acima de 72 bytes, mesmo com menos de 72 caracteres',
+    async (_, password) => {
+      expect(password.length).toBeLessThanOrEqual(72);
+      expect(Buffer.byteLength(password, 'utf8')).toBeGreaterThan(72);
+      const dto = plainToInstance(RegisterDto, {
+        ...base,
+        email: 'maria@x.com',
+        password,
+      });
 
-    const errors = await validate(dto);
+      const errors = await validate(dto);
 
-    expect(errors.map((e) => e.property)).toEqual(['password']);
-    expect(errors[0].constraints).toEqual({
-      maxBytes: 'password deve ter no máximo 72 bytes',
-    });
-  });
+      expect(errors.map((e) => e.property)).toEqual(['password']);
+      expect(errors[0].constraints).toEqual({
+        maxBytes: 'password deve ter no máximo 72 bytes',
+      });
+    },
+  );
 });
 
 /**
@@ -176,13 +196,19 @@ describe('LoginDto', () => {
   });
 
   it('aceita e-mail com 254 caracteres', async () => {
-    const dto = plainToInstance(LoginDto, { ...base, email: emailOfLength(254) });
+    const dto = plainToInstance(LoginDto, {
+      ...base,
+      email: emailOfLength(254),
+    });
 
     expect(await validate(dto)).toHaveLength(0);
   });
 
   it('rejeita e-mail com 255 caracteres', async () => {
-    const dto = plainToInstance(LoginDto, { ...base, email: emailOfLength(255) });
+    const dto = plainToInstance(LoginDto, {
+      ...base,
+      email: emailOfLength(255),
+    });
 
     const errors = await validate(dto);
 

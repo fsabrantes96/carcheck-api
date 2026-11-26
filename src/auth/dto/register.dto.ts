@@ -12,7 +12,11 @@ import {
 import { MaxBytes } from '../../common/validation/max-bytes.js';
 
 export class RegisterDto {
-  @ApiProperty({ example: 'Maria Silva', minLength: NAME_MIN_LENGTH, maxLength: NAME_MAX_LENGTH })
+  @ApiProperty({
+    example: 'Maria Silva',
+    minLength: NAME_MIN_LENGTH,
+    maxLength: NAME_MAX_LENGTH,
+  })
   @IsString()
   @MinLength(NAME_MIN_LENGTH)
   @MaxLength(NAME_MAX_LENGTH)

@@ -19,10 +19,15 @@ describe('MaxBytes', () => {
   });
 
   it('rejeita string acima do limite em bytes com menos caracteres que o limite (emoji + "a" = 5 bytes)', async () => {
-    expect(await constraintsFor('😀a')).toEqual({ maxBytes: 'value deve ter no máximo 4 bytes' });
+    expect(await constraintsFor('😀a')).toEqual({
+      maxBytes: 'value deve ter no máximo 4 bytes',
+    });
   });
 
-  it.each([123, null, ['ab']])('rejeita valor que não é string (%j), como o @MaxLength', async (value) => {
-    expect(await constraintsFor(value)).toHaveProperty('maxBytes');
-  });
+  it.each([123, null, ['ab']])(
+    'rejeita valor que não é string (%j), como o @MaxLength',
+    async (value) => {
+      expect(await constraintsFor(value)).toHaveProperty('maxBytes');
+    },
+  );
 });

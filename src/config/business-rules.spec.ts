@@ -25,12 +25,18 @@ describe('BusinessRulesModule', () => {
     }
   });
 
-  async function rulesFor(env: Partial<Record<(typeof NAMES)[number], string>>) {
+  async function rulesFor(
+    env: Partial<Record<(typeof NAMES)[number], string>>,
+  ) {
     for (const name of NAMES) delete process.env[name];
     Object.assign(process.env, env);
     const moduleRef = await Test.createTestingModule({
       imports: [
-        ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true, validate: validateEnv }),
+        ConfigModule.forRoot({
+          isGlobal: true,
+          ignoreEnvFile: true,
+          validate: validateEnv,
+        }),
         BusinessRulesModule,
       ],
     }).compile();
@@ -49,6 +55,8 @@ describe('BusinessRulesModule', () => {
   });
 
   it('não sobe quando PLATFORM_FEE_BPS está ausente', async () => {
-    await expect(rulesFor({})).rejects.toThrow('PLATFORM_FEE_BPS é obrigatória');
+    await expect(rulesFor({})).rejects.toThrow(
+      'PLATFORM_FEE_BPS é obrigatória',
+    );
   });
 });

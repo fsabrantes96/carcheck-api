@@ -5,7 +5,11 @@ import {
   participantOf,
   ROUTE_ACTIONS,
 } from './appointments.state-machine.js';
-import type { Actor, AppointmentAction, Participant } from './appointments.state-machine.js';
+import type {
+  Actor,
+  AppointmentAction,
+  Participant,
+} from './appointments.state-machine.js';
 
 type Status = AppointmentStatus;
 
@@ -65,21 +69,28 @@ const STATUSES = Object.values(AppointmentStatus);
 
 type Expected = Status | 'FORBIDDEN_ACTOR' | 'INVALID_STATE';
 
-function expectedFor(actor: Actor, action: AppointmentAction, status: Status): Expected {
+function expectedFor(
+  actor: Actor,
+  action: AppointmentAction,
+  status: Status,
+): Expected {
   if (!WHO_CAN[action].includes(actor)) return 'FORBIDDEN_ACTOR';
-  const row = ALLOWED.find(([a, act, from]) => a === actor && act === action && from === status);
+  const row = ALLOWED.find(
+    ([a, act, from]) => a === actor && act === action && from === status,
+  );
   return row ? row[3] : 'INVALID_STATE';
 }
 
-const MATRIX: [Actor, AppointmentAction, Status, Expected][] = ACTORS.flatMap((actor) =>
-  ACTIONS.flatMap((action) =>
-    STATUSES.map((status): [Actor, AppointmentAction, Status, Expected] => [
-      actor,
-      action,
-      status,
-      expectedFor(actor, action, status),
-    ]),
-  ),
+const MATRIX: [Actor, AppointmentAction, Status, Expected][] = ACTORS.flatMap(
+  (actor) =>
+    ACTIONS.flatMap((action) =>
+      STATUSES.map((status): [Actor, AppointmentAction, Status, Expected] => [
+        actor,
+        action,
+        status,
+        expectedFor(actor, action, status),
+      ]),
+    ),
 );
 
 describe('máquina de estados do agendamento', () => {
@@ -91,30 +102,39 @@ describe('máquina de estados do agendamento', () => {
     });
 
     it('toda linha permitida usa um ator que pode executar a ação', () => {
-      const incoherent = ALLOWED.filter(([actor, action]) => !WHO_CAN[action].includes(actor));
+      const incoherent = ALLOWED.filter(
+        ([actor, action]) => !WHO_CAN[action].includes(actor),
+      );
       expect(incoherent).toEqual([]);
     });
   });
 
   describe('decide(): matriz completa', () => {
-    it.each(MATRIX.filter(([, , , e]) => e !== 'FORBIDDEN_ACTOR' && e !== 'INVALID_STATE'))(
-      '%s %s em %s → %s',
-      (actor, action, status, expected) => {
-        expect(decide(actor, action, status)).toEqual({ ok: true, to: expected });
-      },
-    );
+    it.each(
+      MATRIX.filter(
+        ([, , , e]) => e !== 'FORBIDDEN_ACTOR' && e !== 'INVALID_STATE',
+      ),
+    )('%s %s em %s → %s', (actor, action, status, expected) => {
+      expect(decide(actor, action, status)).toEqual({ ok: true, to: expected });
+    });
 
     it.each(MATRIX.filter(([, , , e]) => e === 'FORBIDDEN_ACTOR'))(
       '%s não pode %s (em %s): FORBIDDEN_ACTOR',
       (actor, action, status) => {
-        expect(decide(actor, action, status)).toEqual({ ok: false, reason: 'FORBIDDEN_ACTOR' });
+        expect(decide(actor, action, status)).toEqual({
+          ok: false,
+          reason: 'FORBIDDEN_ACTOR',
+        });
       },
     );
 
     it.each(MATRIX.filter(([, , , e]) => e === 'INVALID_STATE'))(
       '%s %s em %s: INVALID_STATE',
       (actor, action, status) => {
-        expect(decide(actor, action, status)).toEqual({ ok: false, reason: 'INVALID_STATE' });
+        expect(decide(actor, action, status)).toEqual({
+          ok: false,
+          reason: 'INVALID_STATE',
+        });
       },
     );
   });
@@ -133,7 +153,10 @@ describe('máquina de estados do agendamento', () => {
     it('com as ações que têm rota (e a expiração do sistema), a partir de REQUESTED só se alcança REQUESTED, ACCEPTED, AWAITING_PAYMENT, DECLINED, CANCELLED e EXPIRED', () => {
       const actions: [Actor, AppointmentAction][] = [
         ...(['BUYER', 'SELLER', 'INSPECTOR'] as Actor[]).flatMap((actor) =>
-          ROUTE_ACTIONS.map((action): [Actor, AppointmentAction] => [actor, action]),
+          ROUTE_ACTIONS.map((action): [Actor, AppointmentAction] => [
+            actor,
+            action,
+          ]),
         ),
         ['SYSTEM', 'EXPIRE'],
       ];
@@ -151,12 +174,24 @@ describe('máquina de estados do agendamento', () => {
       }
 
       expect([...reached].sort()).toEqual(
-        ['ACCEPTED', 'AWAITING_PAYMENT', 'CANCELLED', 'DECLINED', 'EXPIRED', 'REQUESTED'].sort(),
+        [
+          'ACCEPTED',
+          'AWAITING_PAYMENT',
+          'CANCELLED',
+          'DECLINED',
+          'EXPIRED',
+          'REQUESTED',
+        ].sort(),
       );
     });
 
     it('as rotas desta versão são exatamente accept, decline, confirm e cancel', () => {
-      expect([...ROUTE_ACTIONS].sort()).toEqual(['ACCEPT', 'CANCEL', 'CONFIRM', 'DECLINE']);
+      expect([...ROUTE_ACTIONS].sort()).toEqual([
+        'ACCEPT',
+        'CANCEL',
+        'CONFIRM',
+        'DECLINE',
+      ]);
     });
   });
 
@@ -175,7 +210,9 @@ describe('máquina de estados do agendamento', () => {
     ] as [Participant, Status, AppointmentAction[]][])(
       '%s em %s: %j',
       (participant, status, expected) => {
-        expect(availableActions(participant, status).sort()).toEqual([...expected].sort());
+        expect(availableActions(participant, status).sort()).toEqual(
+          [...expected].sort(),
+        );
       },
     );
   });

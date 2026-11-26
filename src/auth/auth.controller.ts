@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Header, HttpCode, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Header,
+  HttpCode,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
@@ -33,7 +41,7 @@ import type { JwtPayload } from './types/jwt-payload.js';
 @ApiCommonErrorResponses()
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly auth: AuthService) { }
+  constructor(private readonly auth: AuthService) {}
 
   @Post('register')
   @ApiOperationId('registerUser')
@@ -43,9 +51,15 @@ export class AuthController {
     description: throttleDescription(AUTH_THROTTLE.default.limit),
   })
   @ApiCreatedResponse({ type: UserResponseDto })
-  @ApiBadRequestResponse({ type: ErrorResponseDto, description: 'Dados inválidos (lista em errors) ou corpo malformado' })
+  @ApiBadRequestResponse({
+    type: ErrorResponseDto,
+    description: 'Dados inválidos (lista em errors) ou corpo malformado',
+  })
   @ApiBodyErrorResponses()
-  @ApiConflictResponse({ type: ErrorResponseDto, description: 'E-mail já cadastrado' })
+  @ApiConflictResponse({
+    type: ErrorResponseDto,
+    description: 'E-mail já cadastrado',
+  })
   register(@Body() dto: RegisterDto): Promise<UserResponseDto> {
     return this.auth.register(dto);
   }
@@ -59,9 +73,15 @@ export class AuthController {
   })
   @HttpCode(200)
   @ApiOkResponse({ type: LoginResponseDto })
-  @ApiBadRequestResponse({ type: ErrorResponseDto, description: 'Dados inválidos (lista em errors) ou corpo malformado' })
+  @ApiBadRequestResponse({
+    type: ErrorResponseDto,
+    description: 'Dados inválidos (lista em errors) ou corpo malformado',
+  })
   @ApiBodyErrorResponses()
-  @ApiUnauthorizedResponse({ type: ErrorResponseDto, description: 'E-mail ou senha inválidos' })
+  @ApiUnauthorizedResponse({
+    type: ErrorResponseDto,
+    description: 'E-mail ou senha inválidos',
+  })
   login(@Body() dto: LoginDto): Promise<LoginResponseDto> {
     return this.auth.login(dto);
   }
@@ -76,10 +96,16 @@ export class AuthController {
   @ApiOkResponse({
     type: CurrentUserResponseDto,
     headers: {
-      'Cache-Control': { description: 'no-store: a resposta não deve ser guardada em cache', schema: { type: 'string' } },
+      'Cache-Control': {
+        description: 'no-store: a resposta não deve ser guardada em cache',
+        schema: { type: 'string' },
+      },
     },
   })
-  @ApiUnauthorizedResponse({ type: ErrorResponseDto, description: UNAUTHORIZED_OR_DELETED_ACCOUNT_DESCRIPTION })
+  @ApiUnauthorizedResponse({
+    type: ErrorResponseDto,
+    description: UNAUTHORIZED_OR_DELETED_ACCOUNT_DESCRIPTION,
+  })
   me(@CurrentUser() user: JwtPayload): Promise<CurrentUserResponseDto> {
     return this.auth.me(user.sub);
   }

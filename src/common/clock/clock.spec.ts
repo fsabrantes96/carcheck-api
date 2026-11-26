@@ -12,11 +12,15 @@ describe('SystemClock', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2031-05-06T07:08:09.000Z'));
 
-    expect(new SystemClock().now()).toEqual(new Date('2031-05-06T07:08:09.000Z'));
+    expect(new SystemClock().now()).toEqual(
+      new Date('2031-05-06T07:08:09.000Z'),
+    );
   });
 
   it('o ClockModule fornece o SystemClock pelo token CLOCK', async () => {
-    const moduleRef = await Test.createTestingModule({ imports: [ClockModule] }).compile();
+    const moduleRef = await Test.createTestingModule({
+      imports: [ClockModule],
+    }).compile();
 
     expect(moduleRef.get<Clock>(CLOCK)).toBeInstanceOf(SystemClock);
   });

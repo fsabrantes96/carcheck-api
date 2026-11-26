@@ -3,7 +3,10 @@ import { ConfigModule } from '@nestjs/config';
 import { CronExpression, SchedulerRegistry } from '@nestjs/schedule';
 import { Test } from '@nestjs/testing';
 import type { TestingModule } from '@nestjs/testing';
-import { AppointmentExpiryCron, APPOINTMENT_EXPIRY_CRON } from '../appointments/appointment-expiry.cron.js';
+import {
+  AppointmentExpiryCron,
+  APPOINTMENT_EXPIRY_CRON,
+} from '../appointments/appointment-expiry.cron.js';
 import { AppointmentExpiryModule } from '../appointments/appointment-expiry.module.js';
 import { AppointmentExpiryService } from '../appointments/appointment-expiry.service.js';
 import { ClockModule } from '../common/clock/clock.js';
@@ -17,7 +20,14 @@ import { jobsModuleWhenEnabled } from './jobs.module.js';
  */
 @Global()
 @Module({
-  providers: [{ provide: PrismaService, useValue: { appointment: { updateMany: vi.fn().mockResolvedValue({ count: 0 }) } } }],
+  providers: [
+    {
+      provide: PrismaService,
+      useValue: {
+        appointment: { updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
+      },
+    },
+  ],
   exports: [PrismaService],
 })
 class FakePrismaModule {}
@@ -27,12 +37,18 @@ class FakePrismaModule {}
  * importado antes, e a condição do ConditionalModule só é avaliada depois
  * de ele carregar as variáveis.
  */
-async function compileWith(jobsEnabled: string | undefined): Promise<TestingModule> {
+async function compileWith(
+  jobsEnabled: string | undefined,
+): Promise<TestingModule> {
   vi.stubEnv('PLATFORM_FEE_BPS', '1000');
   vi.stubEnv('JOBS_ENABLED', jobsEnabled);
   return Test.createTestingModule({
     imports: [
-      ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true, validate: validateEnv }),
+      ConfigModule.forRoot({
+        isGlobal: true,
+        ignoreEnvFile: true,
+        validate: validateEnv,
+      }),
       ClockModule,
       FakePrismaModule,
       AppointmentExpiryModule,
@@ -53,9 +69,15 @@ describe('JobsModule (liga/desliga com JOBS_ENABLED)', () => {
   it('com JOBS_ENABLED=false, a classe do @Cron não existe e o AppointmentExpiryService existe', async () => {
     moduleRef = await compileWith('false');
 
-    expect(() => moduleRef!.get(AppointmentExpiryCron, { strict: false })).toThrow();
-    expect(() => moduleRef!.get(SchedulerRegistry, { strict: false })).toThrow();
-    expect(moduleRef.get(AppointmentExpiryService, { strict: false })).toBeInstanceOf(AppointmentExpiryService);
+    expect(() =>
+      moduleRef!.get(AppointmentExpiryCron, { strict: false }),
+    ).toThrow();
+    expect(() =>
+      moduleRef!.get(SchedulerRegistry, { strict: false }),
+    ).toThrow();
+    expect(
+      moduleRef.get(AppointmentExpiryService, { strict: false }),
+    ).toBeInstanceOf(AppointmentExpiryService);
   });
 
   it('com JOBS_ENABLED=true, registra o cron de expiração a cada minuto', async () => {
@@ -63,14 +85,20 @@ describe('JobsModule (liga/desliga com JOBS_ENABLED)', () => {
     await moduleRef.init();
 
     const registry = moduleRef.get(SchedulerRegistry, { strict: false });
-    expect(moduleRef.get(AppointmentExpiryCron, { strict: false })).toBeInstanceOf(AppointmentExpiryCron);
+    expect(
+      moduleRef.get(AppointmentExpiryCron, { strict: false }),
+    ).toBeInstanceOf(AppointmentExpiryCron);
     expect(registry.doesExist('cron', APPOINTMENT_EXPIRY_CRON)).toBe(true);
-    expect(registry.getCronJob(APPOINTMENT_EXPIRY_CRON).cronTime.source).toBe(CronExpression.EVERY_MINUTE);
+    expect(registry.getCronJob(APPOINTMENT_EXPIRY_CRON).cronTime.source).toBe(
+      CronExpression.EVERY_MINUTE,
+    );
   });
 
   it('com JOBS_ENABLED ausente, o cron é registrado (padrão true)', async () => {
     moduleRef = await compileWith(undefined);
 
-    expect(moduleRef.get(AppointmentExpiryCron, { strict: false })).toBeInstanceOf(AppointmentExpiryCron);
+    expect(
+      moduleRef.get(AppointmentExpiryCron, { strict: false }),
+    ).toBeInstanceOf(AppointmentExpiryCron);
   });
 });

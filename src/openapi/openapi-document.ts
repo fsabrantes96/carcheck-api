@@ -30,7 +30,8 @@ export function buildOpenApiDocument(app: INestApplication): OpenAPIObject {
   // nomeado: entram aqui e as rotas as referenciam por $ref.
   document.components ??= {};
   document.components.schemas ??= {};
-  document.components.schemas[APPOINTMENT_RESPONSE_SCHEMA_NAME] = appointmentResponseSchema();
+  document.components.schemas[APPOINTMENT_RESPONSE_SCHEMA_NAME] =
+    appointmentResponseSchema();
   applyEnumDescriptions(document);
   return document;
 }
@@ -41,7 +42,10 @@ export function buildOpenApiDocument(app: INestApplication): OpenAPIObject {
  * factory em toda rota e o valor explícito a sobrescreve; uma rota sem ele
  * fica com este sentinela, que o teste de contrato reprova.
  */
-export function missingOperationId(controllerKey: string, methodKey: string): string {
+export function missingOperationId(
+  controllerKey: string,
+  methodKey: string,
+): string {
   return `MISSING_OPERATION_ID_${controllerKey}_${methodKey}`;
 }
 

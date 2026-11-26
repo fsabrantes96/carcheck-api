@@ -18,8 +18,7 @@ const TRANSITIONS: Record<
 };
 
 export type ListingTransition =
-  | { ok: true; to: ListingStatus }
-  | { ok: false; reason: 'INVALID_STATE' };
+  { ok: true; to: ListingStatus } | { ok: false; reason: 'INVALID_STATE' };
 
 /** Decide se a ação é permitida no status atual e para qual status leva. */
 export function decideListingTransition(
@@ -27,6 +26,7 @@ export function decideListingTransition(
   current: ListingStatus,
 ): ListingTransition {
   const rule = TRANSITIONS[action];
-  if (!rule.from.includes(current)) return { ok: false, reason: 'INVALID_STATE' };
+  if (!rule.from.includes(current))
+    return { ok: false, reason: 'INVALID_STATE' };
   return { ok: true, to: rule.to };
 }

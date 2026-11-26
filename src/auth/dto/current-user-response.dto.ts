@@ -8,22 +8,29 @@ import { UserResponseDto } from './user-response.dto.js';
  * com UserResponseDto, sem roles.
  */
 export class CurrentUserResponseDto extends UserResponseDto {
-    @ApiProperty({
-        enum: Role,
-        enumName: 'Role',
-        isArray: true,
-        description: 'Roles atuais do usuário, lidas do banco (uma mudança vale na hora, sem novo login)',
-    })
-    roles: Role[];
+  @ApiProperty({
+    enum: Role,
+    enumName: 'Role',
+    isArray: true,
+    description:
+      'Roles atuais do usuário, lidas do banco (uma mudança vale na hora, sem novo login)',
+  })
+  roles: Role[];
 
-    /** override: sem ele, CurrentUserResponseDto.from herdado devolveria um UserResponseDto sem roles. */
-    static override from(user: { id: string; name: string; email: string; roles: Role[]; createdAt: Date }): CurrentUserResponseDto {
-        const dto = new CurrentUserResponseDto();
-        dto.id = user.id;
-        dto.name = user.name;
-        dto.email = user.email;
-        dto.roles = [...user.roles];
-        dto.createdAt = user.createdAt;
-        return dto;
-    }
+  /** override: sem ele, CurrentUserResponseDto.from herdado devolveria um UserResponseDto sem roles. */
+  static override from(user: {
+    id: string;
+    name: string;
+    email: string;
+    roles: Role[];
+    createdAt: Date;
+  }): CurrentUserResponseDto {
+    const dto = new CurrentUserResponseDto();
+    dto.id = user.id;
+    dto.name = user.name;
+    dto.email = user.email;
+    dto.roles = [...user.roles];
+    dto.createdAt = user.createdAt;
+    return dto;
+  }
 }

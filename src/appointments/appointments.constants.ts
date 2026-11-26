@@ -32,7 +32,14 @@ export const PAYMENT_WINDOW_MINUTES = 30;
  * abaixo. PAID ocupa o horário sem prazo:
  * nunca é expirado nem tratado como livre, mesmo com expiresAt preenchido.
  */
-export const EXPIRING_SLOT_STATUSES: AppointmentStatus[] = ['ACCEPTED', 'AWAITING_PAYMENT'];
+export const EXPIRING_SLOT_STATUSES: AppointmentStatus[] = [
+  'ACCEPTED',
+  'AWAITING_PAYMENT',
+];
 
 /** Estados com prazo de expiração (expiresAt obrigatório). */
-export const EXPIRABLE_STATUSES: AppointmentStatus[] = ['REQUESTED', 'ACCEPTED', 'AWAITING_PAYMENT'];
+export const EXPIRABLE_STATUSES: AppointmentStatus[] = [
+  'REQUESTED',
+  'ACCEPTED',
+  'AWAITING_PAYMENT',
+];
