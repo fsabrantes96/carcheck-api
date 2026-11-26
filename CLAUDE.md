@@ -120,22 +120,23 @@ Design: [docs/appointments-design.md](docs/appointments-design.md). The flow end
 1. **Stop before going beyond what was approved.** When a change goes beyond what the user approved, or when a task needs a tool or command other than the agreed one (even a read-only one), stop and ask the user first.
 2. **Stop when a tool or permission blocks a command.** Ask the user before looking for another way, even if the alternative only reads files.
 3. **No approximate counts.** Give the real number, or write "not counted".
-4. **Diffs without external programs.** Every command that produces a diff (`git diff`, `git show`, `git log -p` and the like) takes `--no-ext-diff --no-textconv` right after the subcommand.
+4. **Diffs without external programs.** Every command that produces a diff (`git diff`, `git show`, `git log -p` and the like) takes `--no-ext-diff --no-textconv` right after the subcommand (after `--no-index`, when it is used). When unsure whether a command produces a diff, treat it as one and ask.
 5. **Survey before coding.** Stop and show the survey to the user before writing code. Search by the literal text (descriptions, error messages, contract texts) as well as by constant and function names.
 6. **Commits.**
    - Conventional Commits in pt-BR with a scope.
-   - A `test:` commit with the failing test comes before the `fix:`/`feat:`/`chore:` commit. When the test already passes before the change, the proof is a mutation in a copy outside the repository (rule 9).
-   - `git add` only specific files, never `-A` or `.`.
-   - Message through `git commit -F`, from a UTF-8 file without BOM outside `.git/`. In PowerShell 5.1: `[IO.File]::WriteAllText(path, text, (New-Object Text.UTF8Encoding $false))`; redirecting with `>` writes UTF-16.
-   - No push (only through `/ship-pr`).
+   - Every `fix:`/`feat:`/`chore:` commit that changes behavior is preceded by a `test:` commit with the failing test. When the test already passes before the change, the proof is a mutation in a copy outside the repository (rule 9).
+   - `git add -- <explicit paths>` only; never `-A`, `--all`, `-u`, `.`, directories or globs, and never `git commit -a`.
+   - Message through `git commit -F`, from a UTF-8 file without BOM written with an absolute path in the session scratchpad (never in the repository or in `.git/`). In PowerShell 5.1: `[IO.File]::WriteAllText($path, $text, (New-Object Text.UTF8Encoding $false))`; redirecting with `>` writes UTF-16.
+   - No push; pushing happens only in `/ship-pr`, which only the user starts.
 7. **Review by the agents.** Bring every finding with a recommendation for each one, and apply nothing before the user answers.
 8. **Full suite after the last commit:** `npm run lint`, `npx tsc --noEmit`, unit tests (`npm test`) and e2e tests (`npm run test:e2e`).
 9. **Mutations in a copy outside the repository.**
-   - `robocopy` the project to the session scratchpad, excluding `node_modules`, `.git`, `.claude` and `.env`. If a mutation run needs `.env` (e2e tests, for example), stop and ask.
-   - The user creates the `node_modules` junction.
+   - `robocopy` from the repository to a new, empty folder in the session scratchpad, excluding `node_modules`, `.git`, `.claude`, `.env` and the permissions spec folder; never `/MIR`, `/PURGE`, `/MOV` or `/MOVE`. `.env` never goes into the copy; if a mutation run fails for a missing variable, stop and ask.
+   - Record the commit SHA the copy was made from.
+   - The user creates the `node_modules` junction. Never run `npm ci`/`npm install` or delete anything through the junction.
    - The user brings the files of `.claude/` and of the permissions spec folder.
-   - Before each text replacement, confirm the snippet is unique (count = 1, reading with `Get-Content -Encoding UTF8`).
-   - After reverting, the `git hash-object` of the file in the copy must equal `git rev-parse HEAD:<file>`.
+   - Mutate and revert only files inside the copy. Before each text replacement, confirm the snippet is unique (count = 1, reading with `Get-Content -Raw -Encoding UTF8`).
+   - After reverting, `git hash-object -- <file in copy>` (never `-w`) must equal `git rev-parse <recorded SHA>:<file>`.
    - Each mutation must break exactly one test.
    - The user removes the copy.
 10. **Final report, in a fixed format:** the branch's `git log`; tests before vs after (real counts); the diff of the specs, with what replaces each removed line; the reviewers' findings; the result of each mutation; what was not verified. Paste every output into the report; never refer to output "above" without showing it.
