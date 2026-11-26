@@ -115,6 +115,31 @@ Design: [docs/appointments-design.md](docs/appointments-design.md). The flow end
 - PRs follow [.github/pull_request_template.md](.github/pull_request_template.md): "O que mudou", "Como testar", and a checklist that includes updating the README roadmap.
 - O agente nunca executa comandos que alteram o remoto, com uma única exceção: a skill /ship-pr, quando o usuário a aciona explicitamente. Merge, force push e remoção de branch remota são sempre do usuário.
 
+## Working rules
+
+1. **Stop before going beyond what was approved.** When a change goes beyond what the user approved, or when a task needs a tool or command other than the agreed one (even a read-only one), stop and ask the user first.
+2. **Stop when a tool or permission blocks a command.** Ask the user before looking for another way, even if the alternative only reads files.
+3. **No approximate counts.** Give the real number, or write "not counted".
+4. **Diffs without external programs.** Every command that produces a diff (`git diff`, `git show`, `git log -p` and the like) takes `--no-ext-diff --no-textconv` right after the subcommand.
+5. **Survey before coding.** Stop and show the survey to the user before writing code. Search by the literal text (descriptions, error messages, contract texts) as well as by constant and function names.
+6. **Commits.**
+   - Conventional Commits in pt-BR with a scope.
+   - A `test:` commit with the failing test comes before the `fix:`/`feat:`/`chore:` commit. When the test already passes before the change, the proof is a mutation in a copy outside the repository (rule 9).
+   - `git add` only specific files, never `-A` or `.`.
+   - Message through `git commit -F`, from a UTF-8 file without BOM outside `.git/`. In PowerShell 5.1: `[IO.File]::WriteAllText(path, text, (New-Object Text.UTF8Encoding $false))`; redirecting with `>` writes UTF-16.
+   - No push (only through `/ship-pr`).
+7. **Review by the agents.** Bring every finding with a recommendation for each one, and apply nothing before the user answers.
+8. **Full suite after the last commit:** `npm run lint`, `npx tsc --noEmit`, unit tests (`npm test`) and e2e tests (`npm run test:e2e`).
+9. **Mutations in a copy outside the repository.**
+   - `robocopy` the project to the session scratchpad, excluding `node_modules`, `.git`, `.claude` and `.env`. If a mutation run needs `.env` (e2e tests, for example), stop and ask.
+   - The user creates the `node_modules` junction.
+   - The user brings the files of `.claude/` and of the permissions spec folder.
+   - Before each text replacement, confirm the snippet is unique (count = 1, reading with `Get-Content -Encoding UTF8`).
+   - After reverting, the `git hash-object` of the file in the copy must equal `git rev-parse HEAD:<file>`.
+   - Each mutation must break exactly one test.
+   - The user removes the copy.
+10. **Final report, in a fixed format:** the branch's `git log`; tests before vs after (real counts); the diff of the specs, with what replaces each removed line; the reviewers' findings; the result of each mutation; what was not verified. Paste every output into the report; never refer to output "above" without showing it.
+
 ## AI tooling
 
 - Project agents live in [.claude/agents/](.claude/agents/) and skills in [.claude/skills/](.claude/skills/). The planned list is in [docs/ai-tooling-plan.md](docs/ai-tooling-plan.md).
