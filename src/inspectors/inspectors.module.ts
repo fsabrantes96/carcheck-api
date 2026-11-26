@@ -4,8 +4,8 @@ import { InspectorsController } from './inspectors.controller.js';
 import { InspectorsService } from './inspectors.service.js';
 
 @Module({
-    imports: [AuthModule],
-    controllers: [InspectorsController],
-    providers: [InspectorsService],
+  imports: [AuthModule],
+  controllers: [InspectorsController],
+  providers: [InspectorsService],
 })
-export class InspectorsModule { }
+export class InspectorsModule {}

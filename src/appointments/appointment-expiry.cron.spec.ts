@@ -26,9 +26,16 @@ describe('AppointmentExpiryCron', () => {
   beforeEach(() => {
     clock = new FakeClock(NOW);
     expiry = { expireDue: vi.fn().mockResolvedValue(0) };
-    cron = new AppointmentExpiryCron(expiry as unknown as AppointmentExpiryService, clock);
-    logSpy = vi.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
-    errorSpy = vi.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+    cron = new AppointmentExpiryCron(
+      expiry as unknown as AppointmentExpiryService,
+      clock,
+    );
+    logSpy = vi
+      .spyOn(Logger.prototype, 'log')
+      .mockImplementation(() => undefined);
+    errorSpy = vi
+      .spyOn(Logger.prototype, 'error')
+      .mockImplementation(() => undefined);
   });
 
   afterEach(() => {
@@ -47,7 +54,10 @@ describe('AppointmentExpiryCron', () => {
     clock.advanceMinutes(1);
     await cron.run();
 
-    expect(expiry.expireDue).toHaveBeenNthCalledWith(2, new Date('2030-01-02T12:01:00.000Z'));
+    expect(expiry.expireDue).toHaveBeenNthCalledWith(
+      2,
+      new Date('2030-01-02T12:01:00.000Z'),
+    );
   });
 
   it('pula a execução quando a anterior ainda não terminou', async () => {
@@ -63,7 +73,9 @@ describe('AppointmentExpiryCron', () => {
   });
 
   it('registra um aviso no log quando pula a execução (execução anterior presa não fica em silêncio)', async () => {
-    const warnSpy = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+    const warnSpy = vi
+      .spyOn(Logger.prototype, 'warn')
+      .mockImplementation(() => undefined);
     const pending = deferred<number>();
     expiry.expireDue.mockReturnValueOnce(pending.promise);
 
@@ -71,7 +83,9 @@ describe('AppointmentExpiryCron', () => {
     await cron.run();
 
     expect(warnSpy).toHaveBeenCalledTimes(1);
-    expect(warnSpy).toHaveBeenCalledWith('Execução anterior da expiração ainda em andamento; esta foi pulada');
+    expect(warnSpy).toHaveBeenCalledWith(
+      'Execução anterior da expiração ainda em andamento; esta foi pulada',
+    );
     pending.resolve(0);
     await first;
   });
@@ -95,7 +109,10 @@ describe('AppointmentExpiryCron', () => {
     await expect(cron.run()).resolves.toBeUndefined();
 
     expect(errorSpy).toHaveBeenCalledTimes(1);
-    expect(errorSpy.mock.calls[0]).toEqual(['Falha ao expirar agendamentos vencidos', failure.stack]);
+    expect(errorSpy.mock.calls[0]).toEqual([
+      'Falha ao expirar agendamentos vencidos',
+      failure.stack,
+    ]);
   });
 
   it('volta a executar depois de uma falha (a flag é liberada)', async () => {

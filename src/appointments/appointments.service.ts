@@ -13,9 +13,18 @@ import { splitPlatformFee } from '../common/money/platform-fee.js';
 import { isUniqueViolationOn } from '../common/prisma/prisma-errors.js';
 import { BUSINESS_RULES } from '../config/business-rules.js';
 import type { BusinessRules } from '../config/business-rules.js';
-import type { AppointmentStatus, ListingStatus, Prisma } from '../generated/prisma/client.js';
+import type {
+  AppointmentStatus,
+  ListingStatus,
+  Prisma,
+} from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { deadlineFor, dueWhere, expiredData, isDue } from './appointment-deadlines.js';
+import {
+  deadlineFor,
+  dueWhere,
+  expiredData,
+  isDue,
+} from './appointment-deadlines.js';
 import { APPOINTMENT_INCLUDE } from './appointment.include.js';
 import {
   APPOINTMENT_OPEN_TRIPLET_INDEX,
@@ -25,7 +34,10 @@ import {
   OPEN_TRIPLET_STATUSES,
 } from './appointments.constants.js';
 import { decide, participantOf } from './appointments.state-machine.js';
-import type { AppointmentAction, Participant } from './appointments.state-machine.js';
+import type {
+  AppointmentAction,
+  Participant,
+} from './appointments.state-machine.js';
 import {
   appointmentResponseFor,
   BuyerAppointmentResponseDto,
@@ -39,22 +51,27 @@ import type { PaginatedAppointmentsResponseDto } from './dto/paginated-appointme
 import type { CreateAppointmentDto } from './dto/create-appointment.dto.js';
 
 const NOT_FOUND_MESSAGE = 'Agendamento não encontrado';
-const DUPLICATE_MESSAGE = 'Você já tem um agendamento em andamento para este anúncio com este avaliador';
+const DUPLICATE_MESSAGE =
+  'Você já tem um agendamento em andamento para este anúncio com este avaliador';
 
 /** Campo do agendamento que guarda o usuário de cada papel. */
-const PARTICIPANT_FIELD: Record<Participant, 'buyerId' | 'sellerId' | 'inspectorUserId'> = {
+const PARTICIPANT_FIELD: Record<
+  Participant,
+  'buyerId' | 'sellerId' | 'inspectorUserId'
+> = {
   BUYER: 'buyerId',
   SELLER: 'sellerId',
   INSPECTOR: 'inspectorUserId',
 };
 
 /** Verbo da mensagem de 403 de cada ação com rota. */
-const ACTION_VERB: Record<'ACCEPT' | 'DECLINE' | 'CONFIRM' | 'CANCEL', string> = {
-  ACCEPT: 'aceitar',
-  DECLINE: 'recusar',
-  CONFIRM: 'confirmar',
-  CANCEL: 'cancelar',
-};
+const ACTION_VERB: Record<'ACCEPT' | 'DECLINE' | 'CONFIRM' | 'CANCEL', string> =
+  {
+    ACCEPT: 'aceitar',
+    DECLINE: 'recusar',
+    CONFIRM: 'confirmar',
+    CANCEL: 'cancelar',
+  };
 
 type RouteAction = keyof typeof ACTION_VERB;
 
@@ -85,7 +102,10 @@ export class AppointmentsService {
    * desenho (docs/appointments-design.md, seção 5). O anúncio fica travado
    * com FOR SHARE durante a transação, para não sair de ACTIVE no meio.
    */
-  async create(buyerId: string, dto: CreateAppointmentDto): Promise<BuyerAppointmentResponseDto> {
+  async create(
+    buyerId: string,
+    dto: CreateAppointmentDto,
+  ): Promise<BuyerAppointmentResponseDto> {
     const now = this.clock.now();
     const startsAt = new Date(dto.startsAt);
     // O @IsISO8601 aceita formatos (semana, dia ordinal) que o Date não entende.
@@ -98,21 +118,30 @@ export class AppointmentsService {
       );
     }
     this.assertSchedulingWindow(now, startsAt);
-    const endsAt = new Date(startsAt.getTime() + this.rules.appointmentDurationMinutes * 60_000);
+    const endsAt = new Date(
+      startsAt.getTime() + this.rules.appointmentDurationMinutes * 60_000,
+    );
 
     let appointmentId: string;
     try {
       appointmentId = await this.prisma.$transaction(async (tx) => {
-        const [listing] = await tx.$queryRaw<{ sellerId: string; status: ListingStatus }[]>`
+        const [listing] = await tx.$queryRaw<
+          { sellerId: string; status: ListingStatus }[]
+        >`
           SELECT "sellerId", "status"::text AS "status"
           FROM "Listing" WHERE "id" = ${dto.listingId}
           FOR SHARE`;
         if (!listing || listing.status !== 'ACTIVE') {
-          throw new NotFoundException(withCode(ErrorCode.LISTING_NOT_FOUND, 'Anúncio não encontrado'));
+          throw new NotFoundException(
+            withCode(ErrorCode.LISTING_NOT_FOUND, 'Anúncio não encontrado'),
+          );
         }
         if (listing.sellerId === buyerId) {
           throw new ForbiddenException(
-            withCode(ErrorCode.FORBIDDEN, 'Você não pode agendar avaliação do seu próprio anúncio'),
+            withCode(
+              ErrorCode.FORBIDDEN,
+              'Você não pode agendar avaliação do seu próprio anúncio',
+            ),
           );
         }
 
@@ -120,20 +149,32 @@ export class AppointmentsService {
           where: { id: dto.inspectorProfileId, verified: true },
           select: { userId: true, basePriceCents: true },
         });
-        if (!inspector) throw new NotFoundException(withCode(ErrorCode.INSPECTOR_NOT_FOUND, 'Avaliador não encontrado'));
+        if (!inspector)
+          throw new NotFoundException(
+            withCode(ErrorCode.INSPECTOR_NOT_FOUND, 'Avaliador não encontrado'),
+          );
         if (inspector.userId === buyerId) {
           throw new ForbiddenException(
-            withCode(ErrorCode.FORBIDDEN, 'Você não pode agendar uma avaliação consigo mesmo'),
+            withCode(
+              ErrorCode.FORBIDDEN,
+              'Você não pode agendar uma avaliação consigo mesmo',
+            ),
           );
         }
         if (inspector.userId === listing.sellerId) {
           throw new ConflictException(
-            withCode(ErrorCode.INSPECTOR_UNAVAILABLE, 'Este avaliador não está disponível para este anúncio'),
+            withCode(
+              ErrorCode.INSPECTOR_UNAVAILABLE,
+              'Este avaliador não está disponível para este anúncio',
+            ),
           );
         }
         if (inspector.basePriceCents < this.rules.minInspectionPriceCents) {
           throw new ConflictException(
-            withCode(ErrorCode.INSPECTOR_UNAVAILABLE, 'Este avaliador está indisponível no momento'),
+            withCode(
+              ErrorCode.INSPECTOR_UNAVAILABLE,
+              'Este avaliador está indisponível no momento',
+            ),
           );
         }
 
@@ -149,7 +190,10 @@ export class AppointmentsService {
           },
           select: { id: true },
         });
-        if (duplicate) throw new ConflictException(withCode(ErrorCode.APPOINTMENT_DUPLICATE, DUPLICATE_MESSAGE));
+        if (duplicate)
+          throw new ConflictException(
+            withCode(ErrorCode.APPOINTMENT_DUPLICATE, DUPLICATE_MESSAGE),
+          );
 
         // Checagem branda: a garantia é a exclusion constraint, aplicada no
         // aceite. PAID ocupa sempre; ACCEPTED/AWAITING_PAYMENT só se não venceram.
@@ -160,18 +204,27 @@ export class AppointmentsService {
             endsAt: { gt: startsAt },
             OR: [
               { status: 'PAID' },
-              { status: { in: EXPIRING_SLOT_STATUSES }, expiresAt: { gt: now } },
+              {
+                status: { in: EXPIRING_SLOT_STATUSES },
+                expiresAt: { gt: now },
+              },
             ],
           },
           select: { id: true },
         });
         if (busy) {
           throw new ConflictException(
-            withCode(ErrorCode.SLOT_UNAVAILABLE, 'O avaliador não está disponível nesse horário'),
+            withCode(
+              ErrorCode.SLOT_UNAVAILABLE,
+              'O avaliador não está disponível nesse horário',
+            ),
           );
         }
 
-        const fee = splitPlatformFee(inspector.basePriceCents, this.rules.platformFeeBps);
+        const fee = splitPlatformFee(
+          inspector.basePriceCents,
+          this.rules.platformFeeBps,
+        );
         const created = await tx.appointment.create({
           data: {
             listingId: dto.listingId,
@@ -193,7 +246,9 @@ export class AppointmentsService {
       });
     } catch (error) {
       if (isUniqueViolationOn(error, APPOINTMENT_OPEN_TRIPLET_INDEX)) {
-        throw new ConflictException(withCode(ErrorCode.APPOINTMENT_DUPLICATE, DUPLICATE_MESSAGE));
+        throw new ConflictException(
+          withCode(ErrorCode.APPOINTMENT_DUPLICATE, DUPLICATE_MESSAGE),
+        );
       }
       throw error;
     }
@@ -211,12 +266,21 @@ export class AppointmentsService {
    * papel dele naquele agendamento. Ordem estável: mais recentes primeiro,
    * com o id como desempate.
    */
-  async list(userId: string, query: ListAppointmentsQueryDto): Promise<PaginatedAppointmentsResponseDto> {
+  async list(
+    userId: string,
+    query: ListAppointmentsQueryDto,
+  ): Promise<PaginatedAppointmentsResponseDto> {
     const { as, status, page, limit } = query;
     const where: Prisma.AppointmentWhereInput = {
       ...(as
         ? { [PARTICIPANT_FIELD[as]]: userId }
-        : { OR: [{ buyerId: userId }, { sellerId: userId }, { inspectorUserId: userId }] }),
+        : {
+            OR: [
+              { buyerId: userId },
+              { sellerId: userId },
+              { inspectorUserId: userId },
+            ],
+          }),
       ...(status && { status }),
     };
 
@@ -233,7 +297,10 @@ export class AppointmentsService {
 
     return {
       items: appointments.map((appointment) =>
-        appointmentResponseFor(participantOf(appointment, userId) as Participant, appointment),
+        appointmentResponseFor(
+          participantOf(appointment, userId) as Participant,
+          appointment,
+        ),
       ),
       total,
       page,
@@ -248,12 +315,18 @@ export class AppointmentsService {
       include: APPOINTMENT_INCLUDE,
     });
     const role = appointment && participantOf(appointment, userId);
-    if (!appointment || !role) throw new NotFoundException(withCode(ErrorCode.APPOINTMENT_NOT_FOUND, NOT_FOUND_MESSAGE));
+    if (!appointment || !role)
+      throw new NotFoundException(
+        withCode(ErrorCode.APPOINTMENT_NOT_FOUND, NOT_FOUND_MESSAGE),
+      );
     return appointmentResponseFor(role, appointment);
   }
 
   /** Avaliador aceita: ocupa o horário (a exclusion constraint é a garantia final). */
-  async accept(id: string, userId: string): Promise<InspectorAppointmentResponseDto> {
+  async accept(
+    id: string,
+    userId: string,
+  ): Promise<InspectorAppointmentResponseDto> {
     const { snapshot, now } = await this.prepare(id, userId, 'ACCEPT');
 
     await this.prisma.$transaction(async (tx) => {
@@ -276,7 +349,10 @@ export class AppointmentsService {
       });
       if (!profile?.verified) {
         throw new ConflictException(
-          withCode(ErrorCode.INSPECTOR_NOT_VERIFIED, 'Seu perfil de avaliador precisa estar verificado para aceitar'),
+          withCode(
+            ErrorCode.INSPECTOR_NOT_VERIFIED,
+            'Seu perfil de avaliador precisa estar verificado para aceitar',
+          ),
         );
       }
 
@@ -304,7 +380,10 @@ export class AppointmentsService {
   }
 
   /** Avaliador recusa o pedido. */
-  async decline(id: string, userId: string): Promise<InspectorAppointmentResponseDto> {
+  async decline(
+    id: string,
+    userId: string,
+  ): Promise<InspectorAppointmentResponseDto> {
     const { snapshot, now } = await this.prepare(id, userId, 'DECLINE');
     await this.write(this.prisma, snapshot, now, {
       status: 'DECLINED',
@@ -315,7 +394,11 @@ export class AppointmentsService {
   }
 
   /** Vendedor confirma local e horário; abre a janela de pagamento. */
-  async confirm(id: string, userId: string, dto: ConfirmAppointmentDto): Promise<SellerAppointmentResponseDto> {
+  async confirm(
+    id: string,
+    userId: string,
+    dto: ConfirmAppointmentDto,
+  ): Promise<SellerAppointmentResponseDto> {
     const { snapshot, now } = await this.prepare(id, userId, 'CONFIRM');
 
     await this.prisma.$transaction(async (tx) => {
@@ -358,28 +441,40 @@ export class AppointmentsService {
    */
   private async prepare(id: string, userId: string, action: RouteAction) {
     const now = this.clock.now();
-    const snapshot: TransitionSnapshot | null = await this.prisma.appointment.findUnique({
-      where: { id },
-      select: {
-        id: true,
-        buyerId: true,
-        sellerId: true,
-        inspectorUserId: true,
-        status: true,
-        startsAt: true,
-        expiresAt: true,
-      },
-    });
+    const snapshot: TransitionSnapshot | null =
+      await this.prisma.appointment.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          buyerId: true,
+          sellerId: true,
+          inspectorUserId: true,
+          status: true,
+          startsAt: true,
+          expiresAt: true,
+        },
+      });
     const role = snapshot && participantOf(snapshot, userId);
-    if (!snapshot || !role) throw new NotFoundException(withCode(ErrorCode.APPOINTMENT_NOT_FOUND, NOT_FOUND_MESSAGE));
+    if (!snapshot || !role)
+      throw new NotFoundException(
+        withCode(ErrorCode.APPOINTMENT_NOT_FOUND, NOT_FOUND_MESSAGE),
+      );
 
     const decision = decide(role, action as AppointmentAction, snapshot.status);
     if (!decision.ok) {
       throw decision.reason === 'FORBIDDEN_ACTOR'
         ? new ForbiddenException(
-            withCode(ErrorCode.FORBIDDEN, `Você não pode ${ACTION_VERB[action]} este agendamento`),
+            withCode(
+              ErrorCode.FORBIDDEN,
+              `Você não pode ${ACTION_VERB[action]} este agendamento`,
+            ),
           )
-        : new ConflictException(withCode(ErrorCode.INVALID_STATE, 'Ação não permitida no estado atual'));
+        : new ConflictException(
+            withCode(
+              ErrorCode.INVALID_STATE,
+              'Ação não permitida no estado atual',
+            ),
+          );
     }
 
     if (isDue(snapshot.status, snapshot.expiresAt, now)) {
@@ -387,7 +482,12 @@ export class AppointmentsService {
         where: { id, ...dueWhere(now, snapshot.status) },
         data: expiredData(now),
       });
-      throw new ConflictException(withCode(ErrorCode.APPOINTMENT_EXPIRED, 'O prazo para esta ação expirou'));
+      throw new ConflictException(
+        withCode(
+          ErrorCode.APPOINTMENT_EXPIRED,
+          'O prazo para esta ação expirou',
+        ),
+      );
     }
 
     return { snapshot, now, role };
@@ -407,19 +507,27 @@ export class AppointmentsService {
       where: {
         id: snapshot.id,
         status: snapshot.status,
-        ...(EXPIRABLE_STATUSES.includes(snapshot.status) && { expiresAt: { gt: now } }),
+        ...(EXPIRABLE_STATUSES.includes(snapshot.status) && {
+          expiresAt: { gt: now },
+        }),
       },
       data,
     });
     if (count === 0) {
       throw new ConflictException(
-        withCode(ErrorCode.STATE_CHANGED, 'O agendamento mudou de estado; recarregue e tente novamente'),
+        withCode(
+          ErrorCode.STATE_CHANGED,
+          'O agendamento mudou de estado; recarregue e tente novamente',
+        ),
       );
     }
   }
 
   private load(id: string) {
-    return this.prisma.appointment.findUniqueOrThrow({ where: { id }, include: APPOINTMENT_INCLUDE });
+    return this.prisma.appointment.findUniqueOrThrow({
+      where: { id },
+      include: APPOINTMENT_INCLUDE,
+    });
   }
 
   /** 400 se o início não respeitar a antecedência mínima ou o horizonte de 60 dias. */

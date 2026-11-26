@@ -115,7 +115,8 @@ export function isDocsEnabled(env: Record<string, unknown>): boolean {
 }
 
 function parseInteger(raw: unknown): number | undefined {
-  if (typeof raw === 'number') return Number.isSafeInteger(raw) ? raw : undefined;
+  if (typeof raw === 'number')
+    return Number.isSafeInteger(raw) ? raw : undefined;
   if (typeof raw !== 'string') return undefined;
   const text = raw.trim();
   if (!/^-?\d+$/.test(text)) return undefined;
@@ -134,9 +135,13 @@ export function validateEnv(
   const problems: string[] = [];
   const parsed = {} as BusinessEnv & JobsEnv & DocsEnv;
 
-  for (const [name, rule] of Object.entries(RULES) as [keyof BusinessEnv, IntRule][]) {
+  for (const [name, rule] of Object.entries(RULES) as [
+    keyof BusinessEnv,
+    IntRule,
+  ][]) {
     const raw = config[name];
-    const missing = raw === undefined || (typeof raw === 'string' && raw.trim() === '');
+    const missing =
+      raw === undefined || (typeof raw === 'string' && raw.trim() === '');
 
     if (missing) {
       if (rule.default === undefined) {
@@ -149,7 +154,9 @@ export function validateEnv(
 
     const value = parseInteger(raw);
     if (value === undefined || value < rule.min || value > rule.max) {
-      problems.push(`${name} inválida (recebido: ${JSON.stringify(raw)}): ${rule.hint}.`);
+      problems.push(
+        `${name} inválida (recebido: ${JSON.stringify(raw)}): ${rule.hint}.`,
+      );
       continue;
     }
     parsed[name] = value;
@@ -157,14 +164,18 @@ export function validateEnv(
 
   const jobsEnabled = parseBoolean(config.JOBS_ENABLED, JOBS_ENABLED_DEFAULT);
   if (jobsEnabled === undefined) {
-    problems.push(`JOBS_ENABLED inválida (recebido: ${JSON.stringify(config.JOBS_ENABLED)}): ${JOBS_ENABLED_HINT}.`);
+    problems.push(
+      `JOBS_ENABLED inválida (recebido: ${JSON.stringify(config.JOBS_ENABLED)}): ${JOBS_ENABLED_HINT}.`,
+    );
   } else {
     parsed.JOBS_ENABLED = jobsEnabled;
   }
 
   const docsEnabled = parseBoolean(config.DOCS_ENABLED, DOCS_ENABLED_DEFAULT);
   if (docsEnabled === undefined) {
-    problems.push(`DOCS_ENABLED inválida (recebido: ${JSON.stringify(config.DOCS_ENABLED)}): ${DOCS_ENABLED_HINT}.`);
+    problems.push(
+      `DOCS_ENABLED inválida (recebido: ${JSON.stringify(config.DOCS_ENABLED)}): ${DOCS_ENABLED_HINT}.`,
+    );
   } else {
     parsed.DOCS_ENABLED = docsEnabled;
   }

@@ -19,7 +19,11 @@ export class LoginDto {
   // Mesmo tamanho em caracteres do RegisterDto. A medida em bytes fica só no
   // cadastro: aqui uma senha longa segue para o 401 genérico do service, em
   // tempo constante, sem revelar o limite.
-  @ApiProperty({ example: 'senha12345', minLength: PASSWORD_MIN_LENGTH, maxLength: PASSWORD_MAX_LENGTH })
+  @ApiProperty({
+    example: 'senha12345',
+    minLength: PASSWORD_MIN_LENGTH,
+    maxLength: PASSWORD_MAX_LENGTH,
+  })
   @IsString()
   @MinLength(PASSWORD_MIN_LENGTH)
   @MaxLength(PASSWORD_MAX_LENGTH)

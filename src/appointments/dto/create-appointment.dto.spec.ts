@@ -23,15 +23,21 @@ describe('CreateAppointmentDto', () => {
   });
 
   it('aceita início com offset (-03:00)', async () => {
-    expect(await errorsFor({ ...valid, startsAt: '2030-01-03T09:00:00-03:00' })).toEqual([]);
+    expect(
+      await errorsFor({ ...valid, startsAt: '2030-01-03T09:00:00-03:00' }),
+    ).toEqual([]);
   });
 
-  it.each(['status', 'priceCents', 'buyerId', 'sellerId', 'inspectorUserId', 'platformFeeBps'])(
-    'rejeita o campo %s (o cliente nunca escolhe)',
-    async (field) => {
-      expect(await errorsFor({ ...valid, [field]: 'x' })).toEqual([field]);
-    },
-  );
+  it.each([
+    'status',
+    'priceCents',
+    'buyerId',
+    'sellerId',
+    'inspectorUserId',
+    'platformFeeBps',
+  ])('rejeita o campo %s (o cliente nunca escolhe)', async (field) => {
+    expect(await errorsFor({ ...valid, [field]: 'x' })).toEqual([field]);
+  });
 
   it.each([
     ['sem fuso', '2030-01-03T12:00:00'],
@@ -43,14 +49,22 @@ describe('CreateAppointmentDto', () => {
 
   it('a mensagem de startsAt sem fuso é em pt-BR', async () => {
     const [error] = await validate(
-      plainToInstance(CreateAppointmentDto, { ...valid, startsAt: '2030-01-03T12:00:00' }),
+      plainToInstance(CreateAppointmentDto, {
+        ...valid,
+        startsAt: '2030-01-03T12:00:00',
+      }),
       { whitelist: true, forbidNonWhitelisted: true },
     );
 
-    expect(Object.values(error.constraints ?? {})).toContain('startsAt precisa ter fuso horário (Z ou ±hh:mm)');
+    expect(Object.values(error.constraints ?? {})).toContain(
+      'startsAt precisa ter fuso horário (Z ou ±hh:mm)',
+    );
   });
 
-  it.each(['listingId', 'inspectorProfileId'])('rejeita %s que não é uuid', async (field) => {
-    expect(await errorsFor({ ...valid, [field]: '123' })).toEqual([field]);
-  });
+  it.each(['listingId', 'inspectorProfileId'])(
+    'rejeita %s que não é uuid',
+    async (field) => {
+      expect(await errorsFor({ ...valid, [field]: '123' })).toEqual([field]);
+    },
+  );
 });

@@ -1,7 +1,10 @@
 import SwaggerParser from '@apidevtools/swagger-parser';
 import { NestFactory } from '@nestjs/core';
 import type { INestApplication } from '@nestjs/common';
-import { buildOpenApiDocument, serializeOpenApiDocument } from './openapi-document.js';
+import {
+  buildOpenApiDocument,
+  serializeOpenApiDocument,
+} from './openapi-document.js';
 
 /**
  * O openapi.json da raiz é o contrato que o front usa para gerar os tipos.
@@ -24,7 +27,10 @@ describe('openapi.json', () => {
     // shell tiver DOTENV_OVERRIDE=true. A porta 1 faz uma conexão acidental
     // falhar.
     vi.stubEnv('DOTENV_OVERRIDE', 'false');
-    vi.stubEnv('DATABASE_URL', 'postgresql://openapi:openapi@127.0.0.1:1/openapi');
+    vi.stubEnv(
+      'DATABASE_URL',
+      'postgresql://openapi:openapi@127.0.0.1:1/openapi',
+    );
     vi.stubEnv('JWT_SECRET', 'segredo-apenas-para-gerar-o-openapi');
     vi.stubEnv('JWT_EXPIRES_IN_SECONDS', '3600');
     vi.stubEnv('PLATFORM_FEE_BPS', '1000');
@@ -39,7 +45,9 @@ describe('openapi.json', () => {
     // Import dinâmico: o ConfigModule.forRoot valida o ambiente ao carregar o AppModule.
     const { AppModule } = await import('../app.module.js');
     const { createHttpAdapter } = await import('../app.setup.js');
-    app = await NestFactory.create(AppModule, createHttpAdapter(), { logger: false });
+    app = await NestFactory.create(AppModule, createHttpAdapter(), {
+      logger: false,
+    });
   });
 
   afterAll(async () => {
@@ -48,9 +56,9 @@ describe('openapi.json', () => {
   });
 
   it('está atualizado com o código (se falhar, rode npm run openapi e versione o arquivo)', async () => {
-    await expect(serializeOpenApiDocument(buildOpenApiDocument(app))).toMatchFileSnapshot(
-      '../../openapi.json',
-    );
+    await expect(
+      serializeOpenApiDocument(buildOpenApiDocument(app)),
+    ).toMatchFileSnapshot('../../openapi.json');
   });
 
   it('é um documento OpenAPI válido (schema do OAS e $refs resolvíveis, segundo o swagger-parser)', async () => {
@@ -58,6 +66,8 @@ describe('openapi.json', () => {
     const document = structuredClone(buildOpenApiDocument(app));
 
     type ApiDocument = Parameters<typeof SwaggerParser.validate>[0];
-    await expect(SwaggerParser.validate(document as unknown as ApiDocument)).resolves.toBeDefined();
+    await expect(
+      SwaggerParser.validate(document as unknown as ApiDocument),
+    ).resolves.toBeDefined();
   });
 });

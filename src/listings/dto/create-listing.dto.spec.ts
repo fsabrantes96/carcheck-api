@@ -22,7 +22,9 @@ const valid = {
 };
 
 // Mesmas opções do ValidationPipe global (src/app.setup.ts).
-async function errorsFor(body: Record<string, unknown>): Promise<ValidationError[]> {
+async function errorsFor(
+  body: Record<string, unknown>,
+): Promise<ValidationError[]> {
   return validate(plainToInstance(CreateListingDto, body), {
     whitelist: true,
     forbidNonWhitelisted: true,
@@ -32,7 +34,9 @@ async function errorsFor(body: Record<string, unknown>): Promise<ValidationError
 /** Caminho e regra de cada erro, inclusive os do veículo (aninhado). */
 function flatten(errors: ValidationError[], prefix = ''): string[] {
   return errors.flatMap((e) => [
-    ...Object.keys(e.constraints ?? {}).map((c) => `${prefix}${e.property}:${c}`),
+    ...Object.keys(e.constraints ?? {}).map(
+      (c) => `${prefix}${e.property}:${c}`,
+    ),
     ...flatten(e.children ?? [], `${prefix}${e.property}.`),
   ]);
 }
@@ -61,7 +65,9 @@ describe('CreateListingDto (limites de entrada)', () => {
   });
 
   it('aceita priceCents = 1.000.000.000 (R$ 10 milhões)', async () => {
-    expect(await errorsFor({ ...valid, priceCents: 1_000_000_000 })).toEqual([]);
+    expect(await errorsFor({ ...valid, priceCents: 1_000_000_000 })).toEqual(
+      [],
+    );
   });
 
   it('rejeita priceCents = 1.000.000.001', async () => {
@@ -74,7 +80,10 @@ describe('CreateListingDto (limites de entrada)', () => {
     ['brand', 100],
     ['model', 100],
   ])('aceita vehicle.%s com exatamente %i caracteres', async (field, max) => {
-    const body = { ...valid, vehicle: { ...vehicle, [field]: 'a'.repeat(max) } };
+    const body = {
+      ...valid,
+      vehicle: { ...vehicle, [field]: 'a'.repeat(max) },
+    };
 
     expect(await errorsFor(body)).toEqual([]);
   });
@@ -83,9 +92,14 @@ describe('CreateListingDto (limites de entrada)', () => {
     ['brand', 101],
     ['model', 101],
   ])('rejeita vehicle.%s com %i caracteres', async (field, length) => {
-    const body = { ...valid, vehicle: { ...vehicle, [field]: 'a'.repeat(length) } };
+    const body = {
+      ...valid,
+      vehicle: { ...vehicle, [field]: 'a'.repeat(length) },
+    };
 
-    expect(flatten(await errorsFor(body))).toEqual([`vehicle.${field}:maxLength`]);
+    expect(flatten(await errorsFor(body))).toEqual([
+      `vehicle.${field}:maxLength`,
+    ]);
   });
 
   it('aceita vehicle.mileageKm = 2.000.000', async () => {

@@ -29,7 +29,9 @@ export class AppointmentExpiryCron {
   async run(): Promise<void> {
     if (this.running) {
       // Avisa: uma execução presa (ex.: consulta travada) não pode parar o job em silêncio.
-      this.logger.warn('Execução anterior da expiração ainda em andamento; esta foi pulada');
+      this.logger.warn(
+        'Execução anterior da expiração ainda em andamento; esta foi pulada',
+      );
       return;
     }
     this.running = true;

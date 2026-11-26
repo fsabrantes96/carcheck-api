@@ -39,7 +39,10 @@ export class AuthService {
     const exists = await this.prisma.user.findUnique({
       where: { email: dto.email },
     });
-    if (exists) throw new ConflictException(withCode(ErrorCode.EMAIL_ALREADY_REGISTERED, 'E-mail já cadastrado'));
+    if (exists)
+      throw new ConflictException(
+        withCode(ErrorCode.EMAIL_ALREADY_REGISTERED, 'E-mail já cadastrado'),
+      );
 
     const passwordHash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
     let user;
@@ -50,7 +53,9 @@ export class AuthService {
     } catch (error) {
       // Corrida: outra requisição criou o mesmo e-mail depois da checagem.
       if (isPrismaError(error, PRISMA_UNIQUE_VIOLATION)) {
-        throw new ConflictException(withCode(ErrorCode.EMAIL_ALREADY_REGISTERED, 'E-mail já cadastrado'));
+        throw new ConflictException(
+          withCode(ErrorCode.EMAIL_ALREADY_REGISTERED, 'E-mail já cadastrado'),
+        );
       }
       throw error;
     }
@@ -66,12 +71,16 @@ export class AuthService {
     if (!user) {
       // Tempo constante: compara com o hash fixo e descarta o resultado.
       await bcrypt.compare(dto.password, DUMMY_HASH);
-      throw new UnauthorizedException(withCode(ErrorCode.INVALID_CREDENTIALS, 'E-mail ou senha inválidos'));
+      throw new UnauthorizedException(
+        withCode(ErrorCode.INVALID_CREDENTIALS, 'E-mail ou senha inválidos'),
+      );
     }
 
     const passwordOk = await bcrypt.compare(dto.password, user.passwordHash);
     if (!passwordOk) {
-      throw new UnauthorizedException(withCode(ErrorCode.INVALID_CREDENTIALS, 'E-mail ou senha inválidos'));
+      throw new UnauthorizedException(
+        withCode(ErrorCode.INVALID_CREDENTIALS, 'E-mail ou senha inválidos'),
+      );
     }
 
     const payload: JwtPayload = { sub: user.id, email: user.email };
@@ -85,7 +94,9 @@ export class AuthService {
     // Token válido de uma conta que não existe mais: para o cliente é o mesmo
     // caso de um token inválido (precisa entrar de novo), como no RolesGuard.
     if (!user) {
-      throw new UnauthorizedException(withCode(ErrorCode.UNAUTHENTICATED, INVALID_TOKEN_MESSAGE));
+      throw new UnauthorizedException(
+        withCode(ErrorCode.UNAUTHENTICATED, INVALID_TOKEN_MESSAGE),
+      );
     }
     return CurrentUserResponseDto.from(user);
   }

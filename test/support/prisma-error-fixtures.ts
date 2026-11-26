@@ -27,7 +27,8 @@ export function exclusionViolationFromModelQuery(): Prisma.PrismaClientKnownRequ
             severity: 'ERROR',
             message:
               'conflicting key value violates exclusion constraint "Appointment_inspector_slot_excl"',
-            detail: 'Key ("inspectorUserId", tstzrange(...))=(...) conflicts with existing key (...).',
+            detail:
+              'Key ("inspectorUserId", tstzrange(...))=(...) conflicts with existing key (...).',
           },
         },
       },
@@ -47,7 +48,8 @@ export function exclusionViolationFromRawQuery(): Prisma.PrismaClientKnownReques
           name: 'DriverAdapterError',
           cause: {
             originalCode: '23P01',
-            originalMessage: 'conflicting key value violates exclusion constraint "x"',
+            originalMessage:
+              'conflicting key value violates exclusion constraint "x"',
             kind: 'postgres',
             code: '23P01',
             severity: 'ERROR',
@@ -60,7 +62,9 @@ export function exclusionViolationFromRawQuery(): Prisma.PrismaClientKnownReques
 }
 
 /** 23505 de um índice único parcial numa query de model, código P2002. */
-export function partialUniqueViolation(indexName: string): Prisma.PrismaClientKnownRequestError {
+export function partialUniqueViolation(
+  indexName: string,
+): Prisma.PrismaClientKnownRequestError {
   return new Prisma.PrismaClientKnownRequestError(
     `Unique constraint failed on the constraint: \`${indexName}\``,
     {
@@ -83,18 +87,28 @@ export function partialUniqueViolation(indexName: string): Prisma.PrismaClientKn
 }
 
 /** Mesmo formato do P2039, mas com outro SQLSTATE (ex.: 23514, violação de CHECK). */
-export function databaseErrorWithPgCode(pgCode: string): Prisma.PrismaClientKnownRequestError {
-  return new Prisma.PrismaClientKnownRequestError(`Database error. Code: \`${pgCode}\`.`, {
-    code: 'P2039',
-    clientVersion: '7.10.1',
-    meta: {
-      modelName: 'Appointment',
-      driverAdapterError: {
-        name: 'DriverAdapterError',
-        cause: { originalCode: pgCode, kind: 'postgres', code: pgCode, message: 'erro do banco' },
+export function databaseErrorWithPgCode(
+  pgCode: string,
+): Prisma.PrismaClientKnownRequestError {
+  return new Prisma.PrismaClientKnownRequestError(
+    `Database error. Code: \`${pgCode}\`.`,
+    {
+      code: 'P2039',
+      clientVersion: '7.10.1',
+      meta: {
+        modelName: 'Appointment',
+        driverAdapterError: {
+          name: 'DriverAdapterError',
+          cause: {
+            originalCode: pgCode,
+            kind: 'postgres',
+            code: pgCode,
+            message: 'erro do banco',
+          },
+        },
       },
     },
-  });
+  );
 }
 
 /**
@@ -152,7 +166,9 @@ export function deadlockFromRawQuery(): Prisma.PrismaClientKnownRequestError {
 }
 
 /** Erro conhecido do Prisma com um meta arbitrário (para formatos incompletos). */
-export function knownErrorWithMeta(meta: unknown): Prisma.PrismaClientKnownRequestError {
+export function knownErrorWithMeta(
+  meta: unknown,
+): Prisma.PrismaClientKnownRequestError {
   return new Prisma.PrismaClientKnownRequestError('erro', {
     code: 'P2039',
     clientVersion: '7.10.1',

@@ -23,9 +23,15 @@ const businessRulesProvider: Provider = {
   inject: [ConfigService],
   useFactory: (config: ConfigService<BusinessEnv, true>): BusinessRules => ({
     platformFeeBps: config.get('PLATFORM_FEE_BPS', { infer: true }),
-    minInspectionPriceCents: config.get('MIN_INSPECTION_PRICE_CENTS', { infer: true }),
-    appointmentDurationMinutes: config.get('APPOINTMENT_DURATION_MINUTES', { infer: true }),
-    appointmentMinNoticeHours: config.get('APPOINTMENT_MIN_NOTICE_HOURS', { infer: true }),
+    minInspectionPriceCents: config.get('MIN_INSPECTION_PRICE_CENTS', {
+      infer: true,
+    }),
+    appointmentDurationMinutes: config.get('APPOINTMENT_DURATION_MINUTES', {
+      infer: true,
+    }),
+    appointmentMinNoticeHours: config.get('APPOINTMENT_MIN_NOTICE_HOURS', {
+      infer: true,
+    }),
   }),
 };
 

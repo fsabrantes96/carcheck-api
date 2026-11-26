@@ -79,7 +79,13 @@ describe('respostas do agendamento por perfil', () => {
     const dto = InspectorAppointmentResponseDto.from(entity);
 
     expect(keys(dto)).toEqual(
-      [...BASE_KEYS, 'priceCents', 'platformFeeBps', 'platformFeeCents', 'inspectorPayoutCents'].sort(),
+      [
+        ...BASE_KEYS,
+        'priceCents',
+        'platformFeeBps',
+        'platformFeeCents',
+        'inspectorPayoutCents',
+      ].sort(),
     );
     expect(dto).toMatchObject({
       myRole: 'INSPECTOR',
@@ -108,7 +114,12 @@ describe('respostas do agendamento por perfil', () => {
     expect(dto).toMatchObject({
       id: 'a1',
       status: 'ACCEPTED',
-      listing: { id: 'l1', title: 'Gol 1.0 2018', city: 'Boituva', state: 'SP' },
+      listing: {
+        id: 'l1',
+        title: 'Gol 1.0 2018',
+        city: 'Boituva',
+        state: 'SP',
+      },
       inspector: { profileId: 'p1', name: 'Ivo' },
       buyer: { name: 'Bruno' },
       seller: { name: 'Vera' },
@@ -124,17 +135,24 @@ describe('respostas do agendamento por perfil', () => {
   });
 
   it('availableActions depende do papel (ACCEPTED: vendedor confirma ou cancela; avaliador só cancela)', () => {
-    expect(SellerAppointmentResponseDto.from(entity).availableActions.sort()).toEqual(['CANCEL', 'CONFIRM']);
-    expect(InspectorAppointmentResponseDto.from(entity).availableActions).toEqual(['CANCEL']);
+    expect(
+      SellerAppointmentResponseDto.from(entity).availableActions.sort(),
+    ).toEqual(['CANCEL', 'CONFIRM']);
+    expect(
+      InspectorAppointmentResponseDto.from(entity).availableActions,
+    ).toEqual(['CANCEL']);
   });
 
   it.each([
     ['BUYER', BuyerAppointmentResponseDto],
     ['SELLER', SellerAppointmentResponseDto],
     ['INSPECTOR', InspectorAppointmentResponseDto],
-  ] as const)('appointmentResponseFor(%s) devolve o DTO do perfil', (role, type) => {
-    expect(appointmentResponseFor(role, entity)).toBeInstanceOf(type);
-  });
+  ] as const)(
+    'appointmentResponseFor(%s) devolve o DTO do perfil',
+    (role, type) => {
+      expect(appointmentResponseFor(role, entity)).toBeInstanceOf(type);
+    },
+  );
 
   it('o schema OpenAPI é oneOf das três respostas com discriminador em myRole', () => {
     const schema = appointmentResponseSchema();

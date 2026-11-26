@@ -43,7 +43,12 @@ export class InspectorsService {
       where: { userId },
     });
     if (exists)
-      throw new ConflictException(withCode(ErrorCode.INSPECTOR_PROFILE_EXISTS, 'Você já possui perfil de avaliador'));
+      throw new ConflictException(
+        withCode(
+          ErrorCode.INSPECTOR_PROFILE_EXISTS,
+          'Você já possui perfil de avaliador',
+        ),
+      );
 
     let profile;
     try {
@@ -69,7 +74,12 @@ export class InspectorsService {
     } catch (error) {
       // Corrida: outra requisição criou o perfil depois da checagem.
       if (isPrismaError(error, PRISMA_UNIQUE_VIOLATION)) {
-        throw new ConflictException(withCode(ErrorCode.INSPECTOR_PROFILE_EXISTS, 'Você já possui perfil de avaliador'));
+        throw new ConflictException(
+          withCode(
+            ErrorCode.INSPECTOR_PROFILE_EXISTS,
+            'Você já possui perfil de avaliador',
+          ),
+        );
       }
       throw error;
     }
@@ -83,8 +93,16 @@ export class InspectorsService {
       include: { user: true },
     });
     if (!profile)
-      throw new NotFoundException(withCode(ErrorCode.INSPECTOR_PROFILE_NOT_FOUND, 'Perfil de avaliador não encontrado'));
-    return MyInspectorProfileResponseDto.fromOwnProfile(profile, this.rules.platformFeeBps);
+      throw new NotFoundException(
+        withCode(
+          ErrorCode.INSPECTOR_PROFILE_NOT_FOUND,
+          'Perfil de avaliador não encontrado',
+        ),
+      );
+    return MyInspectorProfileResponseDto.fromOwnProfile(
+      profile,
+      this.rules.platformFeeBps,
+    );
   }
 
   async update(
@@ -93,12 +111,18 @@ export class InspectorsService {
   ): Promise<InspectorResponseDto> {
     // Só confere o preço quando ele vem no corpo: um perfil antigo abaixo do
     // mínimo continua editável nos outros campos.
-    if (dto.basePriceCents !== undefined) this.assertMinimumPrice(dto.basePriceCents);
+    if (dto.basePriceCents !== undefined)
+      this.assertMinimumPrice(dto.basePriceCents);
     const exists = await this.prisma.inspectorProfile.findUnique({
       where: { userId },
     });
     if (!exists)
-      throw new NotFoundException(withCode(ErrorCode.INSPECTOR_PROFILE_NOT_FOUND, 'Perfil de avaliador não encontrado'));
+      throw new NotFoundException(
+        withCode(
+          ErrorCode.INSPECTOR_PROFILE_NOT_FOUND,
+          'Perfil de avaliador não encontrado',
+        ),
+      );
 
     // Campo a campo: só o que o DTO declara chega ao Prisma. Campos ausentes
     // ficam undefined, e o Prisma não os altera (update parcial).
@@ -117,7 +141,9 @@ export class InspectorsService {
     return InspectorResponseDto.from(profile);
   }
 
-  async findAllVerified(query: PageQueryDto): Promise<PaginatedInspectorsResponseDto> {
+  async findAllVerified(
+    query: PageQueryDto,
+  ): Promise<PaginatedInspectorsResponseDto> {
     const { page, limit } = query;
     const where: Prisma.InspectorProfileWhereInput = { verified: true };
 

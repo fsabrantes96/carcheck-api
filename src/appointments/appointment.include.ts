@@ -6,5 +6,7 @@ export const APPOINTMENT_INCLUDE = {
   listing: { select: { id: true, title: true, city: true, state: true } },
   buyer: { select: { name: true } },
   seller: { select: { name: true } },
-  inspector: { select: { name: true, inspectorProfile: { select: { id: true } } } },
+  inspector: {
+    select: { name: true, inspectorProfile: { select: { id: true } } },
+  },
 } as const;

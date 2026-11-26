@@ -202,9 +202,9 @@ describe('InspectorsService', () => {
         user: { id: 'u1', name: 'João' },
       });
 
-      await expect(service.create('u1', { ...dto, basePriceCents: 5000 })).resolves.toBeInstanceOf(
-        InspectorResponseDto,
-      );
+      await expect(
+        service.create('u1', { ...dto, basePriceCents: 5000 }),
+      ).resolves.toBeInstanceOf(InspectorResponseDto);
     });
   });
 
@@ -231,7 +231,10 @@ describe('InspectorsService', () => {
     });
 
     it('não confere o preço quando basePriceCents não vem no corpo (perfil antigo abaixo do mínimo continua editável)', async () => {
-      prisma.inspectorProfile.findUnique.mockResolvedValue({ ...stored, basePriceCents: 1000 });
+      prisma.inspectorProfile.findUnique.mockResolvedValue({
+        ...stored,
+        basePriceCents: 1000,
+      });
       prisma.inspectorProfile.update.mockResolvedValue({
         ...stored,
         basePriceCents: 1000,
@@ -269,9 +272,7 @@ describe('InspectorsService', () => {
         basePriceCents: 20000,
       } satisfies UpdateInspectorProfileDto;
       prisma.inspectorProfile.findUnique.mockResolvedValue(existing);
-      prisma.inspectorProfile.update.mockResolvedValue(
-        updatedProfile(changes),
-      );
+      prisma.inspectorProfile.update.mockResolvedValue(updatedProfile(changes));
 
       await service.update('u1', changes);
 
@@ -420,7 +421,10 @@ describe('InspectorsService', () => {
 
       expect(result).toBeInstanceOf(MyInspectorProfileResponseDto);
       // 12345 com 1000 bps: comissão floor((12345*1000 + 5000)/10000) = 1235
-      expect(result).toMatchObject({ platformFeeBps: 1000, estimatedPayoutCents: 11110 });
+      expect(result).toMatchObject({
+        platformFeeBps: 1000,
+        estimatedPayoutCents: 11110,
+      });
     });
 
     it('lança NotFoundException quando o usuário não tem perfil', async () => {
@@ -489,7 +493,9 @@ describe('InspectorsService', () => {
     it('conta com o mesmo where do findMany, na mesma transação', async () => {
       await service.findAllVerified(PAGE);
 
-      expect(prisma.inspectorProfile.count).toHaveBeenCalledWith({ where: { verified: true } });
+      expect(prisma.inspectorProfile.count).toHaveBeenCalledWith({
+        where: { verified: true },
+      });
       expect(prisma.$transaction).toHaveBeenCalledTimes(1);
       expect(prisma.$transaction).toHaveBeenCalledWith([
         prisma.inspectorProfile.findMany.mock.results[0].value,
@@ -522,7 +528,13 @@ describe('InspectorsService', () => {
 
     it('a lista pública não traz platformFeeBps nem estimatedPayoutCents', async () => {
       prisma.inspectorProfile.findMany.mockResolvedValue([
-        { id: 'p1', userId: 'u1', ...dto, verified: true, user: { id: 'u1', name: 'João' } },
+        {
+          id: 'p1',
+          userId: 'u1',
+          ...dto,
+          verified: true,
+          user: { id: 'u1', name: 'João' },
+        },
       ]);
       prisma.inspectorProfile.count.mockResolvedValue(1);
 

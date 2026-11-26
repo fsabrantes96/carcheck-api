@@ -11,7 +11,10 @@ function handler(name: keyof AppointmentsController): Handler {
 
 describe('AppointmentsController (guards e limites)', () => {
   it('a classe usa só o JwtAuthGuard (sem RolesGuard: vale o papel no agendamento)', () => {
-    const guards = Reflect.getMetadata(GUARDS_METADATA, AppointmentsController) as unknown[];
+    const guards = Reflect.getMetadata(
+      GUARDS_METADATA,
+      AppointmentsController,
+    ) as unknown[];
 
     expect(guards).toEqual([JwtAuthGuard]);
     expect(guards).not.toContain(RolesGuard);
@@ -19,8 +22,14 @@ describe('AppointmentsController (guards e limites)', () => {
 
   it('create tem limite próprio de 10 por minuto', () => {
     // @nestjs/throttler grava o limite e o ttl por throttler no handler.
-    const limit = Reflect.getMetadata('THROTTLER:LIMITdefault', handler('create')) as number;
-    const ttl = Reflect.getMetadata('THROTTLER:TTLdefault', handler('create')) as number;
+    const limit = Reflect.getMetadata(
+      'THROTTLER:LIMITdefault',
+      handler('create'),
+    ) as number;
+    const ttl = Reflect.getMetadata(
+      'THROTTLER:TTLdefault',
+      handler('create'),
+    ) as number;
 
     expect(limit).toBe(10);
     expect(ttl).toBe(60_000);

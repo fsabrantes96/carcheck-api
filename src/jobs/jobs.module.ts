@@ -19,5 +19,7 @@ export class JobsModule {}
  * Importe depois do ConfigModule.forRoot.
  */
 export function jobsModuleWhenEnabled() {
-  return ConditionalModule.registerWhen(JobsModule, (env) => isJobsEnabled(env));
+  return ConditionalModule.registerWhen(JobsModule, (env) =>
+    isJobsEnabled(env),
+  );
 }

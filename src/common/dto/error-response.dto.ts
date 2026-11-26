@@ -31,7 +31,10 @@ export class ErrorResponseDto {
   })
   errors?: string[];
 
-  @ApiProperty({ example: '/listings/123', description: 'URL da requisição, com a query string' })
+  @ApiProperty({
+    example: '/listings/123',
+    description: 'URL da requisição, com a query string',
+  })
   path: string;
 
   @ApiProperty({ format: 'date-time', example: '2026-11-10T12:00:00.000Z' })

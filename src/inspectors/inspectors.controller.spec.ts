@@ -57,6 +57,8 @@ describe('InspectorsController (guards e roles)', () => {
   });
 
   it('a classe InspectorsController não declara roles', () => {
-    expect(Reflect.getMetadata(ROLES_KEY, InspectorsController)).toBeUndefined();
+    expect(
+      Reflect.getMetadata(ROLES_KEY, InspectorsController),
+    ).toBeUndefined();
   });
 });

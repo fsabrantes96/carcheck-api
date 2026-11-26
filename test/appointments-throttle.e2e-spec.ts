@@ -1,8 +1,18 @@
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
-import { ERROR_KEYS, hoursFromNow, listingPayload, registerAndLogin, verifiedInspector } from './support/fixtures.js';
-import { closeTestApp, createTestApp, resetDatabase } from './support/test-app.js';
+import {
+  ERROR_KEYS,
+  hoursFromNow,
+  listingPayload,
+  registerAndLogin,
+  verifiedInspector,
+} from './support/fixtures.js';
+import {
+  closeTestApp,
+  createTestApp,
+  resetDatabase,
+} from './support/test-app.js';
 
 /**
  * Limite real de 10/min em POST /appointments (risco 28). Os usuários são
@@ -29,17 +39,36 @@ describe('Rate limit real de POST /appointments (e2e)', () => {
   });
 
   it('responde 429 na 11ª requisição do mesmo IP no minuto, no formato único', async () => {
-    const seller = await registerAndLogin(seedApp, 'vendedor@x.com', 'Vera Vendedora');
-    const buyer = await registerAndLogin(seedApp, 'comprador@x.com', 'Bruno Comprador');
-    const inspector = await verifiedInspector(seedApp, 'avaliador@x.com', 'Ivo Avaliador');
+    const seller = await registerAndLogin(
+      seedApp,
+      'vendedor@x.com',
+      'Vera Vendedora',
+    );
+    const buyer = await registerAndLogin(
+      seedApp,
+      'comprador@x.com',
+      'Bruno Comprador',
+    );
+    const inspector = await verifiedInspector(
+      seedApp,
+      'avaliador@x.com',
+      'Ivo Avaliador',
+    );
     const listing = await request(seedApp.getHttpServer())
       .post('/listings')
       .set('Authorization', `Bearer ${seller.token}`)
       .send(listingPayload())
       .expect(201);
-    const body = { listingId: listing.body.id, inspectorProfileId: inspector.profileId, startsAt: hoursFromNow(48) };
+    const body = {
+      listingId: listing.body.id,
+      inspectorProfileId: inspector.profileId,
+      startsAt: hoursFromNow(48),
+    };
     const send = () =>
-      request(app.getHttpServer()).post('/appointments').set('Authorization', `Bearer ${buyer.token}`).send(body);
+      request(app.getHttpServer())
+        .post('/appointments')
+        .set('Authorization', `Bearer ${buyer.token}`)
+        .send(body);
     const firstTen: number[] = [];
     for (let n = 0; n < 10; n++) firstTen.push((await send()).status);
 

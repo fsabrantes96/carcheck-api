@@ -8,7 +8,9 @@ async function errorsFor(query: Record<string, string>): Promise<string[]> {
     whitelist: true,
     forbidNonWhitelisted: true,
   });
-  return errors.flatMap((e) => Object.keys(e.constraints ?? {}).map((c) => `${e.property}:${c}`));
+  return errors.flatMap((e) =>
+    Object.keys(e.constraints ?? {}).map((c) => `${e.property}:${c}`),
+  );
 }
 
 const nextYear = new Date().getFullYear() + 1;
@@ -19,16 +21,26 @@ describe('ListListingsQueryDto (limites de entrada)', () => {
   });
 
   it.each(['brand', 'city'])('rejeita %s com 101 caracteres', async (field) => {
-    expect(await errorsFor({ [field]: 'a'.repeat(101) })).toEqual([`${field}:maxLength`]);
+    expect(await errorsFor({ [field]: 'a'.repeat(101) })).toEqual([
+      `${field}:maxLength`,
+    ]);
   });
 
-  it.each(['minPriceCents', 'maxPriceCents'])('aceita %s = 1000000000', async (field) => {
-    expect(await errorsFor({ [field]: '1000000000' })).toEqual([]);
-  });
+  it.each(['minPriceCents', 'maxPriceCents'])(
+    'aceita %s = 1000000000',
+    async (field) => {
+      expect(await errorsFor({ [field]: '1000000000' })).toEqual([]);
+    },
+  );
 
-  it.each(['minPriceCents', 'maxPriceCents'])('rejeita %s = 1000000001', async (field) => {
-    expect(await errorsFor({ [field]: '1000000001' })).toEqual([`${field}:max`]);
-  });
+  it.each(['minPriceCents', 'maxPriceCents'])(
+    'rejeita %s = 1000000001',
+    async (field) => {
+      expect(await errorsFor({ [field]: '1000000001' })).toEqual([
+        `${field}:max`,
+      ]);
+    },
+  );
 
   it.each(['minYear', 'maxYear'])('aceita %s = 1950', async (field) => {
     expect(await errorsFor({ [field]: '1950' })).toEqual([]);
@@ -42,9 +54,14 @@ describe('ListListingsQueryDto (limites de entrada)', () => {
     expect(await errorsFor({ [field]: '1949' })).toEqual([`${field}:min`]);
   });
 
-  it.each(['minYear', 'maxYear'])('rejeita %s depois do ano que vem', async (field) => {
-    expect(await errorsFor({ [field]: String(nextYear + 1) })).toEqual([`${field}:max`]);
-  });
+  it.each(['minYear', 'maxYear'])(
+    'rejeita %s depois do ano que vem',
+    async (field) => {
+      expect(await errorsFor({ [field]: String(nextYear + 1) })).toEqual([
+        `${field}:max`,
+      ]);
+    },
+  );
 
   it('aceita page = 200 (200 × limit máximo 50 = 10.000 registros pulados)', async () => {
     expect(await errorsFor({ page: '200' })).toEqual([]);

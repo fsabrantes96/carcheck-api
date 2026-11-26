@@ -11,7 +11,11 @@ import {
   verifiedInspector,
 } from './support/fixtures.js';
 import type { TestInspector, TestUser } from './support/fixtures.js';
-import { closeTestApp, createTestApp, resetDatabase } from './support/test-app.js';
+import {
+  closeTestApp,
+  createTestApp,
+  resetDatabase,
+} from './support/test-app.js';
 
 /**
  * Prazos do agendamento com o relógio da aplicação controlado (FakeClock no
@@ -33,7 +37,9 @@ describe('Appointments: prazos (e2e com FakeClock)', () => {
 
   beforeAll(async () => {
     clock = new FakeClock(START);
-    app = await createTestApp({ configure: (b) => b.overrideProvider(CLOCK).useValue(clock) });
+    app = await createTestApp({
+      configure: (b) => b.overrideProvider(CLOCK).useValue(clock),
+    });
     prisma = app.get(PrismaService);
   });
 
@@ -42,7 +48,11 @@ describe('Appointments: prazos (e2e com FakeClock)', () => {
     await resetDatabase(app);
     seller = await registerAndLogin(app, 'vendedor@x.com', 'Vera Vendedora');
     buyer = await registerAndLogin(app, 'comprador@x.com', 'Bruno Comprador');
-    inspector = await verifiedInspector(app, 'avaliador@x.com', 'Ivo Avaliador');
+    inspector = await verifiedInspector(
+      app,
+      'avaliador@x.com',
+      'Ivo Avaliador',
+    );
     const listing = await request(app.getHttpServer())
       .post('/listings')
       .set(auth(seller))
@@ -67,12 +77,17 @@ describe('Appointments: prazos (e2e com FakeClock)', () => {
   }
 
   function act(user: TestUser, id: string, action: string, body: object = {}) {
-    return request(app.getHttpServer()).post(`/appointments/${id}/${action}`).set(auth(user)).send(body);
+    return request(app.getHttpServer())
+      .post(`/appointments/${id}/${action}`)
+      .set(auth(user))
+      .send(body);
   }
 
   /** Pedido para daqui a 72h (longe do início, para o prazo ser a janela de 24h). */
   async function requested(user: TestUser = buyer): Promise<string> {
-    const res = await requestAs(user, hoursFromNow(72, clock.now())).expect(201);
+    const res = await requestAs(user, hoursFromNow(72, clock.now())).expect(
+      201,
+    );
     return res.body.id;
   }
 
@@ -98,7 +113,9 @@ describe('Appointments: prazos (e2e com FakeClock)', () => {
     await act(inspector, id, 'accept').expect(200);
     clock.advanceMinutes(24 * 60 + 1);
 
-    const res = await act(seller, id, 'confirm', { meetingAddress: ADDRESS }).expect(409);
+    const res = await act(seller, id, 'confirm', {
+      meetingAddress: ADDRESS,
+    }).expect(409);
 
     expect(res.body.message).toBe(EXPIRED_MESSAGE);
     await expectExpiredBySystem(id);
@@ -137,6 +154,8 @@ describe('Appointments: prazos (e2e com FakeClock)', () => {
 
     expect(res.body.status).toBe('ACCEPTED');
     await expectExpiredBySystem(first.body.id);
-    expect(await prisma.appointment.count({ where: { status: 'ACCEPTED' } })).toBe(1);
+    expect(
+      await prisma.appointment.count({ where: { status: 'ACCEPTED' } }),
+    ).toBe(1);
   });
 });

@@ -30,7 +30,9 @@ const PUBLIC_KEYS = [
 
 describe('InspectorResponseDto (lista pública)', () => {
   it('tem exatamente os campos públicos, sem comissão nem repasse', () => {
-    expect(Object.keys(InspectorResponseDto.from(profile)).sort()).toEqual(PUBLIC_KEYS);
+    expect(Object.keys(InspectorResponseDto.from(profile)).sort()).toEqual(
+      PUBLIC_KEYS,
+    );
   });
 });
 
@@ -52,7 +54,9 @@ describe('MyInspectorProfileResponseDto (GET /inspectors/me)', () => {
   });
 
   it('não expõe userId nem dados sensíveis do usuário', () => {
-    const json = JSON.stringify(MyInspectorProfileResponseDto.fromOwnProfile(profile, 1000));
+    const json = JSON.stringify(
+      MyInspectorProfileResponseDto.fromOwnProfile(profile, 1000),
+    );
 
     expect(json).not.toContain('passwordHash');
     expect(json).not.toContain('joao@x.com');

@@ -12,7 +12,12 @@ const entity = {
   status: 'PAUSED' as const,
   createdAt: new Date('2026-11-10T12:00:00.000Z'),
   updatedAt: new Date('2026-11-10T12:00:00.000Z'),
-  seller: { id: 'u1', name: 'Maria', email: 'maria@x.com', passwordHash: 'hash' },
+  seller: {
+    id: 'u1',
+    name: 'Maria',
+    email: 'maria@x.com',
+    passwordHash: 'hash',
+  },
   vehicle: {
     id: 'v1',
     listingId: 'l1',

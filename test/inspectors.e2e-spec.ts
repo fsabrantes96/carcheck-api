@@ -74,7 +74,10 @@ describe('Inspectors (e2e)', () => {
       .expect(200);
 
     expect(res.body.items).toHaveLength(1);
-    expect(res.body.items[0]).toMatchObject({ id: created.body.id, verified: true });
+    expect(res.body.items[0]).toMatchObject({
+      id: created.body.id,
+      verified: true,
+    });
   });
 
   it('responde 403 em GET /inspectors/me para usuário sem a role INSPECTOR', async () => {
@@ -176,7 +179,15 @@ describe('Inspectors (e2e)', () => {
     async function verifiedMany(count: number): Promise<string[]> {
       const ids: string[] = [];
       for (let n = 1; n <= count; n++) {
-        ids.push((await verifiedInspector(app, `verificado${n}@x.com`, `Avaliador ${n}`)).profileId);
+        ids.push(
+          (
+            await verifiedInspector(
+              app,
+              `verificado${n}@x.com`,
+              `Avaliador ${n}`,
+            )
+          ).profileId,
+        );
       }
       return ids;
     }
@@ -186,7 +197,12 @@ describe('Inspectors (e2e)', () => {
 
       const res = await list().expect(200);
 
-      expect(Object.keys(res.body).sort()).toEqual(['items', 'limit', 'page', 'total']);
+      expect(Object.keys(res.body).sort()).toEqual([
+        'items',
+        'limit',
+        'page',
+        'total',
+      ]);
       expect(res.body).toMatchObject({ total: 1, page: 1, limit: 20 });
       expect(res.body.items).toHaveLength(1);
     });
@@ -194,12 +210,16 @@ describe('Inspectors (e2e)', () => {
     it('pagina com page e limit sem repetir nem perder perfis, e o total conta todos', async () => {
       const ids = await verifiedMany(5);
 
-      const pages = await Promise.all([1, 2, 3].map((page) => list({ page, limit: 2 }).expect(200)));
+      const pages = await Promise.all(
+        [1, 2, 3].map((page) => list({ page, limit: 2 }).expect(200)),
+      );
 
       expect(pages.map((p) => p.body.items.length)).toEqual([2, 2, 1]);
       expect(pages.map((p) => p.body.total)).toEqual([5, 5, 5]);
       expect(pages[2].body).toMatchObject({ page: 3, limit: 2 });
-      const seen = pages.flatMap((p) => p.body.items.map((i: { id: string }) => i.id));
+      const seen = pages.flatMap((p) =>
+        p.body.items.map((i: { id: string }) => i.id),
+      );
       expect(new Set(seen)).toEqual(new Set(ids));
       expect(seen).toHaveLength(5);
     });
@@ -250,25 +270,41 @@ describe('Inspectors (e2e)', () => {
       const res = await list().expect(200);
 
       expect(res.body.total).toBe(2);
-      expect(new Set(res.body.items.map((i: { id: string }) => i.id))).toEqual(new Set(verified));
+      expect(new Set(res.body.items.map((i: { id: string }) => i.id))).toEqual(
+        new Set(verified),
+      );
     });
 
     it('ordena por createdAt desc', async () => {
       const [older, newer] = await verifiedMany(2);
-      await prisma.inspectorProfile.update({ where: { id: older }, data: { createdAt: new Date('2026-01-01T00:00:00.000Z') } });
-      await prisma.inspectorProfile.update({ where: { id: newer }, data: { createdAt: new Date('2026-02-01T00:00:00.000Z') } });
+      await prisma.inspectorProfile.update({
+        where: { id: older },
+        data: { createdAt: new Date('2026-01-01T00:00:00.000Z') },
+      });
+      await prisma.inspectorProfile.update({
+        where: { id: newer },
+        data: { createdAt: new Date('2026-02-01T00:00:00.000Z') },
+      });
 
       const res = await list().expect(200);
 
-      expect(res.body.items.map((i: { id: string }) => i.id)).toEqual([newer, older]);
+      expect(res.body.items.map((i: { id: string }) => i.id)).toEqual([
+        newer,
+        older,
+      ]);
     });
 
     it('com createdAt empatado, limit=1 percorre os perfis em id desc, sem repetir, e repete a mesma ordem', async () => {
       await verifiedMany(5);
-      await prisma.inspectorProfile.updateMany({ data: { createdAt: SAME_INSTANT } });
+      await prisma.inspectorProfile.updateMany({
+        data: { createdAt: SAME_INSTANT },
+      });
       // A ordem esperada é a do próprio banco por id desc (colação do Postgres).
       const expected = (
-        await prisma.inspectorProfile.findMany({ orderBy: { id: 'desc' }, select: { id: true } })
+        await prisma.inspectorProfile.findMany({
+          orderBy: { id: 'desc' },
+          select: { id: true },
+        })
       ).map((p) => p.id);
 
       const walk = async () => {

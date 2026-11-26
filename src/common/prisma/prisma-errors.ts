@@ -94,8 +94,13 @@ export function transactionConflictCode(error: unknown): string | undefined {
  * meta.driverAdapterError.cause.constraint.index. Nunca lança: formato
  * incompleto devolve false.
  */
-export function isUniqueViolationOn(error: unknown, indexName: string): boolean {
+export function isUniqueViolationOn(
+  error: unknown,
+  indexName: string,
+): boolean {
   if (!isPrismaError(error, PRISMA_UNIQUE_VIOLATION)) return false;
-  const cause = asRecord(asRecord(asRecord(error.meta)?.driverAdapterError)?.cause);
+  const cause = asRecord(
+    asRecord(asRecord(error.meta)?.driverAdapterError)?.cause,
+  );
   return asRecord(cause?.constraint)?.index === indexName;
 }

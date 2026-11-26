@@ -22,12 +22,21 @@ export type AppointmentAction =
   | 'OPEN_DISPUTE' // declarado (branch de disputa)
   | 'AUTO_RELEASE'; // declarado (branch de laudo)
 
-const TRANSITIONS: Record<AppointmentAction, { from: readonly Status[]; to: Status }> = {
+const TRANSITIONS: Record<
+  AppointmentAction,
+  { from: readonly Status[]; to: Status }
+> = {
   ACCEPT: { from: ['REQUESTED'], to: 'ACCEPTED' },
   DECLINE: { from: ['REQUESTED'], to: 'DECLINED' },
   CONFIRM: { from: ['ACCEPTED'], to: 'AWAITING_PAYMENT' },
-  CANCEL: { from: ['REQUESTED', 'ACCEPTED', 'AWAITING_PAYMENT'], to: 'CANCELLED' },
-  EXPIRE: { from: ['REQUESTED', 'ACCEPTED', 'AWAITING_PAYMENT'], to: 'EXPIRED' },
+  CANCEL: {
+    from: ['REQUESTED', 'ACCEPTED', 'AWAITING_PAYMENT'],
+    to: 'CANCELLED',
+  },
+  EXPIRE: {
+    from: ['REQUESTED', 'ACCEPTED', 'AWAITING_PAYMENT'],
+    to: 'EXPIRED',
+  },
   MARK_PAID: { from: ['AWAITING_PAYMENT'], to: 'PAID' },
   SUBMIT_REPORT: { from: ['PAID'], to: 'REPORT_SUBMITTED' },
   APPROVE: { from: ['REPORT_SUBMITTED'], to: 'COMPLETED' },
@@ -49,7 +58,12 @@ const PERMISSIONS: Record<AppointmentAction, readonly Actor[]> = {
 };
 
 /** Ações que têm rota nesta versão da API (o resto só está declarado). */
-export const ROUTE_ACTIONS: readonly AppointmentAction[] = ['ACCEPT', 'DECLINE', 'CONFIRM', 'CANCEL'];
+export const ROUTE_ACTIONS: readonly AppointmentAction[] = [
+  'ACCEPT',
+  'DECLINE',
+  'CONFIRM',
+  'CANCEL',
+];
 
 export type Decision =
   | { ok: true; to: Status }
@@ -60,16 +74,27 @@ export type Decision =
  * do papel é conferida antes do estado: papel sem permissão é 403 em qualquer
  * estado; estado errado é 409.
  */
-export function decide(actor: Actor, action: AppointmentAction, current: Status): Decision {
-  if (!PERMISSIONS[action].includes(actor)) return { ok: false, reason: 'FORBIDDEN_ACTOR' };
+export function decide(
+  actor: Actor,
+  action: AppointmentAction,
+  current: Status,
+): Decision {
+  if (!PERMISSIONS[action].includes(actor))
+    return { ok: false, reason: 'FORBIDDEN_ACTOR' };
   const rule = TRANSITIONS[action];
-  if (!rule.from.includes(current)) return { ok: false, reason: 'INVALID_STATE' };
+  if (!rule.from.includes(current))
+    return { ok: false, reason: 'INVALID_STATE' };
   return { ok: true, to: rule.to };
 }
 
 /** Ações com rota que o participante pode executar agora (para o front mostrar os botões). */
-export function availableActions(participant: Participant, current: Status): AppointmentAction[] {
-  return ROUTE_ACTIONS.filter((action) => decide(participant, action, current).ok);
+export function availableActions(
+  participant: Participant,
+  current: Status,
+): AppointmentAction[] {
+  return ROUTE_ACTIONS.filter(
+    (action) => decide(participant, action, current).ok,
+  );
 }
 
 /** Papel do usuário no agendamento, ou null se ele não participa. */

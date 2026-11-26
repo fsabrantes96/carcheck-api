@@ -32,7 +32,9 @@ const rules: BusinessRules = {
   appointmentMinNoticeHours: 24,
 };
 
-function dto(overrides: Partial<CreateAppointmentDto> = {}): CreateAppointmentDto {
+function dto(
+  overrides: Partial<CreateAppointmentDto> = {},
+): CreateAppointmentDto {
   return {
     listingId: LISTING_ID,
     inspectorProfileId: PROFILE_ID,
@@ -64,7 +66,12 @@ function loadedAppointment(overrides: Record<string, unknown> = {}) {
     endedBy: null,
     createdAt: new Date(NOW),
     updatedAt: new Date(NOW),
-    listing: { id: LISTING_ID, title: 'Gol 1.0 2018', city: 'Boituva', state: 'SP' },
+    listing: {
+      id: LISTING_ID,
+      title: 'Gol 1.0 2018',
+      city: 'Boituva',
+      state: 'SP',
+    },
     buyer: { name: 'Bruno Comprador' },
     seller: { name: 'Vera Vendedora' },
     inspector: { name: 'Ivo Avaliador', inspectorProfile: { id: PROFILE_ID } },
@@ -75,7 +82,10 @@ function loadedAppointment(overrides: Record<string, unknown> = {}) {
 type PrismaMock = {
   $transaction: ReturnType<typeof vi.fn>;
   $queryRaw: ReturnType<typeof vi.fn>;
-  inspectorProfile: { findFirst: ReturnType<typeof vi.fn>; findUnique: ReturnType<typeof vi.fn> };
+  inspectorProfile: {
+    findFirst: ReturnType<typeof vi.fn>;
+    findUnique: ReturnType<typeof vi.fn>;
+  };
   appointment: {
     findFirst: ReturnType<typeof vi.fn>;
     create: ReturnType<typeof vi.fn>;
@@ -90,9 +100,13 @@ type PrismaMock = {
 function setupPrisma(): PrismaMock {
   const prisma: PrismaMock = {
     $transaction: vi.fn(),
-    $queryRaw: vi.fn().mockResolvedValue([{ sellerId: 'seller', status: 'ACTIVE' }]),
+    $queryRaw: vi
+      .fn()
+      .mockResolvedValue([{ sellerId: 'seller', status: 'ACTIVE' }]),
     inspectorProfile: {
-      findFirst: vi.fn().mockResolvedValue({ userId: 'inspector', basePriceCents: 15000 }),
+      findFirst: vi
+        .fn()
+        .mockResolvedValue({ userId: 'inspector', basePriceCents: 15000 }),
       findUnique: vi.fn().mockResolvedValue({ verified: true }),
     },
     appointment: {
@@ -179,8 +193,13 @@ describe('AppointmentsService.create', () => {
       await service.create('buyer', dto());
 
       expect(prisma.$transaction).toHaveBeenCalledTimes(1);
-      const [strings, ...values] = prisma.$queryRaw.mock.calls[0] as [TemplateStringsArray, ...unknown[]];
-      expect(strings.join('?')).toMatch(/FROM "Listing" WHERE "id" = \?\s+FOR SHARE/);
+      const [strings, ...values] = prisma.$queryRaw.mock.calls[0] as [
+        TemplateStringsArray,
+        ...unknown[],
+      ];
+      expect(strings.join('?')).toMatch(
+        /FROM "Listing" WHERE "id" = \?\s+FOR SHARE/,
+      );
       expect(values).toEqual([LISTING_ID]);
     });
 
@@ -197,7 +216,12 @@ describe('AppointmentsService.create', () => {
       const result = await service.create('buyer', dto());
 
       expect(result).toBeInstanceOf(BuyerAppointmentResponseDto);
-      expect(result).toMatchObject({ id: 'a1', myRole: 'BUYER', priceCents: 15000, status: 'REQUESTED' });
+      expect(result).toMatchObject({
+        id: 'a1',
+        myRole: 'BUYER',
+        priceCents: 15000,
+        status: 'REQUESTED',
+      });
       expect(result).not.toHaveProperty('platformFeeCents');
       expect(result).not.toHaveProperty('inspectorPayoutCents');
       expect(result).not.toHaveProperty('buyerId');
@@ -260,14 +284,25 @@ describe('AppointmentsService.create', () => {
     it('404 quando o anúncio não existe', async () => {
       prisma.$queryRaw.mockResolvedValue([]);
 
-      await expectRejection(service.create('buyer', dto()), NotFoundException, 'Anúncio não encontrado');
+      await expectRejection(
+        service.create('buyer', dto()),
+        NotFoundException,
+        'Anúncio não encontrado',
+      );
     });
 
-    it.each(['PAUSED', 'SOLD', 'ARCHIVED'])('404 quando o anúncio está %s', async (status) => {
-      prisma.$queryRaw.mockResolvedValue([{ sellerId: 'seller', status }]);
+    it.each(['PAUSED', 'SOLD', 'ARCHIVED'])(
+      '404 quando o anúncio está %s',
+      async (status) => {
+        prisma.$queryRaw.mockResolvedValue([{ sellerId: 'seller', status }]);
 
-      await expectRejection(service.create('buyer', dto()), NotFoundException, 'Anúncio não encontrado');
-    });
+        await expectRejection(
+          service.create('buyer', dto()),
+          NotFoundException,
+          'Anúncio não encontrado',
+        );
+      },
+    );
 
     it('403 quando o comprador é o vendedor, antes de procurar o avaliador', async () => {
       await expectRejection(
@@ -281,11 +316,18 @@ describe('AppointmentsService.create', () => {
     it('404 quando o avaliador não existe ou não está verificado', async () => {
       prisma.inspectorProfile.findFirst.mockResolvedValue(null);
 
-      await expectRejection(service.create('buyer', dto()), NotFoundException, 'Avaliador não encontrado');
+      await expectRejection(
+        service.create('buyer', dto()),
+        NotFoundException,
+        'Avaliador não encontrado',
+      );
     });
 
     it('403 quando o avaliador é o próprio comprador', async () => {
-      prisma.inspectorProfile.findFirst.mockResolvedValue({ userId: 'buyer', basePriceCents: 15000 });
+      prisma.inspectorProfile.findFirst.mockResolvedValue({
+        userId: 'buyer',
+        basePriceCents: 15000,
+      });
 
       await expectRejection(
         service.create('buyer', dto()),
@@ -295,7 +337,10 @@ describe('AppointmentsService.create', () => {
     });
 
     it('409 quando o avaliador é o vendedor (conflito de interesse)', async () => {
-      prisma.inspectorProfile.findFirst.mockResolvedValue({ userId: 'seller', basePriceCents: 15000 });
+      prisma.inspectorProfile.findFirst.mockResolvedValue({
+        userId: 'seller',
+        basePriceCents: 15000,
+      });
 
       await expectRejection(
         service.create('buyer', dto()),
@@ -305,7 +350,10 @@ describe('AppointmentsService.create', () => {
     });
 
     it('409 quando o preço do avaliador está abaixo do mínimo', async () => {
-      prisma.inspectorProfile.findFirst.mockResolvedValue({ userId: 'inspector', basePriceCents: 4999 });
+      prisma.inspectorProfile.findFirst.mockResolvedValue({
+        userId: 'inspector',
+        basePriceCents: 4999,
+      });
 
       await expectRejection(
         service.create('buyer', dto()),
@@ -317,12 +365,17 @@ describe('AppointmentsService.create', () => {
 
     /** findFirst que responde conforme a consulta: pedido do trio (tem buyerId) ou horário. */
     function findFirstAnswers(answers: { duplicate: boolean; busy: boolean }) {
-      prisma.appointment.findFirst.mockImplementation(({ where }: { where: Record<string, unknown> }) =>
-        Promise.resolve(
-          'buyerId' in where
-            ? answers.duplicate ? { id: 'duplicado' } : null
-            : answers.busy ? { id: 'ocupado' } : null,
-        ),
+      prisma.appointment.findFirst.mockImplementation(
+        ({ where }: { where: Record<string, unknown> }) =>
+          Promise.resolve(
+            'buyerId' in where
+              ? answers.duplicate
+                ? { id: 'duplicado' }
+                : null
+              : answers.busy
+                ? { id: 'ocupado' }
+                : null,
+          ),
       );
     }
 
@@ -347,7 +400,10 @@ describe('AppointmentsService.create', () => {
           endsAt: { gt: new Date('2030-01-03T12:00:00.000Z') },
           OR: [
             { status: 'PAID' },
-            { status: { in: ['ACCEPTED', 'AWAITING_PAYMENT'] }, expiresAt: { gt: new Date(NOW) } },
+            {
+              status: { in: ['ACCEPTED', 'AWAITING_PAYMENT'] },
+              expiresAt: { gt: new Date(NOW) },
+            },
           ],
         },
         select: { id: true },
@@ -362,7 +418,16 @@ describe('AppointmentsService.create', () => {
           buyerId: 'buyer',
           listingId: LISTING_ID,
           inspectorUserId: 'inspector',
-          status: { in: ['REQUESTED', 'ACCEPTED', 'AWAITING_PAYMENT', 'PAID', 'REPORT_SUBMITTED', 'DISPUTED'] },
+          status: {
+            in: [
+              'REQUESTED',
+              'ACCEPTED',
+              'AWAITING_PAYMENT',
+              'PAID',
+              'REPORT_SUBMITTED',
+              'DISPUTED',
+            ],
+          },
         },
         select: { id: true },
       });
@@ -376,15 +441,19 @@ describe('AppointmentsService.create', () => {
         ConflictException,
         'Você já tem um agendamento em andamento para este anúncio com este avaliador',
       );
-      const queries = prisma.appointment.findFirst.mock.calls.map(
-        ([args]) => ('buyerId' in (args as { where: object }).where ? 'duplicado' : 'horário'),
+      const queries = prisma.appointment.findFirst.mock.calls.map(([args]) =>
+        'buyerId' in (args as { where: object }).where
+          ? 'duplicado'
+          : 'horário',
       );
       expect(queries).toEqual(['duplicado']);
       expect(prisma.appointment.create).not.toHaveBeenCalled();
     });
 
     it('409 quando já existe pedido em andamento do mesmo trio (P2002 do índice parcial)', async () => {
-      prisma.appointment.create.mockRejectedValue(partialUniqueViolation('Appointment_open_triplet_key'));
+      prisma.appointment.create.mockRejectedValue(
+        partialUniqueViolation('Appointment_open_triplet_key'),
+      );
 
       await expectRejection(
         service.create('buyer', dto()),
@@ -411,12 +480,19 @@ describe('AppointmentsService.list e findOne', () => {
   }
 
   function findManyArgs() {
-    return prisma.appointment.findMany.mock.calls[0][0] as Record<string, unknown>;
+    return prisma.appointment.findMany.mock.calls[0][0] as Record<
+      string,
+      unknown
+    >;
   }
 
   beforeEach(() => {
     prisma = setupPrisma();
-    service = new AppointmentsService(prisma as unknown as PrismaService, rules, new FakeClock(NOW));
+    service = new AppointmentsService(
+      prisma as unknown as PrismaService,
+      rules,
+      new FakeClock(NOW),
+    );
   });
 
   describe('list', () => {
@@ -441,7 +517,10 @@ describe('AppointmentsService.list e findOne', () => {
     it('combina o filtro de status com o do usuário', async () => {
       await service.list('u1', query({ as: 'BUYER', status: 'ACCEPTED' }));
 
-      expect(findManyArgs().where).toEqual({ buyerId: 'u1', status: 'ACCEPTED' });
+      expect(findManyArgs().where).toEqual({
+        buyerId: 'u1',
+        status: 'ACCEPTED',
+      });
     });
 
     it('pagina com skip/take e ordena de forma estável (createdAt desc, id desc)', async () => {
@@ -457,7 +536,9 @@ describe('AppointmentsService.list e findOne', () => {
     it('conta com o mesmo where, no mesmo $transaction', async () => {
       await service.list('u1', query({ status: 'REQUESTED' }));
 
-      expect(prisma.appointment.count).toHaveBeenCalledWith({ where: findManyArgs().where });
+      expect(prisma.appointment.count).toHaveBeenCalledWith({
+        where: findManyArgs().where,
+      });
       expect(prisma.$transaction).toHaveBeenCalledTimes(1);
     });
 
@@ -501,11 +582,16 @@ describe('AppointmentsService.list e findOne', () => {
       ['buyer', BuyerAppointmentResponseDto],
       ['seller', SellerAppointmentResponseDto],
       ['inspector', InspectorAppointmentResponseDto],
-    ] as const)('o usuário %s recebe o DTO do seu papel', async (userId, type) => {
-      prisma.appointment.findUnique.mockResolvedValue(loadedAppointment());
+    ] as const)(
+      'o usuário %s recebe o DTO do seu papel',
+      async (userId, type) => {
+        prisma.appointment.findUnique.mockResolvedValue(loadedAppointment());
 
-      await expect(service.findOne('a1', userId)).resolves.toBeInstanceOf(type);
-    });
+        await expect(service.findOne('a1', userId)).resolves.toBeInstanceOf(
+          type,
+        );
+      },
+    );
   });
 });
 
@@ -540,13 +626,18 @@ describe('AppointmentsService: ações (accept, decline, confirm, cancel)', () =
   beforeEach(() => {
     prisma = setupPrisma();
     clock = new FakeClock(NOW);
-    service = new AppointmentsService(prisma as unknown as PrismaService, rules, clock);
+    service = new AppointmentsService(
+      prisma as unknown as PrismaService,
+      rules,
+      clock,
+    );
   });
 
   const call = {
     accept: (s: AppointmentsService, user: string) => s.accept('a1', user),
     decline: (s: AppointmentsService, user: string) => s.decline('a1', user),
-    confirm: (s: AppointmentsService, user: string) => s.confirm('a1', user, { meetingAddress: 'Rua A, 10' }),
+    confirm: (s: AppointmentsService, user: string) =>
+      s.confirm('a1', user, { meetingAddress: 'Rua A, 10' }),
     cancel: (s: AppointmentsService, user: string) => s.cancel('a1', user),
   };
 
@@ -562,55 +653,73 @@ describe('AppointmentsService: ações (accept, decline, confirm, cancel)', () =
     it('agendamento inexistente: APPOINTMENT_NOT_FOUND', async () => {
       prisma.appointment.findUnique.mockResolvedValue(null);
 
-      expect(await rejectionCode(call.accept(service, 'inspector'))).toBe('APPOINTMENT_NOT_FOUND');
+      expect(await rejectionCode(call.accept(service, 'inspector'))).toBe(
+        'APPOINTMENT_NOT_FOUND',
+      );
     });
 
     it('estado errado: INVALID_STATE', async () => {
-      prisma.appointment.findUnique.mockResolvedValue(snapshot('CANCELLED', { expiresAt: null }));
+      prisma.appointment.findUnique.mockResolvedValue(
+        snapshot('CANCELLED', { expiresAt: null }),
+      );
 
-      expect(await rejectionCode(call.accept(service, 'inspector'))).toBe('INVALID_STATE');
+      expect(await rejectionCode(call.accept(service, 'inspector'))).toBe(
+        'INVALID_STATE',
+      );
     });
 
     it('prazo vencido: APPOINTMENT_EXPIRED, diferente do estado errado', async () => {
       prisma.appointment.findUnique.mockResolvedValue(snapshot('REQUESTED'));
       clock.set('2030-01-02T12:00:00.000Z');
 
-      expect(await rejectionCode(call.accept(service, 'inspector'))).toBe('APPOINTMENT_EXPIRED');
+      expect(await rejectionCode(call.accept(service, 'inspector'))).toBe(
+        'APPOINTMENT_EXPIRED',
+      );
     });
 
     it('estado mudou antes da gravação: STATE_CHANGED', async () => {
       prisma.appointment.findUnique.mockResolvedValue(snapshot('ACCEPTED'));
       prisma.appointment.updateMany.mockResolvedValue({ count: 0 });
 
-      expect(await rejectionCode(call.confirm(service, 'seller'))).toBe('STATE_CHANGED');
+      expect(await rejectionCode(call.confirm(service, 'seller'))).toBe(
+        'STATE_CHANGED',
+      );
     });
 
     it('papel sem permissão: FORBIDDEN', async () => {
       prisma.appointment.findUnique.mockResolvedValue(snapshot('REQUESTED'));
 
-      expect(await rejectionCode(call.accept(service, 'buyer'))).toBe('FORBIDDEN');
+      expect(await rejectionCode(call.accept(service, 'buyer'))).toBe(
+        'FORBIDDEN',
+      );
     });
   });
 
   describe('checagens comuns, na ordem do desenho', () => {
-    it.each(valid)('%s: 404 quando o agendamento não existe', async (action, user) => {
-      prisma.appointment.findUnique.mockResolvedValue(null);
+    it.each(valid)(
+      '%s: 404 quando o agendamento não existe',
+      async (action, user) => {
+        prisma.appointment.findUnique.mockResolvedValue(null);
 
-      const promise = call[action](service, user);
+        const promise = call[action](service, user);
 
-      await expect(promise).rejects.toBeInstanceOf(NotFoundException);
-      await expect(promise).rejects.toThrow('Agendamento não encontrado');
-    });
+        await expect(promise).rejects.toBeInstanceOf(NotFoundException);
+        await expect(promise).rejects.toThrow('Agendamento não encontrado');
+      },
+    );
 
-    it.each(valid)('%s: 404 (mesma mensagem) para quem não participa', async (action, _user, status) => {
-      prisma.appointment.findUnique.mockResolvedValue(snapshot(status));
+    it.each(valid)(
+      '%s: 404 (mesma mensagem) para quem não participa',
+      async (action, _user, status) => {
+        prisma.appointment.findUnique.mockResolvedValue(snapshot(status));
 
-      const promise = call[action](service, 'intruso');
+        const promise = call[action](service, 'intruso');
 
-      await expect(promise).rejects.toBeInstanceOf(NotFoundException);
-      await expect(promise).rejects.toThrow('Agendamento não encontrado');
-      expect(prisma.appointment.updateMany).not.toHaveBeenCalled();
-    });
+        await expect(promise).rejects.toBeInstanceOf(NotFoundException);
+        await expect(promise).rejects.toThrow('Agendamento não encontrado');
+        expect(prisma.appointment.updateMany).not.toHaveBeenCalled();
+      },
+    );
 
     it.each([
       ['accept', 'buyer', 'Você não pode aceitar este agendamento'],
@@ -619,7 +728,9 @@ describe('AppointmentsService: ações (accept, decline, confirm, cancel)', () =
       ['confirm', 'inspector', 'Você não pode confirmar este agendamento'],
       ['confirm', 'buyer', 'Você não pode confirmar este agendamento'],
     ] as const)('%s por %s: 403', async (action, user, message) => {
-      prisma.appointment.findUnique.mockResolvedValue(snapshot(action === 'confirm' ? 'ACCEPTED' : 'REQUESTED'));
+      prisma.appointment.findUnique.mockResolvedValue(
+        snapshot(action === 'confirm' ? 'ACCEPTED' : 'REQUESTED'),
+      );
 
       const promise = call[action](service, user);
 
@@ -634,7 +745,9 @@ describe('AppointmentsService: ações (accept, decline, confirm, cancel)', () =
       const promise = call.accept(service, 'buyer');
 
       await expect(promise).rejects.toBeInstanceOf(ForbiddenException);
-      await expect(promise).rejects.toThrow('Você não pode aceitar este agendamento');
+      await expect(promise).rejects.toThrow(
+        'Você não pode aceitar este agendamento',
+      );
     });
 
     it.each([
@@ -643,15 +756,22 @@ describe('AppointmentsService: ações (accept, decline, confirm, cancel)', () =
       ['confirm', 'seller', 'REQUESTED'],
       ['cancel', 'buyer', 'PAID'],
       ['cancel', 'seller', 'EXPIRED'],
-    ] as const)('%s por %s em %s: 409 estado errado', async (action, user, status) => {
-      prisma.appointment.findUnique.mockResolvedValue(snapshot(status, { expiresAt: null }));
+    ] as const)(
+      '%s por %s em %s: 409 estado errado',
+      async (action, user, status) => {
+        prisma.appointment.findUnique.mockResolvedValue(
+          snapshot(status, { expiresAt: null }),
+        );
 
-      const promise = call[action](service, user);
+        const promise = call[action](service, user);
 
-      await expect(promise).rejects.toBeInstanceOf(ConflictException);
-      await expect(promise).rejects.toThrow('Ação não permitida no estado atual');
-      expect(prisma.appointment.updateMany).not.toHaveBeenCalled();
-    });
+        await expect(promise).rejects.toBeInstanceOf(ConflictException);
+        await expect(promise).rejects.toThrow(
+          'Ação não permitida no estado atual',
+        );
+        expect(prisma.appointment.updateMany).not.toHaveBeenCalled();
+      },
+    );
 
     it.each(valid)(
       '%s com prazo vencido: grava EXPIRED fora de transação e responde 409',
@@ -665,8 +785,16 @@ describe('AppointmentsService: ações (accept, decline, confirm, cancel)', () =
         await expect(promise).rejects.toThrow('O prazo para esta ação expirou');
         expect(prisma.appointment.updateMany).toHaveBeenCalledTimes(1);
         expect(prisma.appointment.updateMany).toHaveBeenCalledWith({
-          where: { id: 'a1', status, expiresAt: { lte: new Date('2030-01-02T12:00:00.000Z') } },
-          data: { status: 'EXPIRED', endedBy: 'SYSTEM', endedAt: new Date('2030-01-02T12:00:00.000Z') },
+          where: {
+            id: 'a1',
+            status,
+            expiresAt: { lte: new Date('2030-01-02T12:00:00.000Z') },
+          },
+          data: {
+            status: 'EXPIRED',
+            endedBy: 'SYSTEM',
+            endedAt: new Date('2030-01-02T12:00:00.000Z'),
+          },
         });
         expect(prisma.$transaction).not.toHaveBeenCalled();
       },
@@ -720,12 +848,16 @@ describe('AppointmentsService: ações (accept, decline, confirm, cancel)', () =
 
     it('o novo prazo não passa do início da avaliação', async () => {
       prisma.appointment.findUnique.mockResolvedValue(
-        snapshot('REQUESTED', { startsAt: new Date('2030-01-01T20:00:00.000Z') }),
+        snapshot('REQUESTED', {
+          startsAt: new Date('2030-01-01T20:00:00.000Z'),
+        }),
       );
 
       await service.accept('a1', 'inspector');
 
-      expect(mainWrite().data).toMatchObject({ expiresAt: new Date('2030-01-01T20:00:00.000Z') });
+      expect(mainWrite().data).toMatchObject({
+        expiresAt: new Date('2030-01-01T20:00:00.000Z'),
+      });
     });
 
     it('409 quando o perfil do avaliador não está mais verificado, sem gravar o aceite', async () => {
@@ -734,7 +866,9 @@ describe('AppointmentsService: ações (accept, decline, confirm, cancel)', () =
       const promise = service.accept('a1', 'inspector');
 
       await expect(promise).rejects.toBeInstanceOf(ConflictException);
-      await expect(promise).rejects.toThrow('Seu perfil de avaliador precisa estar verificado para aceitar');
+      await expect(promise).rejects.toThrow(
+        'Seu perfil de avaliador precisa estar verificado para aceitar',
+      );
       expect(prisma.appointment.updateMany).not.toHaveBeenCalled();
     });
 
@@ -759,8 +893,12 @@ describe('AppointmentsService: ações (accept, decline, confirm, cancel)', () =
       const promise = service.accept('a1', 'inspector');
 
       await expect(promise).rejects.toBeInstanceOf(ConflictException);
-      await expect(promise).rejects.toThrow('Seu perfil de avaliador precisa estar verificado para aceitar');
-      expect(await rejectionCode(service.accept('a1', 'inspector'))).toBe('INSPECTOR_NOT_VERIFIED');
+      await expect(promise).rejects.toThrow(
+        'Seu perfil de avaliador precisa estar verificado para aceitar',
+      );
+      expect(await rejectionCode(service.accept('a1', 'inspector'))).toBe(
+        'INSPECTOR_NOT_VERIFIED',
+      );
       expect(prisma.appointment.updateMany).not.toHaveBeenCalled();
     });
 
@@ -773,20 +911,29 @@ describe('AppointmentsService: ações (accept, decline, confirm, cancel)', () =
       // passaria, e fora da transação o lock seria solto na hora.
       const tx = setupPrisma();
       tx.$queryRaw.mockResolvedValue([]);
-      prisma.$transaction.mockImplementation((fn: (client: PrismaMock) => Promise<unknown>) => fn(tx));
+      prisma.$transaction.mockImplementation(
+        (fn: (client: PrismaMock) => Promise<unknown>) => fn(tx),
+      );
 
       await service.accept('a1', 'inspector');
 
       expect(prisma.$queryRaw).not.toHaveBeenCalled();
       expect(tx.$queryRaw).toHaveBeenCalledTimes(1);
-      const [strings, ...values] = tx.$queryRaw.mock.calls[0] as [TemplateStringsArray, ...unknown[]];
-      expect(strings.join('?')).toMatch(/FROM "InspectorProfile" WHERE "userId" = \?\s+FOR NO KEY UPDATE\s*$/);
+      const [strings, ...values] = tx.$queryRaw.mock.calls[0] as [
+        TemplateStringsArray,
+        ...unknown[],
+      ];
+      expect(strings.join('?')).toMatch(
+        /FROM "InspectorProfile" WHERE "userId" = \?\s+FOR NO KEY UPDATE\s*$/,
+      );
       expect(values).toEqual(['inspector']);
       expect(tx.inspectorProfile.findUnique).toHaveBeenCalledTimes(1);
       expect(tx.appointment.updateMany).toHaveBeenCalledTimes(2);
       const [lockOrder] = tx.$queryRaw.mock.invocationCallOrder;
-      const [verifiedOrder] = tx.inspectorProfile.findUnique.mock.invocationCallOrder;
-      const [expireOrder, writeOrder] = tx.appointment.updateMany.mock.invocationCallOrder;
+      const [verifiedOrder] =
+        tx.inspectorProfile.findUnique.mock.invocationCallOrder;
+      const [expireOrder, writeOrder] =
+        tx.appointment.updateMany.mock.invocationCallOrder;
       expect(lockOrder).toBeLessThan(verifiedOrder);
       expect(lockOrder).toBeLessThan(expireOrder);
       expect(lockOrder).toBeLessThan(writeOrder);
@@ -802,9 +949,13 @@ describe('AppointmentsService: ações (accept, decline, confirm, cancel)', () =
     });
 
     it('devolve a resposta do avaliador', async () => {
-      prisma.appointment.findUniqueOrThrow.mockResolvedValue(loadedAppointment({ status: 'ACCEPTED' }));
+      prisma.appointment.findUniqueOrThrow.mockResolvedValue(
+        loadedAppointment({ status: 'ACCEPTED' }),
+      );
 
-      await expect(service.accept('a1', 'inspector')).resolves.toBeInstanceOf(InspectorAppointmentResponseDto);
+      await expect(service.accept('a1', 'inspector')).resolves.toBeInstanceOf(
+        InspectorAppointmentResponseDto,
+      );
     });
   });
 
@@ -814,14 +965,20 @@ describe('AppointmentsService: ações (accept, decline, confirm, cancel)', () =
 
       const result = await service.decline('a1', 'inspector');
 
-      expect(mainWrite().data).toEqual({ status: 'DECLINED', endedBy: 'INSPECTOR', endedAt: new Date(NOW) });
+      expect(mainWrite().data).toEqual({
+        status: 'DECLINED',
+        endedBy: 'INSPECTOR',
+        endedAt: new Date(NOW),
+      });
       expect(result).toBeInstanceOf(InspectorAppointmentResponseDto);
     });
 
     it('confirm vai a AWAITING_PAYMENT com o endereço, confirmedAt e prazo de 30 min', async () => {
       prisma.appointment.findUnique.mockResolvedValue(snapshot('ACCEPTED'));
 
-      const result = await service.confirm('a1', 'seller', { meetingAddress: 'Rua A, 10' });
+      const result = await service.confirm('a1', 'seller', {
+        meetingAddress: 'Rua A, 10',
+      });
 
       expect(mainWrite().data).toEqual({
         status: 'AWAITING_PAYMENT',
@@ -841,7 +998,9 @@ describe('AppointmentsService: ações (accept, decline, confirm, cancel)', () =
       prisma.appointment.findUnique.mockResolvedValue(snapshot('ACCEPTED'));
       const tx = setupPrisma();
       tx.$queryRaw.mockResolvedValue([]);
-      prisma.$transaction.mockImplementation((fn: (client: PrismaMock) => Promise<unknown>) => fn(tx));
+      prisma.$transaction.mockImplementation(
+        (fn: (client: PrismaMock) => Promise<unknown>) => fn(tx),
+      );
 
       await service.confirm('a1', 'seller', { meetingAddress: 'Rua A, 10' });
 
@@ -854,8 +1013,13 @@ describe('AppointmentsService: ações (accept, decline, confirm, cancel)', () =
       expect(tx.inspectorProfile.findFirst).not.toHaveBeenCalled();
       expect(prisma.$queryRaw).not.toHaveBeenCalled();
       expect(tx.$queryRaw).toHaveBeenCalledTimes(1);
-      const [strings, ...values] = tx.$queryRaw.mock.calls[0] as [TemplateStringsArray, ...unknown[]];
-      expect(strings.join('?')).toMatch(/FROM "InspectorProfile" WHERE "userId" = \?\s+FOR NO KEY UPDATE\s*$/);
+      const [strings, ...values] = tx.$queryRaw.mock.calls[0] as [
+        TemplateStringsArray,
+        ...unknown[],
+      ];
+      expect(strings.join('?')).toMatch(
+        /FROM "InspectorProfile" WHERE "userId" = \?\s+FOR NO KEY UPDATE\s*$/,
+      );
       expect(values).toEqual(['inspector']);
       expect(tx.appointment.updateMany).toHaveBeenCalledTimes(1);
       expect(prisma.appointment.updateMany).not.toHaveBeenCalled();
@@ -868,25 +1032,35 @@ describe('AppointmentsService: ações (accept, decline, confirm, cancel)', () =
       ['buyer', 'BUYER', BuyerAppointmentResponseDto],
       ['seller', 'SELLER', SellerAppointmentResponseDto],
       ['inspector', 'INSPECTOR', InspectorAppointmentResponseDto],
-    ] as const)('cancel por %s grava endedBy %s e devolve o DTO do papel', async (user, actor, type) => {
-      prisma.appointment.findUnique.mockResolvedValue(snapshot('REQUESTED'));
+    ] as const)(
+      'cancel por %s grava endedBy %s e devolve o DTO do papel',
+      async (user, actor, type) => {
+        prisma.appointment.findUnique.mockResolvedValue(snapshot('REQUESTED'));
 
-      const result = await service.cancel('a1', user);
+        const result = await service.cancel('a1', user);
 
-      expect(mainWrite().data).toEqual({ status: 'CANCELLED', endedBy: actor, endedAt: new Date(NOW) });
-      expect(result).toBeInstanceOf(type);
-    });
+        expect(mainWrite().data).toEqual({
+          status: 'CANCELLED',
+          endedBy: actor,
+          endedAt: new Date(NOW),
+        });
+        expect(result).toBeInstanceOf(type);
+      },
+    );
 
     it.each([
       ['decline', 'inspector', 'REQUESTED'],
       ['cancel', 'buyer', 'REQUESTED'],
-    ] as const)('%s não abre transação (uma gravação só)', async (action, user, status) => {
-      prisma.appointment.findUnique.mockResolvedValue(snapshot(status));
+    ] as const)(
+      '%s não abre transação (uma gravação só)',
+      async (action, user, status) => {
+        prisma.appointment.findUnique.mockResolvedValue(snapshot(status));
 
-      await call[action](service, user);
+        await call[action](service, user);
 
-      expect(prisma.$transaction).not.toHaveBeenCalled();
-      expect(prisma.appointment.updateMany).toHaveBeenCalledTimes(1);
-    });
+        expect(prisma.$transaction).not.toHaveBeenCalled();
+        expect(prisma.appointment.updateMany).toHaveBeenCalledTimes(1);
+      },
+    );
   });
 });

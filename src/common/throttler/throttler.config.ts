@@ -10,7 +10,9 @@ export const GLOBAL_THROTTLE_LIMIT = 100;
 
 /** Limite global: 100 requisições por minuto por IP. */
 export const throttlerOptions: ThrottlerModuleOptions = {
-  throttlers: [{ name: 'default', ttl: ONE_MINUTE_MS, limit: GLOBAL_THROTTLE_LIMIT }],
+  throttlers: [
+    { name: 'default', ttl: ONE_MINUTE_MS, limit: GLOBAL_THROTTLE_LIMIT },
+  ],
   errorMessage: THROTTLE_ERROR_MESSAGE,
 };
 

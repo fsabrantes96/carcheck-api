@@ -13,7 +13,11 @@ import {
   verifiedInspector,
 } from './support/fixtures.js';
 import type { TestInspector, TestUser } from './support/fixtures.js';
-import { closeTestApp, createTestApp, resetDatabase } from './support/test-app.js';
+import {
+  closeTestApp,
+  createTestApp,
+  resetDatabase,
+} from './support/test-app.js';
 
 /**
  * Codes de domínio (ErrorCode) que o front precisa distinguir: um caso por
@@ -37,7 +41,11 @@ describe('Codes de domínio (e2e)', () => {
     await resetDatabase(app);
     seller = await registerAndLogin(app, 'vendedor@x.com', 'Vera Vendedora');
     buyer = await registerAndLogin(app, 'comprador@x.com', 'Bruno Comprador');
-    inspector = await verifiedInspector(app, 'avaliador@x.com', 'Ivo Avaliador');
+    inspector = await verifiedInspector(
+      app,
+      'avaliador@x.com',
+      'Ivo Avaliador',
+    );
   });
 
   afterAll(async () => {
@@ -47,7 +55,12 @@ describe('Codes de domínio (e2e)', () => {
   const server = () => request(app.getHttpServer());
   const auth = (user: TestUser) => ({ Authorization: `Bearer ${user.token}` });
 
-  function expectCoded(res: request.Response, statusCode: number, code: ErrorCode, message: string) {
+  function expectCoded(
+    res: request.Response,
+    statusCode: number,
+    code: ErrorCode,
+    message: string,
+  ) {
     expect(res.status).toBe(statusCode);
     expect(res.body.code).toBe(code);
     expect(res.body.message).toBe(message);
@@ -56,7 +69,11 @@ describe('Codes de domínio (e2e)', () => {
   }
 
   async function createListing(owner: TestUser = seller): Promise<string> {
-    const res = await server().post('/listings').set(auth(owner)).send(listingPayload()).expect(201);
+    const res = await server()
+      .post('/listings')
+      .set(auth(owner))
+      .send(listingPayload())
+      .expect(201);
     return res.body.id as string;
   }
 
@@ -93,9 +110,13 @@ describe('Codes de domínio (e2e)', () => {
     });
 
     it('UNAUTHENTICATED: /auth/me com token válido de uma conta que não existe mais (como o RolesGuard)', async () => {
-      const token = app.get(JwtService).sign({ sub: UNKNOWN_ID, email: 'fantasma@x.com' });
+      const token = app
+        .get(JwtService)
+        .sign({ sub: UNKNOWN_ID, email: 'fantasma@x.com' });
 
-      const res = await server().get('/auth/me').set('Authorization', `Bearer ${token}`);
+      const res = await server()
+        .get('/auth/me')
+        .set('Authorization', `Bearer ${token}`);
 
       expectCoded(res, 401, 'UNAUTHENTICATED', 'Token inválido ou expirado');
     });
@@ -111,21 +132,36 @@ describe('Codes de domínio (e2e)', () => {
     it('INVALID_STATE: transição não permitida no status atual', async () => {
       const listingId = await createListing();
 
-      const res = await server().post(`/listings/${listingId}/activate`).set(auth(seller));
+      const res = await server()
+        .post(`/listings/${listingId}/activate`)
+        .set(auth(seller));
 
-      expectCoded(res, 409, 'INVALID_STATE', 'Ação não permitida no status atual do anúncio');
+      expectCoded(
+        res,
+        409,
+        'INVALID_STATE',
+        'Ação não permitida no status atual do anúncio',
+      );
     });
 
     it('INVALID_STATE: PATCH em anúncio arquivado', async () => {
       const listingId = await createListing();
-      await server().delete(`/listings/${listingId}`).set(auth(seller)).expect(204);
+      await server()
+        .delete(`/listings/${listingId}`)
+        .set(auth(seller))
+        .expect(204);
 
       const res = await server()
         .patch(`/listings/${listingId}`)
         .set(auth(seller))
         .send({ title: 'Novo título do anúncio' });
 
-      expectCoded(res, 409, 'INVALID_STATE', 'Anúncio arquivado não pode ser alterado');
+      expectCoded(
+        res,
+        409,
+        'INVALID_STATE',
+        'Anúncio arquivado não pode ser alterado',
+      );
     });
 
     it('LISTING_HAS_PAID_APPOINTMENT: pausar com avaliação paga', async () => {
@@ -136,7 +172,9 @@ describe('Codes de domínio (e2e)', () => {
         data: { status: 'PAID', meetingAddress: 'Rua A, 10', expiresAt: null },
       });
 
-      const res = await server().post(`/listings/${listingId}/pause`).set(auth(seller));
+      const res = await server()
+        .post(`/listings/${listingId}/pause`)
+        .set(auth(seller));
 
       expectCoded(
         res,
@@ -149,7 +187,9 @@ describe('Codes de domínio (e2e)', () => {
     it('FORBIDDEN: transição no anúncio de outro usuário', async () => {
       const listingId = await createListing();
 
-      const res = await server().post(`/listings/${listingId}/pause`).set(auth(buyer));
+      const res = await server()
+        .post(`/listings/${listingId}/pause`)
+        .set(auth(buyer));
 
       expectCoded(res, 403, 'FORBIDDEN', 'Este anúncio não pertence a você');
     });
@@ -162,15 +202,28 @@ describe('Codes de domínio (e2e)', () => {
         .set(auth(inspector))
         .send(inspectorProfilePayload);
 
-      expectCoded(res, 409, 'INSPECTOR_PROFILE_EXISTS', 'Você já possui perfil de avaliador');
+      expectCoded(
+        res,
+        409,
+        'INSPECTOR_PROFILE_EXISTS',
+        'Você já possui perfil de avaliador',
+      );
     });
 
     it('INSPECTOR_PROFILE_NOT_FOUND: role INSPECTOR sem perfil', async () => {
-      await prisma.user.update({ where: { id: buyer.id }, data: { roles: ['USER', 'INSPECTOR'] } });
+      await prisma.user.update({
+        where: { id: buyer.id },
+        data: { roles: ['USER', 'INSPECTOR'] },
+      });
 
       const res = await server().get('/inspectors/me').set(auth(buyer));
 
-      expectCoded(res, 404, 'INSPECTOR_PROFILE_NOT_FOUND', 'Perfil de avaliador não encontrado');
+      expectCoded(
+        res,
+        404,
+        'INSPECTOR_PROFILE_NOT_FOUND',
+        'Perfil de avaliador não encontrado',
+      );
     });
 
     it('PRICE_BELOW_MINIMUM: preço base abaixo do mínimo da plataforma', async () => {
@@ -179,7 +232,12 @@ describe('Codes de domínio (e2e)', () => {
         .set(auth(buyer))
         .send({ ...inspectorProfilePayload, basePriceCents: 100 });
 
-      expectCoded(res, 400, 'PRICE_BELOW_MINIMUM', 'O preço base precisa ser de pelo menos 5000 centavos (R$ 50,00)');
+      expectCoded(
+        res,
+        400,
+        'PRICE_BELOW_MINIMUM',
+        'O preço base precisa ser de pelo menos 5000 centavos (R$ 50,00)',
+      );
     });
   });
 
@@ -187,14 +245,22 @@ describe('Codes de domínio (e2e)', () => {
     it('INSPECTOR_NOT_FOUND: avaliador inexistente', async () => {
       const listingId = await createListing();
 
-      const res = await requestAppointment(listingId, buyer, hoursFromNow(48), UNKNOWN_ID);
+      const res = await requestAppointment(
+        listingId,
+        buyer,
+        hoursFromNow(48),
+        UNKNOWN_ID,
+      );
 
       expectCoded(res, 404, 'INSPECTOR_NOT_FOUND', 'Avaliador não encontrado');
     });
 
     it('LISTING_NOT_FOUND: agendar em anúncio que não está ativo', async () => {
       const listingId = await createListing();
-      await server().post(`/listings/${listingId}/pause`).set(auth(seller)).expect(200);
+      await server()
+        .post(`/listings/${listingId}/pause`)
+        .set(auth(seller))
+        .expect(200);
 
       const res = await requestAppointment(listingId);
 
@@ -202,9 +268,16 @@ describe('Codes de domínio (e2e)', () => {
     });
 
     it('APPOINTMENT_NOT_FOUND: agendamento inexistente', async () => {
-      const res = await server().get(`/appointments/${UNKNOWN_ID}`).set(auth(buyer));
+      const res = await server()
+        .get(`/appointments/${UNKNOWN_ID}`)
+        .set(auth(buyer));
 
-      expectCoded(res, 404, 'APPOINTMENT_NOT_FOUND', 'Agendamento não encontrado');
+      expectCoded(
+        res,
+        404,
+        'APPOINTMENT_NOT_FOUND',
+        'Agendamento não encontrado',
+      );
     });
 
     it('INVALID_SCHEDULE: horário sem a antecedência mínima', async () => {
@@ -212,7 +285,12 @@ describe('Codes de domínio (e2e)', () => {
 
       const res = await requestAppointment(listingId, buyer, hoursFromNow(1));
 
-      expectCoded(res, 400, 'INVALID_SCHEDULE', 'O agendamento precisa de pelo menos 24 horas de antecedência');
+      expectCoded(
+        res,
+        400,
+        'INVALID_SCHEDULE',
+        'O agendamento precisa de pelo menos 24 horas de antecedência',
+      );
     });
 
     it('INSPECTOR_UNAVAILABLE: avaliador é o vendedor do anúncio', async () => {
@@ -220,7 +298,12 @@ describe('Codes de domínio (e2e)', () => {
 
       const res = await requestAppointment(listingId);
 
-      expectCoded(res, 409, 'INSPECTOR_UNAVAILABLE', 'Este avaliador não está disponível para este anúncio');
+      expectCoded(
+        res,
+        409,
+        'INSPECTOR_UNAVAILABLE',
+        'Este avaliador não está disponível para este anúncio',
+      );
     });
 
     it('APPOINTMENT_DUPLICATE: segundo pedido em aberto para o mesmo anúncio e avaliador', async () => {
@@ -245,19 +328,31 @@ describe('Codes de domínio (e2e)', () => {
 
       const res = await requestAppointment(listingId, otherBuyer);
 
-      expectCoded(res, 409, 'SLOT_UNAVAILABLE', 'O avaliador não está disponível nesse horário');
+      expectCoded(
+        res,
+        409,
+        'SLOT_UNAVAILABLE',
+        'O avaliador não está disponível nesse horário',
+      );
     });
 
     it('SLOT_UNAVAILABLE: reserva dupla barrada no aceite', async () => {
       const listingId = await createListing();
       const otherBuyer = await registerAndLogin(app, 'outro@x.com', 'Olga');
       const first = await requestAppointment(listingId).expect(201);
-      const second = await requestAppointment(listingId, otherBuyer).expect(201);
+      const second = await requestAppointment(listingId, otherBuyer).expect(
+        201,
+      );
       await act(inspector, first.body.id, 'accept').expect(200);
 
       const res = await act(inspector, second.body.id, 'accept');
 
-      expectCoded(res, 409, 'SLOT_UNAVAILABLE', 'O agendamento mudou ou o horário não está mais disponível');
+      expectCoded(
+        res,
+        409,
+        'SLOT_UNAVAILABLE',
+        'O agendamento mudou ou o horário não está mais disponível',
+      );
     });
 
     it('INSPECTOR_NOT_VERIFIED: aceitar com o perfil não verificado', async () => {
@@ -270,7 +365,12 @@ describe('Codes de domínio (e2e)', () => {
 
       const res = await act(inspector, created.body.id, 'accept');
 
-      expectCoded(res, 409, 'INSPECTOR_NOT_VERIFIED', 'Seu perfil de avaliador precisa estar verificado para aceitar');
+      expectCoded(
+        res,
+        409,
+        'INSPECTOR_NOT_VERIFIED',
+        'Seu perfil de avaliador precisa estar verificado para aceitar',
+      );
     });
 
     describe('os dois 409 de ação têm codes diferentes', () => {
@@ -281,7 +381,12 @@ describe('Codes de domínio (e2e)', () => {
 
         const res = await act(buyer, created.body.id, 'cancel');
 
-        expectCoded(res, 409, 'INVALID_STATE', 'Ação não permitida no estado atual');
+        expectCoded(
+          res,
+          409,
+          'INVALID_STATE',
+          'Ação não permitida no estado atual',
+        );
       });
 
       it('APPOINTMENT_EXPIRED: "O prazo para esta ação expirou"', async () => {
@@ -294,7 +399,12 @@ describe('Codes de domínio (e2e)', () => {
 
         const res = await act(inspector, created.body.id, 'accept');
 
-        expectCoded(res, 409, 'APPOINTMENT_EXPIRED', 'O prazo para esta ação expirou');
+        expectCoded(
+          res,
+          409,
+          'APPOINTMENT_EXPIRED',
+          'O prazo para esta ação expirou',
+        );
       });
     });
 
@@ -304,7 +414,12 @@ describe('Codes de domínio (e2e)', () => {
 
       const res = await act(buyer, created.body.id, 'accept');
 
-      expectCoded(res, 403, 'FORBIDDEN', 'Você não pode aceitar este agendamento');
+      expectCoded(
+        res,
+        403,
+        'FORBIDDEN',
+        'Você não pode aceitar este agendamento',
+      );
     });
   });
 });

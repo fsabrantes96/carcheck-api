@@ -17,7 +17,8 @@ export const VALIDATION_MESSAGE = 'Dados inválidos';
 export const ROUTE_NOT_FOUND_MESSAGE = 'Rota não encontrada';
 export const PAYLOAD_TOO_LARGE_MESSAGE = 'Corpo da requisição muito grande';
 /** Content-Type fora da lista aceita, Content-Encoding ou charset não suportado. */
-export const UNSUPPORTED_MEDIA_TYPE_MESSAGE = 'Formato da requisição não suportado';
+export const UNSUPPORTED_MEDIA_TYPE_MESSAGE =
+  'Formato da requisição não suportado';
 export const INTERNAL_ERROR_MESSAGE = 'Erro interno do servidor';
 
 /**
@@ -39,7 +40,10 @@ export function httpLayerMessage(status: number): string {
   return HTTP_LAYER_MESSAGES[status] ?? BAD_REQUEST_MESSAGE;
 }
 
-const PAYLOAD_TOO_LARGE = withCode(ErrorCode.PAYLOAD_TOO_LARGE, PAYLOAD_TOO_LARGE_MESSAGE);
+const PAYLOAD_TOO_LARGE = withCode(
+  ErrorCode.PAYLOAD_TOO_LARGE,
+  PAYLOAD_TOO_LARGE_MESSAGE,
+);
 const INVALID_BODY = withCode(ErrorCode.INVALID_BODY, INVALID_BODY_MESSAGE);
 const UNSUPPORTED_MEDIA_TYPE = withCode(
   ErrorCode.UNSUPPORTED_MEDIA_TYPE,

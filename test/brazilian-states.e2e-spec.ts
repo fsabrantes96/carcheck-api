@@ -16,8 +16,33 @@ import {
 } from './support/test-app.js';
 
 const UFS = [
-  'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA',
-  'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO',
+  'AC',
+  'AL',
+  'AP',
+  'AM',
+  'BA',
+  'CE',
+  'DF',
+  'ES',
+  'GO',
+  'MA',
+  'MT',
+  'MS',
+  'MG',
+  'PA',
+  'PB',
+  'PR',
+  'PE',
+  'PI',
+  'RJ',
+  'RN',
+  'RS',
+  'RO',
+  'RR',
+  'SC',
+  'SP',
+  'SE',
+  'TO',
 ];
 
 const INVALID = ['XX', '12', 'S️P️'];
@@ -64,16 +89,19 @@ describe('UF em state (e2e)', () => {
   }
 
   describe('anúncio', () => {
-    it.each(INVALID)('POST /listings com state %o responde 400 e não cria', async (state) => {
-      const res = await request(server())
-        .post('/listings')
-        .set(auth())
-        .send(listingPayload({ state }))
-        .expect(400);
+    it.each(INVALID)(
+      'POST /listings com state %o responde 400 e não cria',
+      async (state) => {
+        const res = await request(server())
+          .post('/listings')
+          .set(auth())
+          .send(listingPayload({ state }))
+          .expect(400);
 
-      expectStateError(res);
-      expect(await prisma.listing.count()).toBe(0);
-    });
+        expectStateError(res);
+        expect(await prisma.listing.count()).toBe(0);
+      },
+    );
 
     it('POST /listings com UF válida em minúsculas responde 201 e grava em maiúsculas', async () => {
       const res = await request(server())
@@ -83,7 +111,9 @@ describe('UF em state (e2e)', () => {
         .expect(201);
 
       expect(res.body.state).toBe('RJ');
-      const saved = await prisma.listing.findUniqueOrThrow({ where: { id: res.body.id } });
+      const saved = await prisma.listing.findUniqueOrThrow({
+        where: { id: res.body.id },
+      });
       expect(saved.state).toBe('RJ');
     });
 
@@ -97,7 +127,9 @@ describe('UF em state (e2e)', () => {
         .expect(400);
 
       expectStateError(res);
-      expect((await prisma.listing.findUniqueOrThrow({ where: { id } })).state).toBe('SP');
+      expect(
+        (await prisma.listing.findUniqueOrThrow({ where: { id } })).state,
+      ).toBe('SP');
     });
 
     it('PATCH /listings/:id com UF válida responde 200', async () => {
@@ -114,16 +146,19 @@ describe('UF em state (e2e)', () => {
   });
 
   describe('perfil do avaliador', () => {
-    it.each(INVALID)('POST /inspectors/me com state %o responde 400 e não cria', async (state) => {
-      const res = await request(server())
-        .post('/inspectors/me')
-        .set(auth())
-        .send({ ...inspectorProfilePayload, state })
-        .expect(400);
+    it.each(INVALID)(
+      'POST /inspectors/me com state %o responde 400 e não cria',
+      async (state) => {
+        const res = await request(server())
+          .post('/inspectors/me')
+          .set(auth())
+          .send({ ...inspectorProfilePayload, state })
+          .expect(400);
 
-      expectStateError(res);
-      expect(await prisma.inspectorProfile.count()).toBe(0);
-    });
+        expectStateError(res);
+        expect(await prisma.inspectorProfile.count()).toBe(0);
+      },
+    );
 
     it('POST /inspectors/me com UF válida em minúsculas grava em maiúsculas', async () => {
       const res = await request(server())
@@ -160,13 +195,18 @@ describe('UF em state (e2e)', () => {
 
   describe('filtro de GET /listings', () => {
     it.each(INVALID)('state=%o responde 400', async (state) => {
-      const res = await request(server()).get('/listings').query({ state }).expect(400);
+      const res = await request(server())
+        .get('/listings')
+        .query({ state })
+        .expect(400);
 
       expectStateError(res);
     });
 
     it('state repetido (?state=SP&state=RJ) responde 400', async () => {
-      const res = await request(server()).get('/listings?state=SP&state=RJ').expect(400);
+      const res = await request(server())
+        .get('/listings?state=SP&state=RJ')
+        .expect(400);
 
       expectStateError(res);
     });
@@ -175,7 +215,10 @@ describe('UF em state (e2e)', () => {
       const rj = await createListing('RJ');
       await createListing('SP');
 
-      const res = await request(server()).get('/listings').query({ state: 'rj' }).expect(200);
+      const res = await request(server())
+        .get('/listings')
+        .query({ state: 'rj' })
+        .expect(200);
 
       expect(res.body.total).toBe(1);
       expect(res.body.items.map((l: { id: string }) => l.id)).toEqual([rj]);
@@ -184,8 +227,16 @@ describe('UF em state (e2e)', () => {
 
   describe('contrato no /docs-json', () => {
     type Doc = {
-      components: { schemas: Record<string, { enum?: string[]; properties?: Record<string, unknown> }> };
-      paths: Record<string, Record<string, { parameters?: { name: string; schema: unknown }[] }>>;
+      components: {
+        schemas: Record<
+          string,
+          { enum?: string[]; properties?: Record<string, unknown> }
+        >;
+      };
+      paths: Record<
+        string,
+        Record<string, { parameters?: { name: string; schema: unknown }[] }>
+      >;
     };
     let doc: Doc;
     const REF = '#/components/schemas/BrazilianState';
@@ -195,7 +246,9 @@ describe('UF em state (e2e)', () => {
     });
 
     it('o schema BrazilianState é um enum com as 27 UFs', () => {
-      expect(doc.components.schemas.BrazilianState).toMatchObject({ type: 'string' });
+      expect(doc.components.schemas.BrazilianState).toMatchObject({
+        type: 'string',
+      });
       expect(doc.components.schemas.BrazilianState.enum).toEqual(UFS);
     });
 
@@ -216,7 +269,9 @@ describe('UF em state (e2e)', () => {
     });
 
     it('o filtro state de GET /listings usa o BrazilianState', () => {
-      const param = doc.paths['/listings'].get.parameters?.find((p) => p.name === 'state');
+      const param = doc.paths['/listings'].get.parameters?.find(
+        (p) => p.name === 'state',
+      );
 
       expect(JSON.stringify(param?.schema)).toContain(REF);
     });

@@ -159,7 +159,9 @@ describe('AuthController (guards e status codes)', () => {
   });
 
   it('a classe AuthController não declara guards', () => {
-    expect(Reflect.getMetadata(GUARDS_METADATA, AuthController)).toBeUndefined();
+    expect(
+      Reflect.getMetadata(GUARDS_METADATA, AuthController),
+    ).toBeUndefined();
   });
 
   it('login responde 200 (HttpCode explícito)', () => {
