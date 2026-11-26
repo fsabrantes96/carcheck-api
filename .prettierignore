@@ -1,0 +1,9 @@
+# O prettier --write roda como processo filho e passa por cima do deny de
+# Edit: estes caminhos são editados só à mão pelo usuário ou são gerados.
+.claude/
+.agents/
+test/claude/
+/.vscode/
+/.mcp.json
+/openapi.json
+package-lock.json
