@@ -44,7 +44,8 @@ A API sobe em `http://localhost:3000`.
 
 ## Documentação da API
 
-Swagger: `http://localhost:3000/docs` Contrato OpenAPI em JSON: `http://localhost:3000/docs-json`
+- Swagger: `http://localhost:3000/docs`
+- Contrato OpenAPI em JSON: `http://localhost:3000/docs-json`
 
 O mesmo contrato fica versionado em [openapi.json](openapi.json), na raiz, para o front gerar os tipos sem subir a API. Mudou um endpoint ou um DTO? Rode `npm run openapi` e versione o arquivo junto. O CI falha se ele estiver desatualizado.
 
