@@ -253,6 +253,19 @@ const EXECUTABLE_EDIT_DENY = [
 // o spec ou trocar as constantes de hash (risco 57, item G). Um teste por regra.
 const SPEC_EDIT_DENY = ['Edit(/test/claude/**)', 'Edit(/src/claude/**)'];
 
+// Regras de Edit no CI e na config do Prettier: sem elas, o agente consegue
+// desligar no .github/workflows/ci.yml o passo do spec isolado ou o do
+// format:check sem tocar em test/claude/ (risco 57, limites do item G), editar
+// o .prettierignore, a segunda camada contra o prettier --write, e pôr no
+// .prettierrc um plugin, que é código carregado pelo Prettier no format:check
+// e no npm run format (registro do Prettier da PR #40 no risco 57). Um teste
+// por regra.
+const TOOLING_EDIT_DENY = [
+  'Edit(/.github/**)',
+  'Edit(/.prettierignore)',
+  'Edit(/.prettierrc)',
+];
+
 const MUST_BE_DENIED = [
   'git push --tags',
   'git push origin --tags',
@@ -509,6 +522,13 @@ describe('settings.json do Claude Code', () => {
 
   it.each(SPEC_EDIT_DENY)(
     'tem no deny a regra %s (spec das permissões, editado à mão pelo usuário)',
+    (rule) => {
+      expect(deny).toContain(rule);
+    },
+  );
+
+  it.each(TOOLING_EDIT_DENY)(
+    'tem no deny a regra %s (CI e formatação, editados à mão pelo usuário)',
     (rule) => {
       expect(deny).toContain(rule);
     },
