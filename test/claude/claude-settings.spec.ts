@@ -39,7 +39,7 @@ interface Settings {
 // nos dois repositórios. Este spec só trava a constante deste repositório; a
 // igualdade com o carcheck-web é conferida à mão, com o Get-FileHash nos dois.
 const SETTINGS_SHA256 =
-  '2308B79325D8FA7ECBC746AC58FD58E29E8B78E5A610F897E53FDD0840199AA9';
+  '68F880D6B10D0ADDF3ACB25846281EB628D660491D8A03B21FAB29793403172D';
 
 // Comandos do allowed-tools da ship-pr, os mesmos em Bash e em PowerShell.
 const SHIP_PR_ALLOWED_COMMANDS = [
