@@ -39,7 +39,7 @@ interface Settings {
 // nos dois repositórios. Este spec só trava a constante deste repositório; a
 // igualdade com o carcheck-web é conferida à mão, com o Get-FileHash nos dois.
 const SETTINGS_SHA256 =
-  '2308B79325D8FA7ECBC746AC58FD58E29E8B78E5A610F897E53FDD0840199AA9';
+  '68F880D6B10D0ADDF3ACB25846281EB628D660491D8A03B21FAB29793403172D';
 
 // Comandos do allowed-tools da ship-pr, os mesmos em Bash e em PowerShell.
 const SHIP_PR_ALLOWED_COMMANDS = [
@@ -252,6 +252,19 @@ const EXECUTABLE_EDIT_DENY = [
 // e o do carcheck-web (src/claude/): sem elas, o agente consegue enfraquecer
 // o spec ou trocar as constantes de hash (risco 57, item G). Um teste por regra.
 const SPEC_EDIT_DENY = ['Edit(/test/claude/**)', 'Edit(/src/claude/**)'];
+
+// Regras de Edit no CI e na config do Prettier: sem elas, o agente consegue
+// desligar no .github/workflows/ci.yml o passo do spec isolado ou o do
+// format:check sem tocar em test/claude/ (risco 57, limites do item G), editar
+// o .prettierignore, a segunda camada contra o prettier --write, e pôr no
+// .prettierrc um plugin, que é código carregado pelo Prettier no format:check
+// e no npm run format (registro do Prettier da PR #40 no risco 57). Um teste
+// por regra.
+const TOOLING_EDIT_DENY = [
+  'Edit(/.github/**)',
+  'Edit(/.prettierignore)',
+  'Edit(/.prettierrc)',
+];
 
 const MUST_BE_DENIED = [
   'git push --tags',
@@ -509,6 +522,13 @@ describe('settings.json do Claude Code', () => {
 
   it.each(SPEC_EDIT_DENY)(
     'tem no deny a regra %s (spec das permissões, editado à mão pelo usuário)',
+    (rule) => {
+      expect(deny).toContain(rule);
+    },
+  );
+
+  it.each(TOOLING_EDIT_DENY)(
+    'tem no deny a regra %s (CI e formatação, editados à mão pelo usuário)',
     (rule) => {
       expect(deny).toContain(rule);
     },
